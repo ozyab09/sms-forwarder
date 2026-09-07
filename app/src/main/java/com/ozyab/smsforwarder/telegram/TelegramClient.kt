@@ -61,12 +61,29 @@ object TelegramClient {
     }
 
     /**
-     * MTProto-путь через TDLib. Реализуется на этапе 4.
-     * Интерфейс уже согласован с [sendMessage].
+     * MTProto-путь через TDLib. Основной режим (если Prefs.useMtproto).
+     * Работает с прокси HTTP/SOCKS5/MTProto-proxy (настраиваются в TdClient).
+     * Не требует лимитов Bot API (1000 msg/day → безлимит).
      */
-    suspend fun sendMessageMtproto(text: String): Result {
-        // TODO(этап 4): TDLib + addProxy/setProxy (HTTP/SOCKS5/MTProto-proxy)
-        return Result.Err("MTProto-режим появится на этапе 4 (TDLib)")
+    suspend fun sendMessageMtproto(text: String): Result = withContext(Dispatchers.IO) {
+        val chatId = Prefs.chatId
+        if (chatId.isBlank()) return@withContext Result.Err("Chat ID не задан")
+        TdClient.sendText(chatId, text)
+    }
+
+    /** Общая отправка: MTProto (основной) → Bot API (fallback при ошибке TDLib). */
+    suspend fun sendEither(text: String): Result = withContext(Dispatchers.IO) {
+        if (Prefs.useMtproto) {
+            when (val r = TdClient.sendText(Prefs.chatId, text)) {
+                is Result.Ok -> r
+                is Result.Err -> {
+                    // TDLib не готов (первый запуск / нет сети) — fallback на Bot API
+                    sendMessage(text)
+                }
+            }
+        } else {
+            sendMessage(text)
+        }
     }
 
     /**

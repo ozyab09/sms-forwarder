@@ -66,9 +66,11 @@ SmsReceiver / CallReceiver / BootReceiver
         │
 ForwardService (Foreground, START_STICKY)
         ├── очередь + ретраи
-        └── TelegramClient
-              ├── Bot API (HTTPS + HTTP/SOCKS5 proxy) — лёгкий путь
-              └── TDLib (MTProto + HTTP/SOCKS5/MTProto proxy) — этап 4
+        └── TelegramClient.sendEither
+              ├── TdClient (MTProto/TDLib) — основной канал
+              │     ├── CheckAuthenticationBotToken (бот, без телефона)
+              │     └── AddProxy/EnableProxy: HTTP / SOCKS5 / MTProto-proxy
+              └── Bot API (HTTPS + HTTP/SOCKS5 proxy) — fallback
 ```
 
 ## 📁 Структура
@@ -79,7 +81,7 @@ sms-forwarder/
 │   ├── ui/          # MainActivity (настройки + статус)
 │   ├── receiver/    # SmsReceiver, CallReceiver, BootReceiver
 │   ├── service/     # ForwardService (фон + очередь)
-│   ├── telegram/    # TelegramClient, ProxyConfig
+│   ├── telegram/    # TelegramClient, TdClient (MTProto/TDLib), ProxyConfig
 │   └── util/        # Prefs (шифрованное хранилище), ContactNames
 ├── app/src/main/res/           # layout, strings, темы
 ├── app/src/test/               # юнит-тесты
@@ -100,6 +102,18 @@ sms-forwarder/
 ## ⚖️ Лицензия
 
 MIT — личный проект.
+
+#### TDLib (MTProto)
+
+Основной канал отправки — [TDLib](https://core.telegram.org/tdlib) через JitPack-координату
+`com.github.capullo-tech:lib-tdlib-android` (prebuilt AAR с нативными `libtdjni.so`,
+зеркало TGX-Android). Авторизация — bot-токен (`CheckAuthenticationBotToken`),
+телефон не нужен. Прокси HTTP/SOCKS5/MTProto-proxy применяются до авторизации
+через `AddProxy` + `EnableProxy`. При ошибке TDLib (первый запуск / нет сети)
+происходит fallback на Bot API.
+
+> Свежие теги JitPack-артефакта проверяются в JitPack UI; при обновлении TDLib
+> зафиксируй новый коммит в `gradle/libs.versions.toml`.
 
 ---
 

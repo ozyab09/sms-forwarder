@@ -11,6 +11,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // TDLib AAR (org.drinkless.tdlib + нативные .so) — зеркало TGX-Android prebuilt
+        maven(url = "https://jitpack.io")
     }
 }
 
