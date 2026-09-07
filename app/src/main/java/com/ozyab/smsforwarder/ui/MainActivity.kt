@@ -23,6 +23,7 @@ import com.ozyab.smsforwarder.telegram.TelegramClient
 import com.ozyab.smsforwarder.util.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 

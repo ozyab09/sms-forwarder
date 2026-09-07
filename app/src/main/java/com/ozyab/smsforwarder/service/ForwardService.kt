@@ -84,7 +84,8 @@ class ForwardService : Service() {
             workerStarted = true
             scope.launch {
                 while (true) {
-                    val text = queue.poll() ?: run {
+                    val text = queue.poll()
+                    if (text == null) {
                         delay(2_000)
                         continue
                     }
