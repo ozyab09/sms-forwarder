@@ -3,8 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// SemVer из CI-тега: версия берётся из CI_COMMIT_TAG (vX.Y.Z) или gradle.properties
-val ciTag: String? = System.getenv("CI_COMMIT_TAG") // например "v1.2.3"
+// SemVer из CI-тега: GitLab (CI_COMMIT_TAG) или GitHub Actions (GITHUB_REF_NAME)
+val ciTag: String? = System.getenv("CI_COMMIT_TAG")
+    ?: System.getenv("GITHUB_REF_NAME")?.takeIf { it.startsWith("v") }
 val semverRegex = Regex("^v(\\d+)\\.(\\d+)\\.(\\d+)$")
 val (major, minor, patch) = ciTag?.let { m ->
     semverRegex.find(m)?.destructured?.let { (a, b, c) -> Triple(a.toInt(), b.toInt(), c.toInt()) }

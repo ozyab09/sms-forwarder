@@ -17,7 +17,7 @@
 - 🚫 **Без всплывающих уведомлений** — невидимый канал `IMPORTANCE_MIN`
 - 🌙 **Работает в фоне** — Foreground Service `START_STICKY`, автостарт после перезагрузки
 - 🔒 **Токен в UI** — ввод в приложении, хранение в `EncryptedSharedPreferences`
-- 🛰️ **MTProto** — TDLib (последняя версия схемы Telegram)
+- 🛰️ **MTProto** — TDLib (последняя версия схемы Telegram) [этап 4]
 - 🌐 **Web-proxy** — HTTP / SOCKS5 / MTProto-proxy для обхода блокировок
 - 🔄 **Надёжность** — очередь недоставленных с ретраями (backoff до 5 мин)
 
@@ -36,22 +36,22 @@
 ./gradlew assembleRelease
 ```
 
-## 🔄 CI/CD (GitLab)
+## 🔄 CI/CD (GitHub Actions)
 
-Пайплайн (`.gitlab-ci.yml`) собирает APK и создаёт релизы по **SemVer**:
+Пайплайн (`.github/workflows/build.yml`) собирает APK и создаёт релизы по **SemVer**:
 
-| Этап | Триггер | Результат |
-|------|---------|-----------|
-| `build` + `test` | каждый push | debug APK, отчёты тестов/lint |
-| `release` | тег `vX.Y.Z` | подписанный release APK |
-| `publish` | тег `vX.Y.Z` | **GitLab Release** + changelog + SHA-256 |
+| Событие | Джоба | Результат |
+|---------|-------|-----------|
+| push в любую ветку / PR | `build` | debug APK + тесты + lint (артефакт) |
+| тег `vX.Y.Z` | `release` | подписанный release APK + **GitHub Release** с changelog |
 
-Теги: `v<major>.<minor>.<patch>` (например `v1.2.0`).
+Теги: `v<major>.<minor>.<patch>` (например `v1.2.0`). Версия берётся из тега
+(`GITHUB_REF_NAME`), `versionCode` = `major*10000 + minor*100 + patch`.
 
-Переменные CI (masked):
+Секреты репозитория (Settings → Secrets and variables → Actions):
 
-| Переменная | Назначение |
-|---|---|
+| Секрет | Назначение |
+|--------|-----------|
 | `KEYSTORE_BASE64` | keystore для подписи (base64) |
 | `KEYSTORE_PASSWORD` | пароль keystore |
 | `KEY_ALIAS` | алиас ключа |
@@ -84,7 +84,7 @@ sms-forwarder/
 ├── app/src/main/res/           # layout, strings, темы
 ├── app/src/test/               # юнит-тесты
 ├── gradle/                     # wrapper, libs.versions.toml
-├── .gitlab-ci.yml              # CI/CD + SemVer релизы
+├── .github/workflows/build.yml # CI/CD + SemVer релизы (GitHub Actions)
 └── docs/TECH_TASK.md           # полное ТЗ
 ```
 
@@ -103,4 +103,4 @@ MIT — личный проект.
 
 ---
 
-_ТЗ: [`docs/TECH_TASK.md`](docs/TECH_TASK.md) · Сборка: GitLab CI/CD + SemVer_
+_ТЗ: [`docs/TECH_TASK.md`](docs/TECH_TASK.md) · Сборка: GitHub Actions + SemVer_
