@@ -80,7 +80,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.service)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
+    // TDLib (MTProto) — нативные .so идут в AAR (libtdjni.so, arm64-v8a/armeabi-v7a/x86/x86_64)
+    implementation(libs.tdlib)
 
     testImplementation(libs.junit)
-    // TDLib (MTProto) — этап 4: implementation(libs.tdlib)
 }
