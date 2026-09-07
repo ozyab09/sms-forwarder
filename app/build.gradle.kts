@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -41,7 +43,7 @@ android {
                     val keystoreFile = File("${buildDir}/ci-keystore.jks")
                     if (!keystoreFile.exists()) {
                         keystoreFile.writeBytes(
-                            java.util.Base64.getDecoder().decode(System.getenv("KEYSTORE_BASE64"))
+                            Base64.getDecoder().decode(System.getenv("KEYSTORE_BASE64"))
                         )
                     }
                     storeFile = keystoreFile
