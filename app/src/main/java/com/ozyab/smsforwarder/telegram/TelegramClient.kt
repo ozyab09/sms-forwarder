@@ -122,7 +122,7 @@ object TelegramClient {
                     null
                 } else {
                     val username = json.optJSONObject("result")?.optString("username", "")
-                    username.takeIf { it.isNotBlank() }
+                    username?.takeIf { it.isNotBlank() }
                 }
             }
         } catch (e: Exception) {
