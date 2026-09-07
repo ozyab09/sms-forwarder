@@ -14,10 +14,11 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * - Авторизация по bot-токену (CheckAuthenticationBotToken), без телефона.
  * - Поддержка прокси: HTTP / SOCKS5 / MTProto-proxy (AddProxy + EnableProxy).
- * - Hебольшая файловая БД для сессии (filesDir/tdlib) — пере-авторизация не нужна.
+ * - Небольшая файловая БД для сессии (filesDir/tdlib) — пере-авторизация не нужна.
  * - Инициализация ленивая, идемпотентная; вызывать из фоновых потоков.
  *
  * Никаких секретов в логах: ошибки возвращаются текстом без токена.
+ * Результаты — TelegramClient.Result (Ok/Err), совместимы с Bot API путём.
  */
 object TdClient {
 
@@ -30,9 +31,6 @@ object TdClient {
     private val ready = AtomicBoolean(false)
     @Volatile private var client: Client? = null
     @Volatile private var initError: String? = null
-
-    /** Результат отправки — совместим с TelegramClient.Result. */
-    typealias Result = TelegramClient.Result
 
     /**
      * Гарантирует создание клиента и авторизацию.
@@ -118,13 +116,13 @@ object TdClient {
     }
 
     /** Отправка текста в чат (числовой user-id или @username). */
-    fun sendText(chatIdOrUsername: String, text: String): Result {
+    fun sendText(chatIdOrUsername: String, text: String): TelegramClient.Result {
         val err = ensureInit()
-        if (err != null) return Result.Err(err)
+        if (err != null) return TelegramClient.Result.Err(err)
 
-        val c = client ?: return Result.Err("TDLib: клиент не инициализирован")
+        val c = client ?: return TelegramClient.Result.Err("TDLib: клиент не инициализирован")
         val chatId = resolveChatId(c, chatIdOrUsername)
-            ?: return Result.Err("TDLib: не удалось найти чат $chatIdOrUsername")
+            ?: return TelegramClient.Result.Err("TDLib: не удалось найти чат $chatIdOrUsername")
 
         val f = CompletableFuture<TdApi.Object>()
         val send = TdApi.SendMessage().apply {
@@ -133,21 +131,16 @@ object TdClient {
                 TdApi.FormattedText(text, null), null, false
             )
         }
-        c.send(send, { res ->
-            when (res) {
-                is TdApi.Message -> f.complete(res)
-                else -> f.complete(res)
-            }
-        }, ::onException)
+        c.send(send, { res -> f.complete(res) }, ::onException)
 
         return try {
             when (val r = f.get(TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
-                is TdApi.Message -> Result.Ok(r.id)
-                is TdApi.Error -> Result.Err("TDLib: ${r.message}")
-                else -> Result.Err("TDLib: неожиданный ответ")
+                is TdApi.Message -> TelegramClient.Result.Ok(r.id)
+                is TdApi.Error -> TelegramClient.Result.Err("TDLib: ${r.message}")
+                else -> TelegramClient.Result.Err("TDLib: неожиданный ответ")
             }
         } catch (e: Exception) {
-            Result.Err("TDLib: ${e.message ?: e.javaClass.simpleName}")
+            TelegramClient.Result.Err("TDLib: ${e.message ?: e.javaClass.simpleName}")
         }
     }
 
@@ -156,15 +149,33 @@ object TdClient {
         val t = target.trim()
         if (t.isEmpty()) return null
         return if (t.startsWith("@")) {
-            val f = CompletableFuture<TdApi.Object>()
-            c.send(TdApi.SearchPublicChat(t.removePrefix("@")), { r -> f.complete(r) }, ::onException)
-            (try { f.get(TIMEOUT_MS, TimeUnit.MILLISECONDS) } catch (e: Exception) { null }) as? TdApi.Chat
-        }?.let { it.id } ?: run {
+            searchChatByUsername(c, t.removePrefix("@"))
+        } else {
             val userId = t.toLongOrNull() ?: return null
-            val f = CompletableFuture<TdApi.Object>()
-            c.send(TdApi.CreatePrivateChat(userId, true), { r -> f.complete(r) }, ::onException)
-            (try { f.get(TIMEOUT_MS, TimeUnit.MILLISECONDS) } catch (e: Exception) { null }) as? TdApi.Chat
-        }?.id
+            createPrivateChat(c, userId)
+        }
+    }
+
+    private fun searchChatByUsername(c: Client, username: String): Long? {
+        val f = CompletableFuture<TdApi.Object>()
+        c.send(TdApi.SearchPublicChat(username), { r -> f.complete(r) }, ::onException)
+        val res = try {
+            f.get(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        } catch (e: Exception) {
+            null
+        }
+        return (res as? TdApi.Chat)?.id
+    }
+
+    private fun createPrivateChat(c: Client, userId: Long): Long? {
+        val f = CompletableFuture<TdApi.Object>()
+        c.send(TdApi.CreatePrivateChat(userId, true), { r -> f.complete(r) }, ::onException)
+        val res = try {
+            f.get(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        } catch (e: Exception) {
+            null
+        }
+        return (res as? TdApi.Chat)?.id
     }
 
     /** Добавление и включение прокси (HTTP / SOCKS5 / MTProto), если настроен. */
