@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+app/build/
+local.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Android
+*.apk
+*.aab
+*.keystore
+*.jks
+captures/
+
+# Локальные ключи/секреты (никогда не коммитить)
+keystore.properties
+signing.properties
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Логи
+*.log

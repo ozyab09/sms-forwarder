@@ -1,0 +1,83 @@
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+// SemVer из CI-тега: версия берётся из CI_COMMIT_TAG (vX.Y.Z) или gradle.properties
+val ciTag: String? = System.getenv("CI_COMMIT_TAG") // например "v1.2.3"
+val semverRegex = Regex("^v(\\d+)\\.(\\d+)\\.(\\d+)$")
+val (major, minor, patch) = ciTag?.let { m ->
+    semverRegex.find(m)?.destructured?.let { (a, b, c) -> Triple(a.toInt(), b.toInt(), c.toInt()) }
+} ?: Triple(
+    (project.findProperty("VERSION_MAJOR") as String? ?: "0").toInt(),
+    (project.findProperty("VERSION_MINOR") as String? ?: "1").toInt(),
+    (project.findProperty("VERSION_PATCH") as String? ?: "0").toInt(),
+)
+
+android {
+    namespace = "com.ozyab.smsforwarder"
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.ozyab.smsforwarder"
+        minSdk = 26
+        targetSdk = 34
+        versionCode = major * 10000 + minor * 100 + patch
+        versionName = "$major.$minor.$patch"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            // Подпись из CI-переменных (релизные сборки только в GitLab CI)
+            signingConfig = if (System.getenv("KEYSTORE_BASE64") != null) {
+                signingConfigs.create("ci") {
+                    val keystoreFile = File("${buildDir}/ci-keystore.jks")
+                    if (!keystoreFile.exists()) {
+                        keystoreFile.writeBytes(
+                            java.util.Base64.getDecoder().decode(System.getenv("KEYSTORE_BASE64"))
+                        )
+                    }
+                    storeFile = keystoreFile
+                    storePassword = System.getenv("KEYSTORE_PASSWORD")
+                    keyAlias = System.getenv("KEY_ALIAS")
+                    keyPassword = System.getenv("KEY_PASSWORD")
+                }
+            } else {
+                null
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = "17" }
+
+    buildFeatures {
+        viewBinding = true
+    }
+
+    // Локально нет Android SDK — сборка только в CI. Выключаем локальную проверку AGP.
+    // (Комментарий: чтобы собрать локально, нужен ANDROID_HOME со SDK 34.)
+}
+
+dependencies {
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.security.crypto)
+    implementation(libs.androidx.lifecycle.service)
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.coroutines.android)
+
+    testImplementation(libs.junit)
+    // TDLib (MTProto) — этап 4: implementation(libs.tdlib)
+}

@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- ===== Telegram ===== -->
+        <TextView
+            style="@style/TextAppearance.Material3.TitleMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Telegram"
+            android:textStyle="bold" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="@string/pref_bot_token_hint"
+            app:endIconMode="password_toggle">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_bot_token"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPassword"
+                android:maxLines="1" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="@string/pref_chat_id_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_chat_id"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:maxLines="1" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_get_my_id"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/btn_get_my_id" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_test"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/btn_test_connection" />
+
+        <!-- ===== Прокси ===== -->
+        <TextView
+            style="@style/TextAppearance.Material3.TitleMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/pref_proxy_section"
+            android:textStyle="bold" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/sw_proxy"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/pref_proxy_enabled" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/til_proxy_type"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="@string/pref_proxy_type">
+
+            <AutoCompleteTextView
+                android:id="@+id/act_proxy_type"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="@string/pref_proxy_host">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_proxy_host"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textUri"
+                android:maxLines="1" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="@string/pref_proxy_port">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_proxy_port"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:maxLines="1" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="@string/pref_proxy_user">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_proxy_user"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:maxLines="1" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:hint="@string/pref_proxy_pass"
+            app:endIconMode="password_toggle">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_proxy_pass"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textPassword"
+                android:maxLines="1" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- ===== Переключатели ===== -->
+        <TextView
+            style="@style/TextAppearance.Material3.TitleMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Что пересылать"
+            android:textStyle="bold" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/sw_sms"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/pref_sms_enabled"
+            android:checked="true" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/sw_calls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/pref_calls_enabled"
+            android:checked="true" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/sw_short_codes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/pref_short_codes_filter"
+            android:checked="true" />
+
+        <!-- ===== Сервис ===== -->
+        <TextView
+            style="@style/TextAppearance.Material3.TitleMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/status_service"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_start"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/btn_start" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_stop"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="@string/btn_stop" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="🔒 Токен хранится в шифрованном хранилище устройства.\nСлужба работает в фоне без всплывающих уведомлений.\nНа Android 13+ можно отключить канал уведомления — пересылка продолжится."
+            android:textSize="12sp"
+            android:textColor="@android:color/darker_gray" />
+
+    </LinearLayout>
+</ScrollView>
