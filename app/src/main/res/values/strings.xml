@@ -1,0 +1,53 @@
+<resources>
+    <string name="app_name">SMS Forwarder</string>
+
+    <!-- Экраны -->
+    <string name="tab_settings">Настройки</string>
+    <string name="tab_status">Статус</string>
+
+    <!-- Настройки -->
+    <string name="pref_bot_token">Токен бота</string>
+    <string name="pref_bot_token_hint">Токен от @BotFather (вида 123456:ABC-def…)</string>
+    <string name="pref_chat_id">Chat ID</string>
+    <string name="pref_chat_id_hint">Числовой ID чата (или @username)</string>
+    <string name="btn_get_my_id">Получить мой ID</string>
+    <string name="btn_test_connection">Проверить подключение</string>
+
+    <!-- Прокси -->
+    <string name="pref_proxy_section">Прокси (для обхода блокировок)</string>
+    <string name="pref_proxy_enabled">Использовать прокси</string>
+    <string name="pref_proxy_type">Тип прокси</string>
+    <string name="proxy_type_none">Без прокси</string>
+    <string name="proxy_type_http">HTTP</string>
+    <string name="proxy_type_socks5">SOCKS5</string>
+    <string name="proxy_type_mtproto">MTProto-proxy</string>
+    <string name="pref_proxy_host">Хост</string>
+    <string name="pref_proxy_port">Порт</string>
+    <string name="pref_proxy_user">Логин (опционально)</string>
+    <string name="pref_proxy_pass">Пароль (опционально)</string>
+
+    <!-- Переключатели -->
+    <string name="pref_sms_enabled">Пересылать SMS</string>
+    <string name="pref_calls_enabled">Пересылать пропущенные</string>
+    <string name="pref_short_codes_filter">Игнорировать короткие номера (банки/реклама)</string>
+
+    <!-- Статус -->
+    <string name="status_service">Статус сервиса</string>
+    <string name="status_running">Работает</string>
+    <string name="status_stopped">Остановлен</string>
+    <string name="btn_start">Запустить</string>
+    <string name="btn_stop">Остановить</string>
+    <string name="status_sent_count">Переслано: %1$d</string>
+    <string name="status_last_events">Последние события</string>
+
+    <!-- Общие -->
+    <string name="save">Сохранить</string>
+    <string name="cancel">Отмена</string>
+    <string name="ok">OK</string>
+
+    <!-- Уведомление (невидимое, для Foreground Service) -->
+    <string name="notification_channel_name">Служба пересылки</string>
+    <string name="notification_channel_desc">Фоновая служба пересылки SMS и вызовов</string>
+    <string name="notification_title">SMS Forwarder работает</string>
+    <string name="notification_text">Пересылка сообщений активна</string>
+</resources>

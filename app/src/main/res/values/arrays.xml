@@ -1,0 +1,15 @@
+<resources>
+    <string-array name="proxy_type_labels">
+        <item>Без прокси</item>
+        <item>HTTP</item>
+        <item>SOCKS5</item>
+        <item>MTProto-proxy</item>
+    </string-array>
+
+    <string-array name="proxy_type_values">
+        <item>none</item>
+        <item>http</item>
+        <item>socks5</item>
+        <item>mtproto</item>
+    </string-array>
+</resources>
