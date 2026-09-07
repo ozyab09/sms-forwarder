@@ -3,8 +3,8 @@ import java.util.Base64
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
 }
 
 // SemVer из CI-тега: GitLab (CI_COMMIT_TAG) или GitHub Actions (GITHUB_REF_NAME)
