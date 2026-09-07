@@ -2,8 +2,8 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
-# TDLib (добавится на этапе 4) — нативная библиотека, JNI
-# -keep class org.drinkless.tdlib.** { *; }
+# TDLib — нативная библиотека (JNI), обфускация сломает вызовы
+-keep class org.drinkless.tdlib.** { *; }
 
 # OkHttp
 -dontwarn okhttp3.**

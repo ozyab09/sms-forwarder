@@ -31,6 +31,7 @@ object Prefs {
     const val KEY_PROXY_PORT = "proxy_port"
     const val KEY_PROXY_USER = "proxy_user"
     const val KEY_SENT_COUNT = "sent_count"
+    const val KEY_USE_MTProto = "use_mtproto"
 
     private lateinit var secure: SharedPreferences
     private lateinit var plain: SharedPreferences
@@ -97,6 +98,11 @@ object Prefs {
     var sentCount: Int
         get() = plain.getInt(KEY_SENT_COUNT, 0)
         set(v) = plain.edit().putInt(KEY_SENT_COUNT, v).apply()
+
+    /** Режим отправки: true = MTProto (TDLib) основной + Bot API fallback; false = только Bot API. */
+    var useMtproto: Boolean
+        get() = plain.getBoolean(KEY_USE_MTProto, true)
+        set(v) = plain.edit().putBoolean(KEY_USE_MTProto, v).apply()
 
     fun isConfigured(): Boolean = botToken.isNotBlank() && chatId.isNotBlank()
 

@@ -1,8 +1,10 @@
 import java.util.Base64
 
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
 }
 
 // SemVer из CI-тега: GitLab (CI_COMMIT_TAG) или GitHub Actions (GITHUB_REF_NAME)
@@ -19,7 +21,7 @@ val (major, minor, patch) = ciTag?.let { m ->
 
 android {
     namespace = "com.ozyab.smsforwarder"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.ozyab.smsforwarder"
@@ -61,7 +63,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
 
     buildFeatures {
         viewBinding = true
@@ -80,7 +86,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.service)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
+    // TDLib (MTProto) — нативные .so идут в AAR (libtdjni.so, arm64-v8a/armeabi-v7a/x86/x86_64)
+    implementation(libs.tdlib)
 
     testImplementation(libs.junit)
-    // TDLib (MTProto) — этап 4: implementation(libs.tdlib)
 }
