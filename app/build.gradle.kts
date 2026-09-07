@@ -19,7 +19,7 @@ val (major, minor, patch) = ciTag?.let { m ->
 
 android {
     namespace = "com.ozyab.smsforwarder"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.ozyab.smsforwarder"
