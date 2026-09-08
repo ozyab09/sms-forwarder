@@ -7,7 +7,6 @@ permissions:
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -32,9 +31,11 @@ jobs:
 
       - name: Check if tag exists
         id: check-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           VER="${{ steps.read-version.outputs.version }}"
-          if git rev-parse "refs/tags/$VER" >/dev/null 2>&1; then
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$VER" >/dev/null 2>&1; then
             echo "Тег $VER уже существует — пропускаю"
             echo "created=false" >> "$GITHUB_OUTPUT"
           else
@@ -77,10 +78,11 @@ jobs:
             });
             console.log(`Workflow запущен по тегу ${ver}`);
 
-  # Проверка кода: PR и push в main (debug APK + тесты + lint)
+  # Проверка кода: только на PR (debug APK + тесты + lint).
+  # На push в main не собираем — только создание тега (Auto tag).
   build:
     name: Build debug APK
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -109,11 +111,11 @@ jobs:
           name: app-debug
           path: app/build/outputs/apk/debug/*.apk
 
-  # Только по тегу: push тега v* ИЛИ workflow_dispatch от Auto tag.
-  # Версия берётся из GITHUB_REF_NAME (в обоих случаях это имя тега).
+  # Только по workflow_dispatch от Auto tag (или вручную из UI по выбранному тегу).
+  # Версия берётся из GITHUB_REF_NAME (имя тега).
   release:
     name: Build release APK
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

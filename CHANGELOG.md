@@ -6,6 +6,20 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-08
+
+### Добавлено
+- **Новый логотип приложения**: PNG mipmap всех размеров + adaptive icon
+  (белый фон), roundIcon
+
+### Изменено
+- **Документация**: MTProto/TDLib полностью убраны из README и TECH_TASK
+  (остался только Bot API + HTTP/SOCKS5 прокси)
+
+### Исправлено
+- Deprecation warning `EXTRA_INCOMING_NUMBER` (подавлен `@Suppress`)
+- Странное имя джобы `Build release APK (${{ github.ref_name }})` в CI
+
 ## [0.4.0] - 2026-09-08
 
 ### Добавлено
