@@ -36,9 +36,9 @@
         android:usesCleartextTraffic="false"
         tools:targetApi="34">
 
-        <!-- Главный экран настроек -->
+        <!-- Экран онбординга — показывается при первом запуске, потом прыгает в Main -->
         <activity
-            android:name=".ui.MainActivity"
+            android:name=".ui.OnboardingActivity"
             android:exported="true"
             android:launchMode="singleTop">
             <intent-filter>
@@ -46,6 +46,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Главный экран настроек -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="false"
+            android:launchMode="singleTop" />
 
         <!-- Фоновый сервис пересылки -->
         <service
