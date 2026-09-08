@@ -99,7 +99,15 @@ object TdClient {
                 }
             }
 
-            client = Client.create(handler, ::onException, ::onException)
+            try {
+                client = Client.create(handler, ::onException, ::onException)
+            } catch (e: Throwable) {
+                // UnsatisfiedLinkError / ExceptionInInitializerError —
+                // TDLib native library (.so) не загружена (AAR не упакован, архитектура)
+                client = null
+                initError = "TDLib: не удалось загрузить нативную библиотеку (${e.javaClass.simpleName})"
+                return initError
+            }
 
             // Прокси применяем сразу (до авторизации — стандартный паттерн TDLib).
             applyProxy()
@@ -208,8 +216,11 @@ object TdClient {
     private fun onException(e: Throwable) {
         if (e is Client.ExecutionException) {
             initError = "TDLib: ${e.message}"
+        } else {
+            // UnsatisfiedLinkError, ExceptionInInitializerError и прочее —
+            // ловим все ошибки, чтобы нативный краш не убивал приложение.
+            initError = "TDLib: ошибка ${e.javaClass.simpleName}: ${e.message}"
         }
-        // Остальные исключения игнорируем — результат придёт через ResultHandler.
     }
 
     /** Универсальный send с обработкой TdApi.Error. */
