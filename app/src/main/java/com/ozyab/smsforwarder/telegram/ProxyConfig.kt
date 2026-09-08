@@ -22,16 +22,20 @@ object ProxyConfig {
         val pass: String,
     )
 
-    fun current(): ProxySettings = ProxySettings(
-        type = Prefs.proxyType,
-        host = Prefs.proxyHost,
-        port = Prefs.proxyPort,
-        user = Prefs.proxyUser,
-        pass = Prefs.proxyPass,
-    )
+    fun current(): ProxySettings? {
+        if (!Prefs.proxyEnabled) return null
+        return ProxySettings(
+            type = Prefs.proxyType,
+            host = Prefs.proxyHost,
+            port = Prefs.proxyPort,
+            user = Prefs.proxyUser,
+            pass = Prefs.proxyPass,
+        )
+    }
 
-    /** OkHttp-прокси для HTTP/SOCKS5. */
-    fun okHttpProxy(s: ProxySettings): Pair<Proxy?, String?> {
+    /** OkHttp-прокси для HTTP/SOCKS5. Возвращает null если прокси отключен. */
+    fun okHttpProxy(s: ProxySettings?): Pair<Proxy?, String?> {
+        if (s == null) return null to null
         return when (s.type) {
             "http" -> Proxy(Proxy.Type.HTTP, InetSocketAddress(s.host, s.port)) to null
             "socks5" -> Proxy(Proxy.Type.SOCKS, InetSocketAddress(s.host, s.port)) to null
@@ -43,6 +47,11 @@ object ProxyConfig {
         val s = current()
         val (proxy, err) = okHttpProxy(s)
         if (err != null) return OkHttpClient.Builder().build() to err
+        if (proxy == null) return OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(20, TimeUnit.SECONDS)
+            .build() to null
 
         val b = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
