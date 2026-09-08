@@ -72,6 +72,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 
     // Локально нет Android SDK — сборка только в CI. Выключаем локальную проверку AGP.
