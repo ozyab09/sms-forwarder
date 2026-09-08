@@ -7,11 +7,9 @@ import okhttp3.Request
 import org.json.JSONObject
 
 /**
- * Отправка сообщений в Telegram.
+ * Отправка сообщений в Telegram через Bot API (HTTPS).
  *
- * Режимы:
- *  1. Bot API (HTTPS, с прокси HTTP/SOCKS5) — лёгкий, работает сейчас.
- *  2. TDLib / MTProto — этап 4 (заглушка, интерфейс готов).
+ * Поддержка прокси: HTTP / SOCKS5 (см. ProxyConfig).
  *
  * Никаких секретов в логах: ошибки возвращаются текстом без токена.
  */
@@ -57,32 +55,6 @@ object TelegramClient {
             Result.Err(e.message ?: e.javaClass.simpleName)
         } finally {
             client.dispatcher.executorService.shutdown()
-        }
-    }
-
-    /**
-     * MTProto-путь через TDLib. Основной режим (если Prefs.useMtproto).
-     * Работает с прокси HTTP/SOCKS5/MTProto-proxy (настраиваются в TdClient).
-     * Не требует лимитов Bot API (1000 msg/day → безлимит).
-     */
-    suspend fun sendMessageMtproto(text: String): Result = withContext(Dispatchers.IO) {
-        val chatId = Prefs.chatId
-        if (chatId.isBlank()) return@withContext Result.Err("Chat ID не задан")
-        TdClient.sendText(chatId, text)
-    }
-
-    /** Общая отправка: MTProto (основной) → Bot API (fallback при ошибке TDLib). */
-    suspend fun sendEither(text: String): Result = withContext(Dispatchers.IO) {
-        if (Prefs.useMtproto) {
-            when (val r = TdClient.sendText(Prefs.chatId, text)) {
-                is Result.Ok -> r
-                is Result.Err -> {
-                    // TDLib не готов (первый запуск / нет сети) — fallback на Bot API
-                    sendMessage(text)
-                }
-            }
-        } else {
-            sendMessage(text)
         }
     }
 

@@ -173,7 +173,7 @@ class MainActivity : AppCompatActivity() {
         btnStart.setOnClickListener {
             savePrefs()
             if (!Prefs.isConfigured()) {
-                Toast.makeText(this, "Сначала укажи токен и Chat ID", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, R.string.toast_enter_token_and_chatid, Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
             ForwardService.start(this, "🟢 SMS Forwarder запущен")
@@ -219,14 +219,14 @@ class MainActivity : AppCompatActivity() {
         val token = Prefs.botToken
         val chatId = Prefs.chatId
         if (token.isBlank() || chatId.isBlank()) {
-            Toast.makeText(this, "Укажи токен и Chat ID", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.toast_enter_token_and_chatid, Toast.LENGTH_LONG).show()
             return
         }
         btnTest.isEnabled = false
-        btnTest.text = "Проверка…"
+        btnTest.text = getString(R.string.testing)
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                TelegramClient.sendEither("✅ SMS Forwarder: проверка связи")
+                TelegramClient.sendMessage("✅ SMS Forwarder: проверка связи")
             }
             btnTest.isEnabled = true
             btnTest.text = getString(R.string.btn_test_connection)

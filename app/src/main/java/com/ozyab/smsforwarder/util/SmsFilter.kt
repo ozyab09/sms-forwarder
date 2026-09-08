@@ -53,10 +53,15 @@ object SmsFilter {
             .split(',')
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-        if (list.isEmpty()) return false // белый список пуст — ничего не пересылаем
+        return whitelistMatches(sender, list)
+    }
+
+    /** Чистая версия без Prefs — удобно тестировать. */
+    fun whitelistMatches(sender: String, whitelist: List<String>): Boolean {
+        if (whitelist.isEmpty()) return false // белый список пуст — ничего не пересылаем
 
         val digits = sender.filter { it.isDigit() }
-        return list.any { pattern ->
+        return whitelist.any { pattern ->
             if (pattern.contains('*')) {
                 // Шаблон: +79* → начинается с +79; *123* → содержит 123
                 val p = pattern.replace(".", "\\.").replace("*", ".*")

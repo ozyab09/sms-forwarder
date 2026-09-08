@@ -89,7 +89,7 @@ class ForwardService : Service() {
                         delay(2_000)
                         continue
                     }
-                    val result = TelegramClient.sendEither(text)
+                    val result = TelegramClient.sendMessage(text)
                     when (result) {
                         is TelegramClient.Result.Ok -> {
                             Prefs.sentCount = Prefs.sentCount + 1

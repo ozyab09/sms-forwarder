@@ -91,7 +91,7 @@ class OnboardingActivity : AppCompatActivity() {
             STEP_TOKEN -> {
                 val token = etToken?.text?.toString()?.trim().orEmpty()
                 if (token.isBlank()) {
-                    Toast.makeText(this, "Укажи токен бота", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, R.string.toast_enter_token, Toast.LENGTH_SHORT).show()
                     return
                 }
                 Prefs.botToken = token
@@ -116,7 +116,7 @@ class OnboardingActivity : AppCompatActivity() {
         btnBack.visibility = if (pos == STEP_WELCOME) View.INVISIBLE else View.VISIBLE
         btnNext.text = when (pos) {
             STEP_DONE -> getString(R.string.btn_start)
-            else -> "Далее"
+            else -> getString(R.string.onboarding_next)
         }
 
         // Точки-индикатор
@@ -186,24 +186,24 @@ class OnboardingActivity : AppCompatActivity() {
 
                     btnResolve?.setOnClickListener {
                         if (Prefs.botToken.isBlank()) {
-                            Toast.makeText(this@OnboardingActivity, "Сначала укажи токен", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@OnboardingActivity, R.string.toast_enter_token_first, Toast.LENGTH_SHORT).show()
                             return@setOnClickListener
                         }
                         btnResolve.isEnabled = false
-                        btnResolve.text = "Определение…"
+                        btnResolve.text = getString(R.string.onboarding_resolving)
                         scope.launch {
                             val result = withContext(Dispatchers.IO) {
                                 TelegramClient.resolveChatId()
                             }
                             btnResolve.isEnabled = true
-                            btnResolve.text = "Определить автоматически"
+                            btnResolve.text = getString(R.string.onboarding_resolve)
                             when (result) {
                                 is TelegramClient.Result.Ok -> {
                                     etChatId?.setText(result.messageId.toString())
-                                    tvStatus?.text = "✅ Chat ID определён"
+                                    tvStatus?.text = getString(R.string.onboarding_chat_ok)
                                 }
                                 is TelegramClient.Result.Err -> {
-                                    tvStatus?.text = "⚠ Напиши боту /start, затем нажми ещё раз"
+                                    tvStatus?.text = getString(R.string.onboarding_chat_try_again)
                                 }
                             }
                         }
