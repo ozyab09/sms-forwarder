@@ -7,6 +7,7 @@ import android.provider.Telephony
 import com.ozyab.smsforwarder.service.ForwardService
 import com.ozyab.smsforwarder.util.ContactNames
 import com.ozyab.smsforwarder.util.Prefs
+import com.ozyab.smsforwarder.util.SmsFilter
 import com.ozyab.smsforwarder.util.formatTimestamp
 
 /**
@@ -31,11 +32,8 @@ class SmsReceiver : BroadcastReceiver() {
         val sender = messages.firstOrNull()?.originatingAddress ?: "Неизвестный"
         val ts = messages.firstOrNull()?.timestampMillis ?: System.currentTimeMillis()
 
-        // Фильтр коротких номеров (банки/реклама) — < 5 цифр, не начинается с +
-        if (Prefs.shortCodesFilter) {
-            val digits = sender.filter { it.isDigit() }
-            if (digits.length in 1..4) return
-        }
+        // Детальные фильтры (короткие номера, block-regex, режим contacts/whitelist)
+        if (!SmsFilter.shouldForward(context, sender, body)) return
 
         val name = ContactNames.lookup(context, sender)
         val time = formatTimestamp(ts)
