@@ -2,99 +2,30 @@ name: Build
 
 permissions:
   contents: write
-  actions: write
 
 on:
-  push:
-    branches: [main]
   pull_request:
-  workflow_dispatch:
+  push:
+    tags: ["v*"]
 
 jobs:
-  # Только push в main: читает версию из toml, создаёт тег (если ещё нет)
-  # и запускает release-workflow по этому тегу. Релизная сборка тут НЕ выполняется.
-  release-tag:
-    name: Auto tag
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Read version from libs.versions.toml
-        id: read-version
-        run: |
-          MAJOR=$(grep -oP 'versionMajor = "\K[0-9]+' gradle/libs.versions.toml)
-          MINOR=$(grep -oP 'versionMinor = "\K[0-9]+' gradle/libs.versions.toml)
-          PATCH=$(grep -oP 'versionPatch = "\K[0-9]+' gradle/libs.versions.toml)
-          echo "version=v$MAJOR.$MINOR.$PATCH" >> "$GITHUB_OUTPUT"
-          echo "version=v$MAJOR.$MINOR.$PATCH"
-
-      - name: Check if tag exists
-        id: check-tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VER="${{ steps.read-version.outputs.version }}"
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$VER" >/dev/null 2>&1; then
-            echo "Тег $VER уже существует — пропускаю"
-            echo "created=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "created=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create tag via API
-        if: steps.check-tag.outputs.created == 'true'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const ver = '${{ steps.read-version.outputs.version }}';
-            try {
-              await github.rest.git.createRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: `refs/tags/${ver}`,
-                sha: context.sha
-              });
-              console.log(`Тег ${ver} создан`);
-            } catch (e) {
-              if (e.status === 422) {
-                console.log(`Тег ${ver} уже существует — ок`);
-              } else {
-                throw e;
-              }
-            }
-
-      - name: Trigger release workflow by tag
-        if: steps.check-tag.outputs.created == 'true'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const ver = '${{ steps.read-version.outputs.version }}';
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'build.yml',
-              ref: ver
-            });
-            console.log(`Workflow запущен по тегу ${ver}`);
-
-  # Проверка кода: только на PR (debug APK + тесты + lint).
-  # На push в main не собираем — только создание тега (Auto tag).
   build:
     name: Build debug APK
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@35986be24d65b7e7d5ce9b9d3b4e7b3d5b5d5d5d # v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@8e04c939a0a8b5e5c5c5c5c5c5c5c5c5c5c5c5c5 # v4
+        with:
+          cache: gradle
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -106,34 +37,28 @@ jobs:
         run: ./gradlew testDebugUnitTest lintDebug --no-daemon
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/*.apk
 
-  # Только по workflow_dispatch от Auto tag (или вручную из UI по выбранному тегу).
-  # Версия берётся из GITHUB_REF_NAME (имя тега).
   release:
     name: Build release APK
-    if: github.event_name == 'workflow_dispatch'
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Determine version
-        id: version
-        run: |
-          echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          echo "RELEASE_VERSION=${GITHUB_REF_NAME}"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@35986be24d65b7e7d5ce9b9d3b4e7b3d5b5d5d5d # v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@8e04c939a0a8b5e5c5c5c5c5c5c5c5c5c5c5c5c5 # v4
+        with:
+          cache: gradle
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -147,15 +72,15 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload release APK
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: app-release-${{ steps.version.outputs.version }}
+          name: app-release-${{ github.ref_name }}
           path: app/build/outputs/apk/release/*.apk
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@de2c0eb89de2a093876385947365aca7b0e5f844 # v2
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           generate_release_notes: true
           files: app/build/outputs/apk/release/*.apk
