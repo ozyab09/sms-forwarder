@@ -2,10 +2,10 @@
 
 > Пересылка входящих SMS и пропущенных вызовов с Android в Telegram.
 > Работает в фоне **без всплывающих уведомлений**, не выгружается системой.
-> Поддержка **MTProto** и **web-proxy** для Telegram.
+> HTTP/SOCKS5 прокси для обхода блокировок.
 
 ![android](https://img.shields.io/badge/Android-8.0%2B-green)
-![kotlin](https://img.shields.io/badge/Kotlin-1.9-orange)
+![kotlin](https://img.shields.io/badge/Kotlin-2.2-orange)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
 ---
@@ -17,8 +17,7 @@
 - 🚫 **Без всплывающих уведомлений** — невидимый канал `IMPORTANCE_MIN`
 - 🌙 **Работает в фоне** — Foreground Service `START_STICKY`, автостарт после перезагрузки
 - 🔒 **Токен в UI** — ввод в приложении, хранение в `EncryptedSharedPreferences`
-- 🛰️ **MTProto** — TDLib (последняя версия схемы Telegram) [этап 4]
-- 🌐 **Web-proxy** — HTTP / SOCKS5 / MTProto-proxy для обхода блокировок
+- 🌐 **Web-proxy** — HTTP / SOCKS5 для обхода блокировок
 - 🔄 **Надёжность** — очередь недоставленных с ретраями (backoff до 5 мин)
 
 ## 📦 Сборка
@@ -66,11 +65,8 @@ SmsReceiver / CallReceiver / BootReceiver
         │
 ForwardService (Foreground, START_STICKY)
         ├── очередь + ретраи
-        └── TelegramClient.sendEither
-              ├── TdClient (MTProto/TDLib) — основной канал
-              │     ├── CheckAuthenticationBotToken (бот, без телефона)
-              │     └── AddProxy/EnableProxy: HTTP / SOCKS5 / MTProto-proxy
-              └── Bot API (HTTPS + HTTP/SOCKS5 proxy) — fallback
+        └── TelegramClient.sendBot
+              └── Bot API (HTTPS + HTTP/SOCKS5 proxy)
 ```
 
 ## 📁 Структура
@@ -81,7 +77,7 @@ sms-forwarder/
 │   ├── ui/          # MainActivity (настройки + статус)
 │   ├── receiver/    # SmsReceiver, CallReceiver, BootReceiver
 │   ├── service/     # ForwardService (фон + очередь)
-│   ├── telegram/    # TelegramClient, TdClient (MTProto/TDLib), ProxyConfig
+│   ├── telegram/    # TelegramClient, ProxyConfig
 │   └── util/        # Prefs (шифрованное хранилище), ContactNames
 ├── app/src/main/res/           # layout, strings, темы
 ├── app/src/test/               # юнит-тесты
@@ -102,19 +98,5 @@ sms-forwarder/
 ## ⚖️ Лицензия
 
 MIT — личный проект.
-
-#### TDLib (MTProto)
-
-Основной канал отправки — [TDLib](https://core.telegram.org/tdlib) через JitPack-координату
-`com.github.capullo-tech:lib-tdlib-android` (prebuilt AAR с нативными `libtdjni.so`,
-зеркало TGX-Android). Авторизация — bot-токен (`CheckAuthenticationBotToken`),
-телефон не нужен. Прокси HTTP/SOCKS5/MTProto-proxy применяются до авторизации
-через `AddProxy` + `EnableProxy`. При ошибке TDLib (первый запуск / нет сети)
-происходит fallback на Bot API.
-
-> Свежие теги JitPack-артефакта проверяются в JitPack UI; при обновлении TDLib
-> зафиксируй новый коммит в `gradle/libs.versions.toml`.
-
----
 
 _ТЗ: [`docs/TECH_TASK.md`](docs/TECH_TASK.md) · Сборка: GitHub Actions + SemVer_
