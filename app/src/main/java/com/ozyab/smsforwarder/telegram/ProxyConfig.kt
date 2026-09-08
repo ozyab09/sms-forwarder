@@ -10,13 +10,12 @@ import java.util.concurrent.TimeUnit
 /**
  * Конфигурация прокси для OkHttp (Bot API).
  *
- * Поддерживает HTTP и SOCKS5. MTProto-proxy обрабатывается на уровне TDLib
- * (этап 4) — здесь он не поддерживается и отключается с понятной ошибкой.
+ * Поддерживает HTTP и SOCKS5.
  */
 object ProxyConfig {
 
     data class ProxySettings(
-        val type: String,   // "none" | "http" | "socks5" | "mtproto"
+        val type: String,   // "http" | "socks5"
         val host: String,
         val port: Int,
         val user: String,
@@ -31,13 +30,11 @@ object ProxyConfig {
         pass = Prefs.proxyPass,
     )
 
-    /** OkHttp-прокси для HTTP/SOCKS5. Для mtproto возвращает null + ошибка. */
+    /** OkHttp-прокси для HTTP/SOCKS5. */
     fun okHttpProxy(s: ProxySettings): Pair<Proxy?, String?> {
         return when (s.type) {
-            "none" -> null to null
             "http" -> Proxy(Proxy.Type.HTTP, InetSocketAddress(s.host, s.port)) to null
             "socks5" -> Proxy(Proxy.Type.SOCKS, InetSocketAddress(s.host, s.port)) to null
-            "mtproto" -> null to "MTProto-proxy поддерживается только в режиме TDLib (этап 4)"
             else -> null to "Неизвестный тип прокси: ${s.type}"
         }
     }
