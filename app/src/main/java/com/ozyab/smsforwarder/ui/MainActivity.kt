@@ -52,6 +52,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etProxyPass: TextInputEditText
     private lateinit var proxyTypeValues: Array<String>
 
+    // Фильтры SMS
+    private lateinit var actFilterMode: AutoCompleteTextView
+    private lateinit var etWhitelist: TextInputEditText
+    private lateinit var etBlockRegex: TextInputEditText
+    private lateinit var filterModeValues: Array<String>
+
     private val scope = CoroutineScope(Dispatchers.Main)
 
     // Запрос разрешений (SMS + телефон + контакты) — один раз при старте
@@ -94,6 +100,15 @@ class MainActivity : AppCompatActivity() {
         actProxyType.setAdapter(
             ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
         )
+
+        actFilterMode = findViewById(R.id.act_filter_mode)
+        etWhitelist = findViewById(R.id.et_whitelist)
+        etBlockRegex = findViewById(R.id.et_block_regex)
+        filterModeValues = resources.getStringArray(R.array.filter_mode_values)
+        val filterLabels = resources.getStringArray(R.array.filter_mode_labels)
+        actFilterMode.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_list_item_1, filterLabels)
+        )
     }
 
     private fun loadPrefs() {
@@ -110,6 +125,11 @@ class MainActivity : AppCompatActivity() {
         etProxyPort.setText(if (Prefs.proxyPort > 0) Prefs.proxyPort.toString() else "")
         etProxyUser.setText(Prefs.proxyUser)
         etProxyPass.setText(Prefs.proxyPass)
+
+        val modeIdx = filterModeValues.indexOf(Prefs.filterMode).coerceAtLeast(0)
+        actFilterMode.setText(resources.getStringArray(R.array.filter_mode_labels)[modeIdx], false)
+        etWhitelist.setText(Prefs.smsWhitelist)
+        etBlockRegex.setText(Prefs.smsBlockRegex)
     }
 
     private fun setupActions() {
@@ -182,6 +202,16 @@ class MainActivity : AppCompatActivity() {
         Prefs.proxyPort = etProxyPort.text?.toString()?.trim()?.toIntOrNull() ?: 0
         Prefs.proxyUser = etProxyUser.text?.toString()?.trim().orEmpty()
         Prefs.proxyPass = etProxyPass.text?.toString()?.trim().orEmpty()
+
+        Prefs.filterMode = filterModeValues[filterLabelsIndexOf(actFilterMode)]
+        Prefs.smsWhitelist = etWhitelist.text?.toString()?.trim().orEmpty()
+        Prefs.smsBlockRegex = etBlockRegex.text?.toString()?.trim().orEmpty()
+    }
+
+    private fun filterLabelsIndexOf(act: AutoCompleteTextView): Int {
+        val label = act.text?.toString()?.trim().orEmpty()
+        val labels = resources.getStringArray(R.array.filter_mode_labels)
+        return labels.indexOf(label).coerceAtLeast(0)
     }
 
     private fun testConnection() {

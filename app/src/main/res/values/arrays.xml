@@ -12,4 +12,16 @@
         <item>socks5</item>
         <item>mtproto</item>
     </string-array>
+
+    <string-array name="filter_mode_labels">
+        <item>Все SMS</item>
+        <item>Только от контактов</item>
+        <item>Белый список</item>
+    </string-array>
+
+    <string-array name="filter_mode_values">
+        <item>all</item>
+        <item>contacts</item>
+        <item>whitelist</item>
+    </string-array>
 </resources>

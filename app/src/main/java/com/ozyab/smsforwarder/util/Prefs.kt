@@ -34,6 +34,11 @@ object Prefs {
     const val KEY_USE_MTProto = "use_mtproto"
     const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
 
+    // Детальные фильтры SMS
+    const val KEY_FILTER_MODE = "filter_mode" // "all" | "contacts" | "whitelist"
+    const val KEY_SMS_WHITELIST = "sms_whitelist" // число через запятую
+    const val KEY_SMS_BLOCK_REGEX = "sms_block_regex" // regex (однострочный)
+
     private lateinit var secure: SharedPreferences
     private lateinit var plain: SharedPreferences
 
@@ -109,6 +114,21 @@ object Prefs {
     var onboardingComplete: Boolean
         get() = plain.getBoolean(KEY_ONBOARDING_COMPLETE, false)
         set(v) = plain.edit().putBoolean(KEY_ONBOARDING_COMPLETE, v).apply()
+
+    // --- Детальные фильтры SMS ---
+    var filterMode: String
+        get() = plain.getString(KEY_FILTER_MODE, "all") ?: "all"
+        set(v) = plain.edit().putString(KEY_FILTER_MODE, v).apply()
+
+    /** Белый список номеров (через запятую, допускаются шаблоны с *). */
+    var smsWhitelist: String
+        get() = plain.getString(KEY_SMS_WHITELIST, "") ?: ""
+        set(v) = plain.edit().putString(KEY_SMS_WHITELIST, v).apply()
+
+    /** Regex: если совпал — SMS не пересылаем. */
+    var smsBlockRegex: String
+        get() = plain.getString(KEY_SMS_BLOCK_REGEX, "") ?: ""
+        set(v) = plain.edit().putString(KEY_SMS_BLOCK_REGEX, v).apply()
 
     fun isConfigured(): Boolean = botToken.isNotBlank() && chatId.isNotBlank()
 
