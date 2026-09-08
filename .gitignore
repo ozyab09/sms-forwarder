@@ -25,4 +25,4 @@ signing.properties
 Thumbs.db
 
 # Логи
-*.log
+*.logkeystore/
