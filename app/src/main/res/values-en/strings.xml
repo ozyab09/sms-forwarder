@@ -1,0 +1,75 @@
+<resources>
+    <string name="app_name">SMS Forwarder</string>
+
+    <!-- Screens -->
+    <string name="tab_settings">Settings</string>
+    <string name="tab_status">Status</string>
+
+    <!-- Settings -->
+    <string name="pref_bot_token">Bot token</string>
+    <string name="pref_bot_token_hint">Token from @BotFather (like 123456:ABC-def…)</string>
+    <string name="pref_chat_id">Chat ID</string>
+    <string name="pref_chat_id_hint">Numeric chat ID (or @username)</string>
+    <string name="btn_get_my_id">Get my ID</string>
+    <string name="btn_test_connection">Test connection</string>
+
+    <!-- Proxy -->
+    <string name="pref_proxy_section">Proxy (to bypass blocking)</string>
+    <string name="pref_proxy_enabled">Use proxy</string>
+    <string name="pref_proxy_type">Proxy type</string>
+    <string name="proxy_type_http">HTTP</string>
+    <string name="proxy_type_socks5">SOCKS5</string>
+    <string name="pref_proxy_host">Host</string>
+    <string name="pref_proxy_port">Port</string>
+    <string name="pref_proxy_user">Login (optional)</string>
+    <string name="pref_proxy_pass">Password (optional)</string>
+
+    <!-- Toggles -->
+    <string name="pref_sms_enabled">Forward SMS</string>
+    <string name="pref_calls_enabled">Forward missed calls</string>
+    <string name="pref_short_codes_filter">Ignore short numbers (banks/ads)</string>
+
+    <!-- SMS filters -->
+    <string name="pref_filters_section">SMS filters</string>
+    <string name="pref_filter_mode">Which SMS to forward</string>
+    <string name="pref_whitelist">Number whitelist</string>
+    <string name="pref_whitelist_hint">Comma-separated numbers; * — wildcard (e.g. +79*, *123*)</string>
+    <string name="pref_block_regex">Block by regex</string>
+    <string name="pref_block_regex_hint">If matched in number or text — don\'t forward</string>
+
+    <!-- Status -->
+    <string name="status_service">Service status</string>
+    <string name="status_running">Running</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="btn_start">Start</string>
+    <string name="btn_stop">Stop</string>
+    <string name="status_sent_count">Forwarded: %1$d</string>
+    <string name="status_last_events">Recent events</string>
+
+    <!-- Common -->
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+
+    <!-- Notification (invisible, for Foreground Service) -->
+    <string name="notification_channel_name">Forwarding service</string>
+    <string name="notification_channel_desc">Background service forwarding SMS and calls</string>
+    <string name="notification_title">SMS Forwarder is running</string>
+    <string name="notification_text">Message forwarding is active</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Welcome 👋</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_back">Back</string>
+    <string name="onboarding_resolve">Detect automatically</string>
+    <string name="onboarding_resolving">Detecting…</string>
+    <string name="onboarding_chat_ok">✅ Chat ID detected</string>
+    <string name="onboarding_chat_try_again">⚠ Send /start to the bot, then try again</string>
+
+    <!-- Hardcoded strings from code (now localized) -->
+    <string name="toast_enter_token">Enter the bot token</string>
+    <string name="toast_enter_token_first">First enter the token</string>
+    <string name="toast_enter_token_and_chatid">Enter the token and Chat ID</string>
+    <string name="testing">Testing…</string>
+    <string name="write_to_bot_first">Send /start to the bot, then try again</string>
+</resources>

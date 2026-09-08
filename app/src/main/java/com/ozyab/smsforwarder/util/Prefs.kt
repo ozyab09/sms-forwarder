@@ -26,12 +26,11 @@ object Prefs {
     const val KEY_CALLS_ENABLED = "calls_enabled"
     const val KEY_SHORT_CODES_FILTER = "short_codes_filter"
     const val KEY_PROXY_ENABLED = "proxy_enabled"
-    const val KEY_PROXY_TYPE = "proxy_type" // "none" | "http" | "socks5" | "mtproto"
+    const val KEY_PROXY_TYPE = "proxy_type" // "http" | "socks5"
     const val KEY_PROXY_HOST = "proxy_host"
     const val KEY_PROXY_PORT = "proxy_port"
     const val KEY_PROXY_USER = "proxy_user"
     const val KEY_SENT_COUNT = "sent_count"
-    const val KEY_USE_MTProto = "use_mtproto"
     const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
 
     // Детальные фильтры SMS
@@ -86,7 +85,7 @@ object Prefs {
         set(v) = plain.edit().putBoolean(KEY_PROXY_ENABLED, v).apply()
 
     var proxyType: String
-        get() = plain.getString(KEY_PROXY_TYPE, "none") ?: "none"
+        get() = plain.getString(KEY_PROXY_TYPE, "http") ?: "http"
         set(v) = plain.edit().putString(KEY_PROXY_TYPE, v).apply()
 
     var proxyHost: String
@@ -104,11 +103,6 @@ object Prefs {
     var sentCount: Int
         get() = plain.getInt(KEY_SENT_COUNT, 0)
         set(v) = plain.edit().putInt(KEY_SENT_COUNT, v).apply()
-
-    /** Режим отправки: true = MTProto (TDLib) основной + Bot API fallback; false = только Bot API. */
-    var useMtproto: Boolean
-        get() = plain.getBoolean(KEY_USE_MTProto, true)
-        set(v) = plain.edit().putBoolean(KEY_USE_MTProto, v).apply()
 
     /** Прошёл ли пользователь онбординг. */
     var onboardingComplete: Boolean
@@ -134,7 +128,7 @@ object Prefs {
 
     /** Прокси настроен полностью? */
     fun isProxyComplete(): Boolean {
-        if (!proxyEnabled || proxyType == "none") return true
+        if (!proxyEnabled) return true
         return proxyHost.isNotBlank() && proxyPort > 0
     }
 }
