@@ -85,6 +85,7 @@ class CallReceiver : android.content.BroadcastReceiver() {
         if (!Prefs.callsEnabled) return
 
         val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
+        @Suppress("DEPRECATION")
         val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
 
         val text = CallReceiverLogic.onPhoneStateChanged(context, state, number) ?: return

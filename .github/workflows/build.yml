@@ -41,7 +41,7 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
 
   release:
-    name: Build release APK (${{ github.ref_name }})
+    name: Build release APK
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
