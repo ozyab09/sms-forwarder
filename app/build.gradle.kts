@@ -42,8 +42,9 @@ android {
             // Подпись из CI-переменных (релизные сборки только в GitLab CI)
             signingConfig = if (System.getenv("KEYSTORE_BASE64") != null) {
                 signingConfigs.create("ci") {
-                    val keystoreFile = File("${buildDir}/ci-keystore.jks")
+                    val keystoreFile = File(buildDir, "ci-keystore.jks")
                     if (!keystoreFile.exists()) {
+                        keystoreFile.parentFile?.mkdirs()
                         keystoreFile.writeBytes(
                             Base64.getDecoder().decode(System.getenv("KEYSTORE_BASE64"))
                         )
