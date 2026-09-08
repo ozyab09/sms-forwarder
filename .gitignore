@@ -25,4 +25,7 @@ signing.properties
 Thumbs.db
 
 # Логи
-*.logkeystore/
+*.log
+
+# Локальный keystore (секреты только в CI-переменных GitHub)
+keystore/

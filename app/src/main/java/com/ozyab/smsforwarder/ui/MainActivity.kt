@@ -226,7 +226,7 @@ class MainActivity : AppCompatActivity() {
         btnTest.text = "Проверка…"
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                TelegramClient.sendEither("✅ SMS Forwarder: проверка связи")
+                TelegramClient.sendMessage("✅ SMS Forwarder: проверка связи")
             }
             btnTest.isEnabled = true
             btnTest.text = getString(R.string.btn_test_connection)

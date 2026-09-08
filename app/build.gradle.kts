@@ -25,10 +25,11 @@ android {
 
     defaultConfig {
         applicationId = "com.ozyab.smsforwarder"
-        minSdk = 26
+        minSdk = 29
         targetSdk = 34
         versionCode = major * 10000 + minor * 100 + patch
         versionName = "$major.$minor.$patch"
+        resConfigs("ru")
     }
 
     buildTypes {
@@ -74,6 +75,17 @@ android {
         viewBinding = true
     }
 
+    // Облегчение дистрибутива: только реальные ABI телефонов.
+    // В release оба ABI собираются отдельными APK (app-arm64-v8a-release.apk, app-armeabi-v7a-release.apk).
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
+        }
+    }
+
     // Локально нет Android SDK — сборка только в CI. Выключаем локальную проверку AGP.
     // (Комментарий: чтобы собрать локально, нужен ANDROID_HOME со SDK 34.)
 }
@@ -88,8 +100,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.service)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
-    // TDLib (MTProto) — нативные .so идут в AAR (libtdjni.so, arm64-v8a/armeabi-v7a/x86/x86_64)
-    implementation(libs.tdlib)
 
     testImplementation(libs.junit)
 }
