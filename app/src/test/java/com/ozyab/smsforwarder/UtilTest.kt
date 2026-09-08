@@ -1,5 +1,6 @@
 package com.ozyab.smsforwarder
 
+import com.ozyab.smsforwarder.update.UpdateChecker
 import com.ozyab.smsforwarder.util.SmsFilter
 import com.ozyab.smsforwarder.util.formatTimestamp
 import org.junit.Assert.assertEquals
@@ -61,5 +62,24 @@ class UtilTest {
     fun `whitelist ignores empty entries`() {
         val list = listOf("", "  ", "+79161234567")
         assertTrue(SmsFilter.whitelistMatches("+79161234567", list))
+    }
+
+    // ===== Сравнение версий для автообновления =====
+
+    @Test
+    fun `compareVersions detects newer`() {
+        assertTrue(UpdateChecker.compareVersions("0.3.0", "0.2.1") > 0)
+        assertTrue(UpdateChecker.compareVersions("1.0.0", "0.9.9") > 0)
+        assertTrue(UpdateChecker.compareVersions("0.2.10", "0.2.9") > 0)
+    }
+
+    @Test
+    fun `compareVersions equal`() {
+        assertEquals(0, UpdateChecker.compareVersions("0.2.1", "0.2.1"))
+    }
+
+    @Test
+    fun `compareVersions older`() {
+        assertTrue(UpdateChecker.compareVersions("0.1.0", "0.2.0") < 0)
     }
 }
