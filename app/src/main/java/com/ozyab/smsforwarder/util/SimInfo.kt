@@ -2,7 +2,6 @@ package com.ozyab.smsforwarder.util
 
 import android.content.Context
 import android.telephony.SubscriptionManager
-import android.telephony.TelephonyManager
 
 /**
  * Определение SIM-карты, на которую поступило сообщение/вызов.
@@ -12,8 +11,7 @@ import android.telephony.TelephonyManager
 object SimInfo {
 
     /**
-     * @param subscriptionId subscriptionId из SMS (или null для вызовов —
-     *                      берём первую активную SIM).
+     * @param subscriptionId subscriptionId из SMS (или null — первая активная SIM).
      */
     fun describe(context: Context, subscriptionId: Int?): String? {
         val sm = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
@@ -24,17 +22,7 @@ object SimInfo {
 
         val slot = sub.simSlotIndex + 1
         val carrier = sub.carrierName?.toString().orEmpty()
-            .ifBlank { operatorNameForSlot(context, sub.simSlotIndex) }
         if (carrier.isBlank()) return "Sim$slot"
         return "Sim$slot $carrier"
-    }
-
-    private fun operatorNameForSlot(context: Context, slotIndex: Int): String {
-        return try {
-            val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-            tm.getSimOperatorNameForPhone(slotIndex)
-        } catch (e: Exception) {
-            ""
-        }
     }
 }
