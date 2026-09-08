@@ -26,3 +26,6 @@ Thumbs.db
 
 # Логи
 *.logkeystore/
+
+# Локальный keystore (секреты только в CI-переменных GitHub)
+keystore/
