@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-08
+
 ### Добавлено
 - **TDLib (MTProto) как основной канал отправки** (`TdClient`):
   - Авторизация бота через `CheckAuthenticationBotToken` (без телефона)
@@ -15,6 +17,14 @@
 - Переключатель режима `useMtproto` в настройках
 - JitPack-зависимость `com.github.capullo-tech:lib-tdlib-android` (prebuilt AAR,
   нативные .so в jniLibs) — фиксированный коммит `11850efeb5`
+- **Онбординг** (`OnboardingActivity`, ViewPager2): приветствие → токен → chat ID → готово
+  - Автоопределение chat ID через `resolveChatId`
+  - Повторные запуски сразу в `MainActivity` (`Prefs.onboardingComplete`)
+- **Детальные фильтры SMS** (`SmsFilter`): режимы all / contacts / whitelist, block-regex
+  - UI-секция «Фильтры SMS» (режим, белый список, regex)
+  - `SmsReceiver` переведён на `SmsFilter.shouldForward`
+- **Релизная сборка APK**: подписанный release-APK в CI, GitHub Release по тегам v*.
+  Keystore передаётся через секреты (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`)
 
 ## [0.1.0] - 2026-09-07
 
