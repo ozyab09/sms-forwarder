@@ -1,25 +1,31 @@
 package com.ozyab.smsforwarder.ui
 
 import android.Manifest
+import android.app.DownloadManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.PowerManager
 import android.provider.Settings
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
+import com.ozyab.smsforwarder.BuildConfig
 import com.ozyab.smsforwarder.R
 import com.ozyab.smsforwarder.service.ForwardService
 import com.ozyab.smsforwarder.telegram.TelegramClient
+import com.ozyab.smsforwarder.update.UpdateChecker
 import com.ozyab.smsforwarder.util.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +81,7 @@ class MainActivity : AppCompatActivity() {
         setupActions()
 
         requestNeededPermissions()
+        checkForUpdates()
     }
 
     private fun bindViews() {
@@ -269,6 +276,49 @@ class MainActivity : AppCompatActivity() {
             } catch (_: Exception) {
                 // не критично — можно через настройки вручную
             }
+        }
+    }
+
+    /** Проверка новой версии на GitHub при каждом запуске. */
+    private fun checkForUpdates() {
+        scope.launch {
+            val info = UpdateChecker.check() ?: return@launch
+            showUpdateDialog(info)
+        }
+    }
+
+    private fun showUpdateDialog(info: UpdateChecker.UpdateInfo) {
+        val msg = buildString {
+            appendLine("Доступна новая версия ${info.latestVersion}")
+            appendLine("Текущая: ${BuildConfig.VERSION_NAME}")
+            appendLine()
+            if (info.notes.isNotBlank()) {
+                appendLine(info.notes.take(500))
+            }
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Обновление")
+            .setMessage(msg)
+            .setPositiveButton("Скачать и установить") { _, _ ->
+                downloadApk(info.apkUrl)
+            }
+            .setNegativeButton("Позже", null)
+            .show()
+    }
+
+    private fun downloadApk(url: String) {
+        try {
+            val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val req = DownloadManager.Request(Uri.parse(url)).apply {
+                setTitle("SMS Forwarder ${BuildConfig.VERSION_NAME} → обновление")
+                setDescription("Загрузка APK…")
+                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "sms-forwarder-update.apk")
+            }
+            dm.enqueue(req)
+            Toast.makeText(this, "Загрузка обновления…", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Не удалось начать загрузку: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
