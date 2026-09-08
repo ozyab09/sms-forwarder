@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🎉 Готово!"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:textColor="@color/onboarding_title"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Всё настроено!\n\nSMS и пропущенные вызовы будут\nпересылаться в Telegram."
+        android:textSize="16sp"
+        android:textColor="@color/onboarding_subtitle"
+        android:gravity="center"
+        android:lineSpacingExtra="6dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="\nПолный экран настроек доступен\nв главном меню: прокси, фильтры, статус."
+        android:textSize="13sp"
+        android:textColor="@color/onboarding_subtitle"
+        android:gravity="center"
+        android:layout_marginTop="16dp" />
+</LinearLayout>

@@ -10,6 +10,7 @@ lifecycle = "2.8.3"
 okhttp = "4.12.0"
 coroutines = "1.8.1"
 junit = "4.13.2"
+viewpager = "1.1.0-beta02"
 # TDLib (MTProto) — AAR с нативными библиотеками (libtdjni.so + OpenSSL), зеркало TGX-Android
 # Фиксированный коммит capullo-tech/lib-tdlib-android (JitPack, сборка verified "ok")
 tdlib = "11850efeb5"
@@ -19,6 +20,7 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+viewpager2 = { group = "androidx.viewpager2", name = "viewpager2", version.ref = "viewpager" }
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 androidx-lifecycle-service = { group = "androidx.lifecycle", name = "lifecycle-service", version.ref = "lifecycle" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }

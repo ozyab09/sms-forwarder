@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🔑 Шаг 1 из 3"
+        android:textSize="14sp"
+        android:textColor="@color/onboarding_accent"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Токен бота"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="@color/onboarding_title"
+        android:layout_marginBottom="12dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="1. Открой @BotFather в Telegram\n2. Создай бота: /newbot\n3. Скопируй токен вида 123456:ABC-def…"
+        android:textSize="15sp"
+        android:textColor="@color/onboarding_subtitle"
+        android:lineSpacingExtra="6dp"
+        android:layout_marginBottom="20dp" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Токен от BotFather"
+        app:endIconMode="password_toggle"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_onb_token"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textPassword"
+            android:maxLines="1" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Токен хранится только на устройстве, в зашифрованном виде 🔒"
+        android:textSize="12sp"
+        android:textColor="@color/onboarding_subtitle"
+        android:layout_marginTop="12dp" />
+</LinearLayout>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="onboarding_bg">#FFFFFF</color>
+    <color name="onboarding_title">#1A1A2E</color>
+    <color name="onboarding_subtitle">#6E6E85</color>
+    <color name="onboarding_accent">#2A9D8F</color>
+    <color name="onboarding_active_dot">#2A9D8F</color>
+    <color name="onboarding_inactive_dot">#D3D3E0</color>
+</resources>

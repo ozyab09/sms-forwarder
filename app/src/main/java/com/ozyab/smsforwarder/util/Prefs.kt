@@ -32,6 +32,7 @@ object Prefs {
     const val KEY_PROXY_USER = "proxy_user"
     const val KEY_SENT_COUNT = "sent_count"
     const val KEY_USE_MTProto = "use_mtproto"
+    const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
 
     private lateinit var secure: SharedPreferences
     private lateinit var plain: SharedPreferences
@@ -103,6 +104,11 @@ object Prefs {
     var useMtproto: Boolean
         get() = plain.getBoolean(KEY_USE_MTProto, true)
         set(v) = plain.edit().putBoolean(KEY_USE_MTProto, v).apply()
+
+    /** Прошёл ли пользователь онбординг. */
+    var onboardingComplete: Boolean
+        get() = plain.getBoolean(KEY_ONBOARDING_COMPLETE, false)
+        set(v) = plain.edit().putBoolean(KEY_ONBOARDING_COMPLETE, v).apply()
 
     fun isConfigured(): Boolean = botToken.isNotBlank() && chatId.isNotBlank()
 
