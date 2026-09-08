@@ -29,7 +29,7 @@ android {
         targetSdk = 34
         versionCode = major * 10000 + minor * 100 + patch
         versionName = "$major.$minor.$patch"
-        resConfigs("ru")
+        resConfigs("ru", "en")
     }
 
     buildTypes {

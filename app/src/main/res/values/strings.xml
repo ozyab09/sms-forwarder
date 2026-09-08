@@ -65,4 +65,11 @@
     <string name="onboarding_resolving">Определение…</string>
     <string name="onboarding_chat_ok">✅ Chat ID определён</string>
     <string name="onboarding_chat_try_again">⚠ Напиши боту /start, затем нажми ещё раз</string>
+
+    <!-- Строки из кода (локализованы) -->
+    <string name="toast_enter_token">Укажи токен бота</string>
+    <string name="toast_enter_token_first">Сначала укажи токен</string>
+    <string name="toast_enter_token_and_chatid">Сначала укажи токен и Chat ID</string>
+    <string name="testing">Проверка…</string>
+    <string name="write_to_bot_first">Напиши боту /start, затем нажми ещё раз</string>
 </resources>
