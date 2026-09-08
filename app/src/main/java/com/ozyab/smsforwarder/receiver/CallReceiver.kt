@@ -5,6 +5,7 @@ import android.content.Intent
 import android.telephony.TelephonyManager
 import com.ozyab.smsforwarder.util.ContactNames
 import com.ozyab.smsforwarder.util.Prefs
+import com.ozyab.smsforwarder.util.SimInfo
 import com.ozyab.smsforwarder.util.formatTimestamp
 
 /**
@@ -37,8 +38,11 @@ object CallReceiverLogic {
                 if (missed != null && looksMissed(context, missed)) {
                     val name = ContactNames.lookup(context, missed)
                     val time = formatTimestamp(System.currentTimeMillis())
+                    // SIM: из PHONE_STATE нет subscriptionId — берём первую активную SIM
+                    val sim = SimInfo.describe(context, null)
                     return buildString {
                         appendLine("📵 Пропущенный [$time]")
+                        if (sim != null) appendLine("SIM: $sim")
                         appendLine("От: $missed${if (name != null) " ($name)" else ""}")
                     }
                 }

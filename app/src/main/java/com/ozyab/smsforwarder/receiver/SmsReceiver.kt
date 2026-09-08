@@ -4,9 +4,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
+import android.telephony.SubscriptionManager
 import com.ozyab.smsforwarder.service.ForwardService
 import com.ozyab.smsforwarder.util.ContactNames
 import com.ozyab.smsforwarder.util.Prefs
+import com.ozyab.smsforwarder.util.SimInfo
 import com.ozyab.smsforwarder.util.SmsFilter
 import com.ozyab.smsforwarder.util.formatTimestamp
 
@@ -37,9 +39,15 @@ class SmsReceiver : BroadcastReceiver() {
 
         val name = ContactNames.lookup(context, sender)
         val time = formatTimestamp(ts)
+        // SIM-слот и оператор: берём subscriptionId из интента (на какую SIM пришло)
+        val subId = if (android.os.Build.VERSION.SDK_INT >= 24)
+            intent.getIntExtra("subscription", -1).takeIf { it > 0 }
+        else null
+        val sim = SimInfo.describe(context, subId)
 
         val text = buildString {
             appendLine("📩 SMS [$time]")
+            if (sim != null) appendLine("SIM: $sim")
             appendLine("От: $sender${if (name != null) " ($name)" else ""}")
             appendLine("─".repeat(30))
             append(body)
