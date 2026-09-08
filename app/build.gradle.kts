@@ -7,16 +7,15 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-// SemVer из CI-тега: GitLab (CI_COMMIT_TAG) или GitHub Actions (GITHUB_REF_NAME)
-val ciTag: String? = System.getenv("CI_COMMIT_TAG")
-    ?: System.getenv("GITHUB_REF_NAME")?.takeIf { it.startsWith("v") }
+// SemVer из CI-тега (GITHUB_REF_NAME) или из gradle/libs.versions.toml (локально/debug)
+val ciTag: String? = System.getenv("GITHUB_REF_NAME")?.takeIf { it.startsWith("v") }
 val semverRegex = Regex("^v(\\d+)\\.(\\d+)\\.(\\d+)$")
 val (major, minor, patch) = ciTag?.let { m ->
     semverRegex.find(m)?.destructured?.let { (a, b, c) -> Triple(a.toInt(), b.toInt(), c.toInt()) }
 } ?: Triple(
-    (project.findProperty("VERSION_MAJOR") as String? ?: "0").toInt(),
-    (project.findProperty("VERSION_MINOR") as String? ?: "1").toInt(),
-    (project.findProperty("VERSION_PATCH") as String? ?: "0").toInt(),
+    libs.versions.versionMajor.get().toInt(),
+    libs.versions.versionMinor.get().toInt(),
+    libs.versions.versionPatch.get().toInt(),
 )
 
 android {
