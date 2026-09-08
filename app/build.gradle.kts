@@ -82,6 +82,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.viewpager2)
     implementation(libs.androidx.security.crypto)
     implementation(libs.androidx.lifecycle.service)
     implementation(libs.okhttp)

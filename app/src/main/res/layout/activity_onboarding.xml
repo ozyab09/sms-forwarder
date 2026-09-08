@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/onboarding_bg"
+    android:gravity="center">
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/view_pager"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Точки-индикатор -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <View android:id="@+id/dot_0"
+            android:layout_width="10dp" android:layout_height="10dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/onboarding_dot" />
+        <View android:id="@+id/dot_1"
+            android:layout_width="10dp" android:layout_height="10dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/onboarding_dot" />
+        <View android:id="@+id/dot_2"
+            android:layout_width="10dp" android:layout_height="10dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/onboarding_dot" />
+        <View android:id="@+id/dot_3"
+            android:layout_width="10dp" android:layout_height="10dp"
+            android:layout_margin="4dp"
+            android:background="@drawable/onboarding_dot" />
+    </LinearLayout>
+
+    <!-- Кнопки навигации -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="24dp"
+        android:paddingBottom="24dp"
+        android:gravity="center_vertical">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_onboarding_back"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Назад"
+            android:visibility="invisible" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_onboarding_next"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Далее" />
+    </LinearLayout>
+</LinearLayout>

@@ -50,4 +50,13 @@
     <string name="notification_channel_desc">Фоновая служба пересылки SMS и вызовов</string>
     <string name="notification_title">SMS Forwarder работает</string>
     <string name="notification_text">Пересылка сообщений активна</string>
+
+    <!-- Онбординг -->
+    <string name="onboarding_welcome_title">Добро пожаловать 👋</string>
+    <string name="onboarding_next">Далее</string>
+    <string name="onboarding_back">Назад</string>
+    <string name="onboarding_resolve">Определить автоматически</string>
+    <string name="onboarding_resolving">Определение…</string>
+    <string name="onboarding_chat_ok">✅ Chat ID определён</string>
+    <string name="onboarding_chat_try_again">⚠ Напиши боту /start, затем нажми ещё раз</string>
 </resources>
