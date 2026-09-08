@@ -10,6 +10,51 @@ on:
   pull_request:
 
 jobs:
+  release-tag:
+    name: Auto-release (тег + релиз)
+    # Автосоздание тега vX.Y.Z при мерже в main (если тега ещё нет); тег триггерит release-джобу
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read-version.outputs.version }}
+      created: ${{ steps.create-tag.outputs.created }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version from libs.versions.toml
+        id: read-version
+        run: |
+          MAJOR=$(grep -oP 'versionMajor = "\K[0-9]+' gradle/libs.versions.toml)
+          MINOR=$(grep -oP 'versionMinor = "\K[0-9]+' gradle/libs.versions.toml)
+          PATCH=$(grep -oP 'versionPatch = "\K[0-9]+' gradle/libs.versions.toml)
+          echo "version=v$MAJOR.$MINOR.$PATCH" >> "$GITHUB_OUTPUT"
+          echo "version=v$MAJOR.$MINOR.$PATCH"
+
+      - name: Check if tag exists
+        id: check-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ steps.read-version.outputs.version }}"
+          if git rev-parse "refs/tags/$VER" >/dev/null 2>&1; then
+            echo "Тег $VER уже существует — пропускаю"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.check-tag.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ steps.read-version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$VER"
+          git push origin "$VER"
+          echo "Тег $VER создан → запущен релиз"
+
   build:
     name: Build debug APK
     runs-on: ubuntu-latest
