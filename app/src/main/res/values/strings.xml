@@ -13,8 +13,8 @@
     <string name="btn_get_my_id">Получить мой ID</string>
     <string name="btn_test_connection">Проверить подключение</string>
 
-    <!-- Прокси -->
-    <string name="pref_proxy_section">Прокси (для обхода блокировок)</string>
+    <!-- Прокси / каналы -->
+    <string name="pref_proxy_section">Каналы отправки</string>
     <string name="pref_proxy_enabled">Использовать прокси</string>
     <string name="pref_proxy_type">Тип прокси</string>
     <string name="proxy_type_http">HTTP</string>
@@ -23,6 +23,18 @@
     <string name="pref_proxy_port">Порт</string>
     <string name="pref_proxy_user">Логин (опционально)</string>
     <string name="pref_proxy_pass">Пароль (опционально)</string>
+    <string name="channels_add_proxy">+ Добавить прокси</string>
+    <string name="channels_direct">Без прокси</string>
+    <string name="channels_proxy_name">Название канала</string>
+    <string name="channels_proxy_edit">Редактировать прокси</string>
+    <string name="channels_proxy_delete">Удалить канал?</string>
+    <string name="channels_proxy_delete_confirm">Канал «%1$s» будет удалён.</string>
+    <string name="channels_no_proxies">Нет прокси-каналов. Нажми «+ Добавить прокси».</string>
+
+    <!-- Логи -->
+    <string name="tab_logs">Логи</string>
+    <string name="logs_empty">Пока нет записей. Запусти сервис или проверь связь.</string>
+    <string name="logs_clear">Очистить</string>
 
     <!-- Переключатели -->
     <string name="pref_sms_enabled">Пересылать SMS</string>
