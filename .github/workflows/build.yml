@@ -94,8 +94,6 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          cache: gradle
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -127,8 +125,6 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
-        with:
-          cache: gradle
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -148,7 +144,7 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
