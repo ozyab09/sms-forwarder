@@ -108,4 +108,46 @@ class UtilTest {
     fun `compareVersions older`() {
         assertTrue(UpdateChecker.compareVersions("0.1.0", "0.2.0") < 0)
     }
+
+    // ===== Очистка release notes от GitHub-автоссылок (PR/compare/issues) =====
+
+    @Test
+    fun `stripGitHubAutoLinks removes PR link`() {
+        val notes = "## What's Changed\n* fix: тёмная тема by @ozyab09 in https://github.com/ozyab09/sms-forwarder/pull/34"
+        val cleaned = UpdateChecker.stripGitHubAutoLinks(notes)
+        assertFalse(cleaned.contains("pull/"))
+        assertFalse(cleaned.contains("https://github.com"))
+    }
+
+    @Test
+    fun `stripGitHubAutoLinks removes compare link`() {
+        val notes = "**Full Changelog**: https://github.com/ozyab09/sms-forwarder/compare/v0.4.13...v0.4.14"
+        val cleaned = UpdateChecker.stripGitHubAutoLinks(notes)
+        assertFalse(cleaned.contains("compare/"))
+        assertFalse(cleaned.contains("https://github.com"))
+    }
+
+    @Test
+    fun `stripGitHubAutoLinks removes issues link and collapses blank lines`() {
+        val notes = "Что нового\n\n\n* мелкие фиксы https://github.com/ozyab09/sms-forwarder/issues/12\n\n"
+        val cleaned = UpdateChecker.stripGitHubAutoLinks(notes)
+        assertFalse(cleaned.contains("issues/"))
+        assertFalse(cleaned.contains("\n\n\n"))
+        assertTrue(cleaned.contains("Что нового"))
+    }
+
+    @Test
+    fun `stripGitHubAutoLinks keeps project link and regular text`() {
+        val notes = "Скачать: https://github.com/ozyab09/sms-forwarder — проект на GitHub"
+        val cleaned = UpdateChecker.stripGitHubAutoLinks(notes)
+        assertTrue(cleaned.contains("https://github.com/ozyab09/sms-forwarder"))
+        assertTrue(cleaned.contains("проект на GitHub"))
+    }
+
+    @Test
+    fun `stripGitHubAutoLinks handles blank input`() {
+        assertEquals("", UpdateChecker.stripGitHubAutoLinks(""))
+        assertEquals("", UpdateChecker.stripGitHubAutoLinks("   \n\n  "))
+        assertEquals("", UpdateChecker.stripGitHubAutoLinks("https://github.com/ozyab09/sms-forwarder/pull/34"))
+    }
 }
