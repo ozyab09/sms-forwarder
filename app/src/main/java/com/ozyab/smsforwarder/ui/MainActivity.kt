@@ -11,31 +11,48 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.EditText
+import android.widget.ImageButton
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
 import com.ozyab.smsforwarder.BuildConfig
 import com.ozyab.smsforwarder.R
 import com.ozyab.smsforwarder.service.ForwardService
+import com.ozyab.smsforwarder.telegram.Channel
+import com.ozyab.smsforwarder.telegram.ChannelStore
+import com.ozyab.smsforwarder.telegram.ChannelSender
 import com.ozyab.smsforwarder.telegram.TelegramClient
 import com.ozyab.smsforwarder.update.UpdateChecker
+import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 /**
- * Главный экран: настройки (токен, chat ID, прокси) + статус сервиса.
- * Токен вводится в UI и хранится в EncryptedSharedPreferences.
+ * Главный экран: настройки (токен, chat ID, КАНАЛЫ отправки) + вкладка «Логи».
+ *
+ * Каналы: (1) «Без прокси» — всегда; (2) любое число прокси-каналов HTTP/SOCKS5.
+ * Отправка каскадом: пробуем каждый канал по порядку, ретраи с удвоением интервала
+ * (15с → 30с → … → 10 мин кап) суммарно ~15 минут — см. ForwardService.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -49,14 +66,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnStart: MaterialButton
     private lateinit var btnStop: MaterialButton
 
-    // Прокси
-    private lateinit var swProxy: SwitchMaterial
-    private lateinit var actProxyType: AutoCompleteTextView
-    private lateinit var etProxyHost: TextInputEditText
-    private lateinit var etProxyPort: TextInputEditText
-    private lateinit var etProxyUser: TextInputEditText
-    private lateinit var etProxyPass: TextInputEditText
-    private lateinit var proxyTypeValues: Array<String>
+    // Каналы отправки
+    private lateinit var channelsContainer: LinearLayout
 
     // Фильтры SMS
     private lateinit var actFilterMode: AutoCompleteTextView
@@ -64,7 +75,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etBlockRegex: TextInputEditText
     private lateinit var filterModeValues: Array<String>
 
+    // Логи
+    private lateinit var panelSettings: ScrollView
+    private lateinit var panelLogs: View
+    private lateinit var logsText: TextView
+
     private val scope = CoroutineScope(Dispatchers.Main)
+    private val logListener: (LogStore.Entry) -> Unit = { renderLogs() }
 
     // Запрос разрешений (SMS + телефон + контакты) — один раз при старте
     private val permissionLauncher = registerForActivityResult(
@@ -79,9 +96,27 @@ class MainActivity : AppCompatActivity() {
         bindViews()
         loadPrefs()
         setupActions()
+        renderChannels()
+        setupBottomNav()
 
         requestNeededPermissions()
         checkForUpdates()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        renderChannels()
+        renderLogs()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        LogStore.addListener(logListener)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        LogStore.removeListener(logListener)
     }
 
     private fun bindViews() {
@@ -95,18 +130,8 @@ class MainActivity : AppCompatActivity() {
         btnStart = findViewById(R.id.btn_start)
         btnStop = findViewById(R.id.btn_stop)
 
-        swProxy = findViewById(R.id.sw_proxy)
-        actProxyType = findViewById(R.id.act_proxy_type)
-        etProxyHost = findViewById(R.id.et_proxy_host)
-        etProxyPort = findViewById(R.id.et_proxy_port)
-        etProxyUser = findViewById(R.id.et_proxy_user)
-        etProxyPass = findViewById(R.id.et_proxy_pass)
-        proxyTypeValues = resources.getStringArray(R.array.proxy_type_values)
-
-        val labels = resources.getStringArray(R.array.proxy_type_labels)
-        actProxyType.setAdapter(
-            ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
-        )
+        channelsContainer = findViewById(R.id.channels_container)
+        findViewById<MaterialButton>(R.id.btn_add_proxy).setOnClickListener { showProxyDialog(null) }
 
         actFilterMode = findViewById(R.id.act_filter_mode)
         etWhitelist = findViewById(R.id.et_whitelist)
@@ -116,6 +141,14 @@ class MainActivity : AppCompatActivity() {
         actFilterMode.setAdapter(
             ArrayAdapter(this, android.R.layout.simple_list_item_1, filterLabels)
         )
+
+        panelSettings = findViewById(R.id.panel_settings)
+        panelLogs = findViewById(R.id.panel_logs)
+        logsText = findViewById(R.id.logs_text)
+        findViewById<MaterialButton>(R.id.btn_clear_logs).setOnClickListener {
+            LogStore.clear()
+            renderLogs()
+        }
     }
 
     private fun loadPrefs() {
@@ -124,14 +157,6 @@ class MainActivity : AppCompatActivity() {
         swSms.isChecked = Prefs.smsEnabled
         swCalls.isChecked = Prefs.callsEnabled
         swShortCodes.isChecked = Prefs.shortCodesFilter
-
-        swProxy.isChecked = Prefs.proxyEnabled
-        val typeIdx = proxyTypeValues.indexOf(Prefs.proxyType).coerceAtLeast(0)
-        actProxyType.setText(resources.getStringArray(R.array.proxy_type_labels)[typeIdx], false)
-        etProxyHost.setText(Prefs.proxyHost)
-        etProxyPort.setText(if (Prefs.proxyPort > 0) Prefs.proxyPort.toString() else "")
-        etProxyUser.setText(Prefs.proxyUser)
-        etProxyPass.setText(Prefs.proxyPass)
 
         val modeIdx = filterModeValues.indexOf(Prefs.filterMode).coerceAtLeast(0)
         actFilterMode.setText(resources.getStringArray(R.array.filter_mode_labels)[modeIdx], false)
@@ -159,10 +184,11 @@ class MainActivity : AppCompatActivity() {
                     is TelegramClient.Result.Ok -> {
                         etChatId.setText(result.messageId.toString())
                         Prefs.chatId = result.messageId.toString()
+                        LogStore.ok("Chat ID определён: ${result.messageId}")
                         Toast.makeText(this@MainActivity, "Chat ID: ${result.messageId}", Toast.LENGTH_LONG).show()
                     }
                     is TelegramClient.Result.Err -> {
-                        // Не нашли — предлагаем написать боту /start (открываем чат бота)
+                        LogStore.error("Chat ID не определён: ${result.reason}")
                         scope.launch {
                             val username = withContext(Dispatchers.IO) { TelegramClient.getBotUsername() }
                             if (username != null) {
@@ -193,22 +219,163 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupBottomNav() {
+        val nav = findViewById<BottomNavigationView>(R.id.bottom_nav)
+        nav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_settings -> {
+                    panelSettings.visibility = View.VISIBLE
+                    panelLogs.visibility = View.GONE
+                    true
+                }
+                R.id.nav_logs -> {
+                    savePrefs()
+                    panelSettings.visibility = View.GONE
+                    panelLogs.visibility = View.VISIBLE
+                    renderLogs()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun renderChannels() {
+        channelsContainer.removeAllViews()
+        val channels = ChannelStore.all()
+        if (channels.size == 1) {
+            val empty = TextView(this).apply {
+                text = getString(R.string.channels_no_proxies)
+                setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.darker_gray))
+                textSize = 14f
+                setPadding(4, 8, 4, 8)
+            }
+            channelsContainer.addView(empty)
+        }
+        for (ch in channels) {
+            channelsContainer.addView(buildChannelRow(ch))
+        }
+    }
+
+    /** Строит строку канала (имя, детали, switch, edit/delete для прокси). */
+    private fun buildChannelRow(ch: Channel): View {
+        val row = LayoutInflater.from(this).inflate(R.layout.item_channel, channelsContainer, false)
+        val sw = row.findViewById<SwitchMaterial>(R.id.ch_switch)
+        val name = row.findViewById<TextView>(R.id.ch_name)
+        val detail = row.findViewById<TextView>(R.id.ch_detail)
+        val edit = row.findViewById<ImageButton>(R.id.ch_edit)
+        val del = row.findViewById<ImageButton>(R.id.ch_delete)
+
+        name.text = ch.name.ifBlank { if (ch.isDirect) "Без прокси" else "Прокси" }
+        detail.text = when {
+            ch.isDirect -> "Прямое соединение"
+            else -> "${ch.type} · ${ch.host}:${ch.port}"
+        }
+        sw.isChecked = ch.enabled
+        sw.setOnCheckedChangeListener { _, checked ->
+            if (ch.isDirect) {
+                sw.isChecked = true // direct всегда включён
+            } else {
+                ChannelStore.upsert(ch.copy(enabled = checked))
+            }
+        }
+        if (ch.isDirect) {
+            edit.visibility = View.GONE
+            del.visibility = View.GONE
+        } else {
+            edit.setOnClickListener { showProxyDialog(ch) }
+            del.setOnClickListener { confirmDelete(ch) }
+        }
+        return row
+    }
+
+    private fun confirmDelete(ch: Channel) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.channels_proxy_delete)
+            .setMessage(getString(R.string.channels_proxy_delete_confirm, ch.name))
+            .setPositiveButton(R.string.ok) { _, _ ->
+                ChannelStore.remove(ch.id)
+                renderChannels()
+                LogStore.info("Канал «${ch.name}» удалён")
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** Диалог добавления/редактирования прокси-канала. */
+    private fun showProxyDialog(existing: Channel?) {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(60, 24, 60, 0)
+        }
+
+        // Тип: HTTP / SOCKS5
+        val typeLabel = TextView(this).apply { text = getString(R.string.pref_proxy_type) }
+        val typeInput = AutoCompleteTextView(this).apply {
+            setAdapter(ArrayAdapter(
+                this@MainActivity,
+                android.R.layout.simple_list_item_1,
+                arrayOf(getString(R.string.proxy_type_http), getString(R.string.proxy_type_socks5))
+            ))
+            setText(
+                if (existing?.type == Channel.TYPE_SOCKS5) getString(R.string.proxy_type_socks5)
+                else getString(R.string.proxy_type_http),
+                false
+            )
+        }
+
+        fun field(hint: String, value: String, singleLine: Boolean = true) =
+            EditText(this).apply {
+                this.hint = hint
+                setText(value)
+                isSingleLine = singleLine
+            }
+
+        val etName = field(getString(R.string.channels_proxy_name), existing?.name ?: "")
+        val etHost = field(getString(R.string.pref_proxy_host), existing?.host ?: "")
+        val etPort = field(getString(R.string.pref_proxy_port), existing?.port?.toString() ?: "")
+        val etUser = field(getString(R.string.pref_proxy_user), existing?.user ?: "")
+        val etPass = field(getString(R.string.pref_proxy_pass), existing?.pass ?: "")
+        etPort.inputType = android.text.InputType.TYPE_CLASS_NUMBER
+
+        layout.addView(typeLabel)
+        layout.addView(typeInput)
+        for (v in listOf(etName, etHost, etPort, etUser, etPass)) layout.addView(v)
+
+        AlertDialog.Builder(this)
+            .setTitle(if (existing == null) R.string.channels_add_proxy else R.string.channels_proxy_edit)
+            .setView(layout)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val type = if (typeInput.text.toString().contains("SOCKS")) Channel.TYPE_SOCKS5 else Channel.TYPE_HTTP
+                val port = etPort.text.toString().trim().toIntOrNull() ?: 0
+                if (etHost.text.isNullOrBlank() || port <= 0) {
+                    Toast.makeText(this, "Укажи хост и порт", Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
+                val ch = Channel(
+                    id = existing?.id ?: UUID.randomUUID().toString(),
+                    type = type,
+                    name = etName.text.toString().trim().ifBlank { "Прокси ${ChannelStore.all().count { !it.isDirect } + 1}" },
+                    host = etHost.text.toString().trim(),
+                    port = port,
+                    user = etUser.text.toString().trim(),
+                    pass = etPass.text.toString(),
+                    enabled = true,
+                )
+                ChannelStore.upsert(ch)
+                renderChannels()
+                LogStore.info("Канал «${ch.name}» сохранён")
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
     private fun savePrefs() {
         Prefs.botToken = etToken.text?.toString()?.trim().orEmpty()
         Prefs.chatId = etChatId.text?.toString()?.trim().orEmpty()
         Prefs.smsEnabled = swSms.isChecked
         Prefs.callsEnabled = swCalls.isChecked
         Prefs.shortCodesFilter = swShortCodes.isChecked
-
-        Prefs.proxyEnabled = swProxy.isChecked
-        val label = actProxyType.text?.toString()?.trim().orEmpty()
-        val labels = resources.getStringArray(R.array.proxy_type_labels)
-        val idx = labels.indexOf(label).coerceAtLeast(0)
-        Prefs.proxyType = proxyTypeValues[idx]
-        Prefs.proxyHost = etProxyHost.text?.toString()?.trim().orEmpty()
-        Prefs.proxyPort = etProxyPort.text?.toString()?.trim()?.toIntOrNull() ?: 0
-        Prefs.proxyUser = etProxyUser.text?.toString()?.trim().orEmpty()
-        Prefs.proxyPass = etProxyPass.text?.toString()?.trim().orEmpty()
 
         Prefs.filterMode = filterModeValues[filterLabelsIndexOf(actFilterMode)]
         Prefs.smsWhitelist = etWhitelist.text?.toString()?.trim().orEmpty()
@@ -229,21 +396,44 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.toast_enter_token_and_chatid, Toast.LENGTH_LONG).show()
             return
         }
+        val channels = ChannelStore.enabled()
+        if (channels.isEmpty()) {
+            Toast.makeText(this, "Нет включённых каналов", Toast.LENGTH_LONG).show()
+            return
+        }
         btnTest.isEnabled = false
         btnTest.text = getString(R.string.testing)
+        LogStore.info("Проверка связи через каналы: ${channels.joinToString { it.name }}")
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                TelegramClient.sendMessage("✅ SMS Forwarder: проверка связи")
+                ChannelSender.send("✅ SMS Forwarder: проверка связи", token, chatId, channels)
             }
             btnTest.isEnabled = true
             btnTest.text = getString(R.string.btn_test_connection)
             when (result) {
-                is TelegramClient.Result.Ok ->
-                    Toast.makeText(this@MainActivity, "✅ Успешно! Сообщение отправлено", Toast.LENGTH_LONG).show()
-                is TelegramClient.Result.Err ->
-                    Toast.makeText(this@MainActivity, "❌ ${result.reason}", Toast.LENGTH_LONG).show()
+                is ChannelSender.Result.Ok ->
+                    Toast.makeText(this@MainActivity, "✅ Успешно через «${result.channelName}»", Toast.LENGTH_LONG).show()
+                is ChannelSender.Result.Err -> {
+                    LogStore.error("Проверка связи не вышла: ${result.reasons.joinToString("; ")}")
+                    Toast.makeText(this@MainActivity, "❌ ${result.reasons.joinToString("; ")}", Toast.LENGTH_LONG).show()
+                }
             }
         }
+    }
+
+    private fun renderLogs() {
+        val sb = StringBuilder()
+        for (e in LogStore.all()) {
+            val icon = when (e.level) {
+                LogStore.Level.OK -> "✅"
+                LogStore.Level.WARN -> "⚠️"
+                LogStore.Level.ERROR -> "❌"
+                LogStore.Level.INFO -> "ℹ️"
+            }
+            sb.append(e.time).append("  ").append(icon).append(' ').append(e.text).append('\n')
+        }
+        if (sb.isEmpty()) sb.append(getString(R.string.logs_empty))
+        logsText.text = sb.toString()
     }
 
     private fun requestNeededPermissions() {

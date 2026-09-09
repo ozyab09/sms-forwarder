@@ -10,7 +10,9 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.ozyab.smsforwarder.R
-import com.ozyab.smsforwarder.telegram.TelegramClient
+import com.ozyab.smsforwarder.telegram.ChannelSender
+import com.ozyab.smsforwarder.telegram.ChannelStore
+import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,8 +28,10 @@ import kotlin.math.min
  *
  * - Foreground service с НЕВИДИМЫМ уведомлением (IMPORTANCE_MIN).
  * - START_STICKY: перезапускается системой при убийстве.
- * - Очередь событий с ретраями (экспоненциальный backoff, кап 5 мин).
- * - Не показывает никаких тостов/диалогов.
+ * - Очередь событий; отправка КАСКАДОМ по каналам (direct → прокси 1 → ...).
+ * - Ретраи: при сбое всех каналов интервал удваивается (15с, 30с, 60с, ...,
+ *   кап 10 мин, суммарное окно ~15 минут).
+ * - Пишет статусы в LogStore (вкладка «Логи»).
  */
 class ForwardService : Service() {
 
@@ -37,7 +41,9 @@ class ForwardService : Service() {
     @Volatile
     private var workerStarted = false
 
-    private var retryDelayMs = 5_000L
+    /** Текущий интервал ретрая; сбрасывается к 15с после успеха. */
+    @Volatile
+    private var retryDelayMs = INITIAL_RETRY_MS
 
     companion object {
         private const val CHANNEL_ID = "forward_service"
@@ -45,6 +51,11 @@ class ForwardService : Service() {
         const val ACTION_START = "com.ozyab.smsforwarder.START"
         const val ACTION_STOP = "com.ozyab.smsforwarder.STOP"
         const val EXTRA_TEXT = "extra_text"
+
+        /** Стартовый интервал ретрая: 15 секунд. */
+        const val INITIAL_RETRY_MS = 15_000L
+        /** Кап одиночного интервала: 10 минут (суммарно ~15 минут окна). */
+        const val MAX_RETRY_MS = 600_000L
 
         fun start(context: Context) {
             val i = Intent(context, ForwardService::class.java).setAction(ACTION_START)
@@ -70,12 +81,18 @@ class ForwardService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                LogStore.info("Сервис остановлен")
                 stopSelf()
                 return START_NOT_STICKY
             }
         }
 
         startAsForeground()
+
+        // Логируем первый старт (не каждое событие)
+        if (!workerStarted) {
+            LogStore.info("Сервис запущен")
+        }
 
         intent?.getStringExtra(EXTRA_TEXT)?.let { enqueue(it) }
 
@@ -89,24 +106,53 @@ class ForwardService : Service() {
                         delay(2_000)
                         continue
                     }
-                    val result = TelegramClient.sendMessage(text)
-                    when (result) {
-                        is TelegramClient.Result.Ok -> {
-                            Prefs.sentCount = Prefs.sentCount + 1
-                            retryDelayMs = 5_000L
-                        }
-                        is TelegramClient.Result.Err -> {
-                            // Ошибка (нет сети / API недоступен) — вернуть в очередь и подождать
-                            queue.add(text)
-                            delay(retryDelayMs)
-                            retryDelayMs = min(retryDelayMs * 2, 300_000L) // кап 5 мин
-                        }
-                    }
+                    sendWithRetries(text)
                 }
             }
         }
         return START_STICKY
     }
+
+    /**
+     * Каскадная отправка с ретраями.
+     * Пробуем все включённые каналы по порядку; если все не вышли —
+     * возвращаем в очередь и ждём с удвоением интервала.
+     */
+    private suspend fun sendWithRetries(text: String) {
+        val token = Prefs.botToken
+        val chatId = Prefs.chatId
+        if (token.isBlank() || chatId.isBlank()) {
+            LogStore.warn("Не задан токен/chatId — событие отложено")
+            queue.add(text)
+            delay(retryDelayMs)
+            retryDelayMs = nextDelay(retryDelayMs)
+            return
+        }
+
+        val channels = ChannelStore.enabled()
+        LogStore.info("Отправка: каналов ${channels.size} (${channels.joinToString { it.name }})")
+
+        val result = ChannelSender.send(text, token, chatId, channels)
+        when (result) {
+            is ChannelSender.Result.Ok -> {
+                Prefs.sentCount = Prefs.sentCount + 1
+                retryDelayMs = INITIAL_RETRY_MS
+                LogStore.ok("Отправлено через «${result.channelName}» (id ${result.messageId})")
+            }
+            is ChannelSender.Result.Err -> {
+                val joined = result.reasons.joinToString("; ")
+                LogStore.error("Все каналы не вышли: $joined")
+                queue.add(text)
+                delay(retryDelayMs)
+                val next = nextDelay(retryDelayMs)
+                LogStore.warn("Ретрай через ${next / 1000}с (интервал удвоен)")
+                retryDelayMs = next
+            }
+        }
+    }
+
+    /** Удвоение интервала с капом [MAX_RETRY_MS]. */
+    private fun nextDelay(current: Long): Long = min(current * 2, MAX_RETRY_MS)
 
     /** Добавить событие в очередь (вызывается из ресиверов). */
     fun enqueue(text: String) {
