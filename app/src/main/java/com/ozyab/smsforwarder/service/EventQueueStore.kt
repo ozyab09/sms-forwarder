@@ -89,7 +89,7 @@ object EventQueueStore {
                 val arr = JSONArray()
                 val start = maxOf(0, existing.length() - MAX_EVENTS)
                 for (i in start until existing.length()) arr.put(existing.getJSONObject(i))
-                file(context).writeText(arr.toString())
+                writeAtomic(file(context), arr.toString())
             } catch (e: Exception) {
                 // Не критично: событие может быть потеряно только при сбое диска
             }
@@ -118,7 +118,21 @@ object EventQueueStore {
                     .put("nextRetryAt", e.nextRetryAt)
             )
         }
-        file(context).writeText(arr.toString())
+        writeAtomic(file(context), arr.toString())
+    }
+
+    /**
+     * Атомарная запись: пишем во временный файл и переименовываем.
+     * Если процесс умрёт в середине записи, старый файл останется целым —
+     * очередь не теряется и не битая (renameTo на той же файловой системе атомарен).
+     */
+    private fun writeAtomic(target: File, content: String) {
+        val tmp = File(target.parentFile, "${target.name}.tmp")
+        tmp.writeText(content)
+        if (!tmp.renameTo(target)) {
+            // Очень маловероятный случай (другая ФС/права) — прямой fallback
+            target.writeText(content)
+        }
     }
 
     private fun file(context: Context): File = File(context.filesDir, FILE_NAME)

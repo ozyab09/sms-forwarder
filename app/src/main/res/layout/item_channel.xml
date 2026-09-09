@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
@@ -26,14 +27,14 @@
             android:layout_height="wrap_content"
             android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="@android:color/black" />
+            android:textColor="?android:attr/textColorPrimary" />
 
         <TextView
             android:id="@+id/ch_detail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="12sp"
-            android:textColor="@android:color/darker_gray" />
+            android:textColor="?android:attr/textColorSecondary" />
     </LinearLayout>
 
     <ImageButton
@@ -42,6 +43,7 @@
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/ic_arrow_up"
+        app:tint="?attr/colorControlNormal"
         android:contentDescription="Выше" />
 
     <ImageButton
@@ -50,6 +52,7 @@
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@drawable/ic_arrow_down"
+        app:tint="?attr/colorControlNormal"
         android:contentDescription="Ниже" />
 
     <ImageButton
@@ -58,6 +61,7 @@
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@android:drawable/ic_menu_edit"
+        app:tint="?attr/colorControlNormal"
         android:contentDescription="Редактировать" />
 
     <ImageButton
@@ -66,6 +70,7 @@
         android:layout_height="40dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@android:drawable/ic_menu_delete"
+        app:tint="?attr/colorControlNormal"
         android:contentDescription="Удалить" />
 
 </LinearLayout>
