@@ -31,7 +31,7 @@ class ProxyConfigTest {
         assertNull("ошибки быть не должно", err)
         assertEquals(Proxy.Type.HTTP, proxy?.type())
         val addr = proxy?.address() as InetSocketAddress
-        assertEquals("proxy.example.com", addr.hostName)
+        assertEquals("proxy.example.com", addr.hostString)
         assertEquals(8080, addr.port)
     }
 
@@ -42,7 +42,7 @@ class ProxyConfigTest {
         assertNull("ошибки быть не должно", err)
         assertEquals(Proxy.Type.SOCKS, proxy?.type())
         val addr = proxy?.address() as InetSocketAddress
-        assertEquals("127.0.0.1", addr.hostName)
+        assertEquals("127.0.0.1", addr.hostString)
         assertEquals(1080, addr.port)
     }
 
