@@ -26,7 +26,7 @@ object SmsFilter {
      * квантификатор — классический катастрофический backtracking (ReDoS),
      * способный повесить поток на длинном тексте. Такие паттерны отклоняем.
      */
-    private val DANGEROUS_REGEX = Regex("\([^()]*(?:[*+?]|\\|)[^()]*\)\\s*[*+{]")
+    private val DANGEROUS_REGEX = Regex("[(][^()]*(?:[*+?]|[|])[^()]*[)][ \t]*[*+{]")
 
     /** Компилируем block-regex один раз (а не на каждое SMS). */
     private fun blockPattern(): Pattern? {
