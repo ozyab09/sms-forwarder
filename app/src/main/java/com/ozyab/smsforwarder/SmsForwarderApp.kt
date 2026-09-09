@@ -7,7 +7,9 @@ class SmsForwarderApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Prefs должны быть готовы до любого компонента (Activity/Receiver/Service)
+        // Prefs инициализируются асинхронно: MasterKey/EncryptedSharedPreferences
+        // создаются в фоне, холодный старт не блокируется. Первый доступ к
+        // настройкам из любого компонента дождётся завершения инициализации.
         Prefs.init(this)
     }
 }
