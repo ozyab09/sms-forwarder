@@ -20,6 +20,7 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.AdapterView
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -305,15 +306,24 @@ class MainActivity : AppCompatActivity() {
             setPadding(60, 24, 60, 0)
         }
 
-        // Тип: выпадающий список HTTP / SOCKS5
+        // Тип: выпадающий список — Без прокси / HTTP / SOCKS5
+        val types = arrayOf(
+            getString(R.string.proxy_type_none),
+            getString(R.string.proxy_type_http),
+            getString(R.string.proxy_type_socks5)
+        )
         val typeSpinner = Spinner(this).apply {
             adapter = ArrayAdapter(
                 this@MainActivity,
                 android.R.layout.simple_list_item_1,
-                arrayOf(getString(R.string.proxy_type_http), getString(R.string.proxy_type_socks5))
+                types
             )
             setSelection(
-                if (existing?.type == Channel.TYPE_SOCKS5) 1 else 0
+                when (existing?.type) {
+                    Channel.TYPE_SOCKS5 -> 2
+                    Channel.TYPE_HTTP -> 1
+                    else -> 0 // Channel.TYPE_DIRECT
+                }
             )
         }
         layout.addView(TextView(this).apply { setPadding(0, 8, 0, 4); text = getString(R.string.pref_proxy_type) })
@@ -328,32 +338,67 @@ class MainActivity : AppCompatActivity() {
         val etPass = field(getString(R.string.pref_proxy_pass), existing?.pass ?: "")
         etPort.inputType = android.text.InputType.TYPE_CLASS_NUMBER
 
-        for (v in listOf(etHost, etPort, etUser, etPass)) layout.addView(v)
+        // Контейнер для полей прокси (скрываем для "Без прокси")
+        val proxyFields = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        for (v in listOf(etHost, etPort, etUser, etPass)) proxyFields.addView(v)
+        layout.addView(proxyFields)
+
+        // Показываем/скрываем поля в зависимости от выбранного типа
+        fun updateFieldsVisibility() {
+            val isDirect = typeSpinner.selectedItemPosition == 0
+            proxyFields.visibility = if (isDirect) View.GONE else View.VISIBLE
+        }
+        updateFieldsVisibility()
+        typeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                updateFieldsVisibility()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
 
         AlertDialog.Builder(this)
             .setTitle(if (existing == null) R.string.channels_add_proxy else R.string.channels_proxy_edit)
             .setView(layout)
             .setPositiveButton(R.string.save) { _, _ ->
-                val type = if (typeSpinner.selectedItemPosition == 1) Channel.TYPE_SOCKS5 else Channel.TYPE_HTTP
-                val port = etPort.text.toString().trim().toIntOrNull() ?: 0
-                if (etHost.text.isNullOrBlank() || port <= 0) {
-                    Toast.makeText(this, "Укажи хост и порт", Toast.LENGTH_LONG).show()
-                    return@setPositiveButton
+                val selectedType = typeSpinner.selectedItemPosition
+                if (selectedType == 0) {
+                    // Без прокси — не нужно проверять host/port
+                    val ch = Channel(
+                        id = existing?.id ?: UUID.randomUUID().toString(),
+                        type = Channel.TYPE_DIRECT,
+                        name = getString(R.string.channels_direct),
+                        host = "",
+                        port = 0,
+                        user = "",
+                        pass = "",
+                        enabled = true,
+                    )
+                    ChannelStore.upsert(ch)
+                    renderChannels()
+                    LogStore.info("Канал «Без прокси» сохранён")
+                } else {
+                    // HTTP или SOCKS5
+                    val type = if (selectedType == 2) Channel.TYPE_SOCKS5 else Channel.TYPE_HTTP
+                    val port = etPort.text.toString().trim().toIntOrNull() ?: 0
+                    if (etHost.text.isNullOrBlank() || port <= 0) {
+                        Toast.makeText(this, "Укажи хост и порт", Toast.LENGTH_LONG).show()
+                        return@setPositiveButton
+                    }
+                    val host = etHost.text.toString().trim()
+                    val ch = Channel(
+                        id = existing?.id ?: UUID.randomUUID().toString(),
+                        type = type,
+                        name = "$host:$port",
+                        host = host,
+                        port = port,
+                        user = etUser.text.toString().trim(),
+                        pass = etPass.text.toString(),
+                        enabled = true,
+                    )
+                    ChannelStore.upsert(ch)
+                    renderChannels()
+                    LogStore.info("Канал «${ch.name}» сохранён")
                 }
-                val host = etHost.text.toString().trim()
-                val ch = Channel(
-                    id = existing?.id ?: UUID.randomUUID().toString(),
-                    type = type,
-                    name = "$host:$port", // имя = адрес, показываем так в списке
-                    host = host,
-                    port = port,
-                    user = etUser.text.toString().trim(),
-                    pass = etPass.text.toString(),
-                    enabled = true,
-                )
-                ChannelStore.upsert(ch)
-                renderChannels()
-                LogStore.info("Канал «${ch.name}» сохранён")
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
