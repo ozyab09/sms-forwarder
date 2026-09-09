@@ -1,8 +1,10 @@
 package com.ozyab.smsforwarder.telegram
 
+import kotlinx.coroutines.delay
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Тесты каскадной отправки через каналы (ChannelSender).
@@ -69,6 +71,75 @@ class ChannelSenderTest {
         assertEquals(2, reasons.size)
         assertTrue(reasons[0].contains("Без прокси"))
         assertTrue(reasons[1].contains("Прокси 1"))
+    }
+
+    // --- testAll: параллельная проверка всех каналов ---
+
+    @Test
+    fun `testAll runs channels in parallel`() = runTest {
+        val channels = listOf(
+            channel("direct", "Без прокси"),
+            channel("p1", "Прокси 1", Channel.TYPE_HTTP),
+            channel("p2", "Прокси 2", Channel.TYPE_SOCKS5),
+        )
+        val active = AtomicInteger(0)
+        val maxConcurrent = AtomicInteger(0)
+        val r = ChannelSender.testAll("hi", token, chatId, channels) {
+            val cur = active.incrementAndGet()
+            maxConcurrent.updateAndGet { maxOf(it, cur) }
+            delay(150)
+            active.decrementAndGet()
+            ChannelSender.ChannelOutcome.Sent(1)
+        }
+        assertEquals(3, r.size)
+        assertTrue("каналы должны тестироваться параллельно", maxConcurrent.get() >= 3)
+        assertTrue(r.all { it.ok })
+    }
+
+    @Test
+    fun `testAll reports each channel result independently`() = runTest {
+        val channels = listOf(
+            channel("direct", "Без прокси"),
+            channel("p1", "Прокси 1", Channel.TYPE_HTTP),
+            channel("p2", "Прокси 2", Channel.TYPE_SOCKS5),
+        )
+        val r = ChannelSender.testAll("hi", token, chatId, channels) {
+            when (it.id) {
+                "direct" -> ChannelSender.ChannelOutcome.Sent(111)
+                "p1" -> ChannelSender.ChannelOutcome.Failed("timeout")
+                else -> ChannelSender.ChannelOutcome.Sent(333)
+            }
+        }
+        assertEquals(3, r.size)
+        assertTrue(r[0].ok)
+        assertEquals(111L, r[0].messageId)
+        assertTrue(!r[1].ok)
+        assertEquals("timeout", r[1].error)
+        assertTrue(r[2].ok)
+        assertEquals(333L, r[2].messageId)
+        assertEquals("неудача одного канала не должна останавливать остальные", 1, r.count { !it.ok })
+    }
+
+    @Test
+    fun `testAll preserves channel order in results`() = runTest {
+        val channels = listOf(
+            channel("a", "A"),
+            channel("b", "B"),
+            channel("c", "C"),
+        )
+        val r = ChannelSender.testAll("hi", token, chatId, channels) {
+            if (it.id == "b") delay(200) else delay(10)
+            ChannelSender.ChannelOutcome.Sent(1)
+        }
+        assertEquals(listOf("A", "B", "C"), r.map { it.channel.name })
+    }
+
+    @Test
+    fun `testAll with no channels returns empty list`() = runTest {
+        val r = ChannelSender.testAll("hi", token, chatId, emptyList()) {
+            ChannelSender.ChannelOutcome.Sent(1)
+        }
+        assertTrue(r.isEmpty())
     }
 
     private fun runTest(block: suspend () -> Unit) {

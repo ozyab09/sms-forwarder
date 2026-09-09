@@ -254,17 +254,23 @@ class MainActivity : AppCompatActivity() {
             }
             channelsContainer.addView(empty)
         }
-        for (ch in channels) {
-            channelsContainer.addView(buildChannelRow(ch))
+        for ((i, ch) in channels.withIndex()) {
+            channelsContainer.addView(buildChannelRow(ch, i, channels.size))
         }
     }
 
-    /** Строит строку канала (имя, детали, switch, edit/delete для прокси). */
-    private fun buildChannelRow(ch: Channel): View {
+    /**
+     * Строит строку канала (имя, детали, switch, up/down/edit/delete для прокси).
+     * Порядок каналов = приоритет каскадной отправки, поэтому прокси можно
+     * менять местами кнопками «выше/ниже».
+     */
+    private fun buildChannelRow(ch: Channel, index: Int, total: Int): View {
         val row = LayoutInflater.from(this).inflate(R.layout.item_channel, channelsContainer, false)
         val sw = row.findViewById<SwitchMaterial>(R.id.ch_switch)
         val name = row.findViewById<TextView>(R.id.ch_name)
         val detail = row.findViewById<TextView>(R.id.ch_detail)
+        val up = row.findViewById<ImageButton>(R.id.ch_up)
+        val down = row.findViewById<ImageButton>(R.id.ch_down)
         val edit = row.findViewById<ImageButton>(R.id.ch_edit)
         val del = row.findViewById<ImageButton>(R.id.ch_delete)
 
@@ -278,12 +284,31 @@ class MainActivity : AppCompatActivity() {
             ChannelStore.upsert(ch.copy(enabled = checked))
         }
         if (ch.isDirect) {
+            // direct всегда первый и не перемещается
+            up.visibility = View.GONE
+            down.visibility = View.GONE
             edit.visibility = View.GONE
         } else {
+            // index 0 — direct, первый прокси начинается с 1
+            setEnabled(up, index > 1)
+            setEnabled(down, index < total - 1)
+            up.setOnClickListener {
+                ChannelStore.move(ch.id, -1)
+                renderChannels()
+            }
+            down.setOnClickListener {
+                ChannelStore.move(ch.id, +1)
+                renderChannels()
+            }
             edit.setOnClickListener { showProxyDialog(ch) }
         }
         del.setOnClickListener { confirmDelete(ch) }
         return row
+    }
+
+    private fun setEnabled(btn: ImageButton, enabled: Boolean) {
+        btn.isEnabled = enabled
+        btn.alpha = if (enabled) 1f else 0.3f
     }
 
     private fun confirmDelete(ch: Channel) {
@@ -439,19 +464,36 @@ class MainActivity : AppCompatActivity() {
         btnTest.text = getString(R.string.testing)
         LogStore.info("Проверка связи через каналы: ${channels.joinToString { it.name }}")
         scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                ChannelSender.send("✅ SMS Forwarder: проверка связи", token, chatId, channels)
+            // Параллельно тестируем ВСЕ каналы, результат — по каждому отдельно
+            val results = withContext(Dispatchers.IO) {
+                ChannelSender.testAll("✅ SMS Forwarder: проверка связи", token, chatId, channels)
             }
             btnTest.isEnabled = true
             btnTest.text = getString(R.string.btn_test_connection)
-            when (result) {
-                is ChannelSender.Result.Ok ->
-                    Toast.makeText(this@MainActivity, "✅ Успешно через «${result.channelName}»", Toast.LENGTH_LONG).show()
-                is ChannelSender.Result.Err -> {
-                    LogStore.error("Проверка связи не вышла: ${result.reasons.joinToString("; ")}")
-                    Toast.makeText(this@MainActivity, "❌ ${result.reasons.joinToString("; ")}", Toast.LENGTH_LONG).show()
+
+            val okCount = results.count { it.ok }
+            val summary = buildString {
+                for (r in results) {
+                    if (r.ok) {
+                        LogStore.ok("Тест «${r.channel.name}» — успех (id ${r.messageId})")
+                        appendLine("✅ «${r.channel.name}» — успех (id ${r.messageId})")
+                    } else {
+                        LogStore.error("Тест «${r.channel.name}» — ${r.error ?: "ошибка"}")
+                        appendLine("❌ «${r.channel.name}»: ${r.error ?: "ошибка"}")
+                    }
                 }
             }
+            val toast = when {
+                okCount == results.size -> "✅ Все каналы работают ($okCount из ${results.size})"
+                okCount > 0 -> "⚠️ Работает $okCount из ${results.size} каналов"
+                else -> "❌ Ни один канал не работает"
+            }
+            Toast.makeText(this@MainActivity, toast, Toast.LENGTH_LONG).show()
+            AlertDialog.Builder(this@MainActivity)
+                .setTitle("Проверка каналов")
+                .setMessage(summary)
+                .setPositiveButton(R.string.ok, null)
+                .show()
         }
     }
 
