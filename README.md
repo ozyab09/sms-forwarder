@@ -16,8 +16,6 @@
 |:---:|:---:|:---:|
 | ![Настройки](docs/screenshots/settings.png) | ![Проверка](docs/screenshots/test.png) | ![Статус](docs/screenshots/status.png) |
 
-*Скриншоты будут добавлены после релиза v1.0.0*
-
 ---
 
 ## 🚀 Возможности
