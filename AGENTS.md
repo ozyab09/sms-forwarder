@@ -34,8 +34,8 @@
                              │ Intent extras (Event DTOs)
 ┌────────────────────────────▼────────────────────────────────────────┐
 │  ForwardService (Foreground, START_STICKY, type dataSync)           │
-│  ├─ EventQueue: ConcurrentLinkedQueue<Event> + persistence (Room?)  │
-│  ├─ RetryWorker: exponential backoff (10s → 30s → 1m → 5m cap)     │
+│  ├─ EventQueue: SendQueue (FIFO + retry min-heap) + file persistence│
+│  ├─ RetryWorker: per-event backoff (15s → … → 10m cap, 8 attempts)  │
 │  ├─ NetworkMonitor: ConnectivityManager callback                    │
 │  └─ TelegramClient (interface)                                      │
 │       └─ BotApiClient (OkHttp + ProxyConfig)                        │
@@ -108,8 +108,9 @@ fun httpClient(): Pair<OkHttpClient, String?> {
 | Notification | Channel `IMPORTANCE_MIN` (invisible on lock screen) |
 | Battery | Requests `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` |
 | Vendor quirks | Onboarding shows vendor-specific autostart instructions |
-| Queue | In-memory `ConcurrentLinkedQueue`, retry with backoff |
-| Max retry delay | 5 minutes (exponential: 10s, 30s, 60s, 120s, 300s) |
+| Queue | `SendQueue`: FIFO для новых событий + min-heap ретраев; персистентность в `filesDir/event_queue.json` (события не теряются при смерти процесса) |
+| Retry | per-event: 15с → 30с → … кап 10 мин; после 8 попыток событие отбрасывается с записью в лог |
+| Blocking | Новые события обрабатываются немедленно — бэк-офф упавших не блокирует очередь (нет head-of-line blocking) |
 
 ---
 
@@ -131,7 +132,7 @@ fun httpClient(): Pair<OkHttpClient, String?> {
 - `ProxyConfig` null handling when disabled
 - `ContactNames` phone normalization + cache
 - `TelegramClient` request/response parsing (mocked OkHttp)
-- `ForwardService` queue ordering + retry logic
+- `SendQueue` ordering + retry logic (per-event backoff, отброс после попыток, переполнение)
 
 ---
 
@@ -289,7 +290,7 @@ python3 generate_icons.py logo_transparent.png
 | Proxy shown in UI test even when disabled | Fixed in `ProxyConfig.current()` — returns null when `!proxyEnabled` (commit 5075c74) |
 | Vendor autostart (MIUI, EMUI, OneUI) | Onboarding shows vendor-specific instructions; `START_STICKY` helps but not 100% |
 | Android 13+ notification permission | Not requested — channel is `IMPORTANCE_MIN`, user can disable in system settings |
-| CallLog permission revoked on some OEMs | Graceful fallback: if CallLog unavailable, treat all ended ringing as missed |
+| CallLog permission revoked on some OEMs | OFFHOOK-трекинг: без READ_CALL_LOG пропущенным считается RINGING→IDLE без OFFHOOK; принятые вызовы не пересылаются |
 | SMS receiver order | No priority set — works alongside default SMS app; no `READ_SMS` needed for incoming |
 
 ---

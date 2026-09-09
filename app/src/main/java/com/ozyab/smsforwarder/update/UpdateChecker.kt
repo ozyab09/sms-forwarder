@@ -26,11 +26,12 @@ object UpdateChecker {
 
     /** Проверяет наличие новой версии. null — обновлений нет или ошибка. */
     suspend fun check(): UpdateInfo? = withContext(Dispatchers.IO) {
+        val client = okhttp3.OkHttpClient.Builder()
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .callTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
         try {
-            val client = okhttp3.OkHttpClient.Builder()
-                .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                .build()
             val req = Request.Builder()
                 .url(API)
                 .header("Accept", "application/vnd.github+json")
@@ -66,6 +67,9 @@ object UpdateChecker {
             }
         } catch (e: Exception) {
             null // нет сети / GitHub недоступен — не мешаем запуску
+        } finally {
+            // Не даём утечь thread-pool OkHttp при каждом запуске приложения.
+            client.dispatcher.executorService.shutdown()
         }
     }
 

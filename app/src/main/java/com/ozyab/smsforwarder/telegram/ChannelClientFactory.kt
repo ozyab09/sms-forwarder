@@ -25,8 +25,13 @@ object ChannelClientFactory {
             Channel.TYPE_SOCKS5 -> Proxy(Proxy.Type.SOCKS, InetSocketAddress(channel.host, channel.port))
             else -> return baseBuilder().build() to "Канал «${channel.name}»: неизвестный тип ${channel.type}"
         }
+        // OkHttp поддерживает basic-auth только для HTTP-прокси.
+        // Для SOCKS5 логин/пароль нельзя передать — честная ошибка вместо тихого игнора.
+        if (channel.type == Channel.TYPE_SOCKS5 && channel.user.isNotBlank()) {
+            return baseBuilder().build() to "Канал «${channel.name}»: SOCKS5 не поддерживает логин/пароль — уберите их"
+        }
         val b = baseBuilder().proxy(proxy)
-        if (channel.user.isNotBlank()) {
+        if (channel.type == Channel.TYPE_HTTP && channel.user.isNotBlank()) {
             val creds = okhttp3.Credentials.basic(channel.user, channel.pass)
             b.proxyAuthenticator { _, response ->
                 response.request.newBuilder()
@@ -41,4 +46,7 @@ object ChannelClientFactory {
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .writeTimeout(20, TimeUnit.SECONDS)
+        // Жёсткий лимит на весь запрос (connect+write+read) — защита от зависаний
+        // между фазами, которые не покрываются отдельными таймаутами.
+        .callTimeout(30, TimeUnit.SECONDS)
 }

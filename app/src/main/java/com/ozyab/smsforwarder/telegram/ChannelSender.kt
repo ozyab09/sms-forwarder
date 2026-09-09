@@ -2,7 +2,9 @@ package com.ozyab.smsforwarder.telegram
 
 import com.ozyab.smsforwarder.util.LogStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import okhttp3.Request
 import org.json.JSONObject
 
@@ -29,6 +31,13 @@ object ChannelSender {
     private const val API_BASE = "https://api.telegram.org"
 
     /**
+     * Общий бюджет времени на весь каскад каналов. Каждый канал ограничен
+     * callTimeout (30с) внутри ChannelClientFactory; этот лимит — верхняя граница
+     * суммы попыток (защита от N×30с при большом числе прокси).
+     */
+    private const val CASCADE_TIMEOUT_MS = 120_000L
+
+    /**
      * Отправка текста через каналы каскадом.
      *
      * @param channels каналы в порядке приоритета (уже отфильтрованы enabled).
@@ -43,18 +52,29 @@ object ChannelSender {
     ): Result = withContext(Dispatchers.IO) {
         if (channels.isEmpty()) return@withContext Result.Err(listOf("Нет включённых каналов"))
         val failures = mutableListOf<String>()
-        for (ch in channels) {
-            when (val out = sender(ch)) {
-                is ChannelOutcome.Sent -> {
-                    LogStore.info("Отправка через «${ch.name}» — успех")
-                    return@withContext Result.Ok(ch.name, out.messageId)
-                }
-                is ChannelOutcome.Failed -> {
-                    failures += "«${ch.name}»: ${out.reason}"
-                    LogStore.warn("Ошибка через «${ch.name}»: ${out.reason}")
+        var sent: Result.Ok? = null
+        try {
+            // withTimeout — crossinline, поэтому результат возвращаем через var + break
+            withTimeout(CASCADE_TIMEOUT_MS) {
+                for (ch in channels) {
+                    when (val out = sender(ch)) {
+                        is ChannelOutcome.Sent -> {
+                            LogStore.info("Отправка через «${ch.name}» — успех")
+                            sent = Result.Ok(ch.name, out.messageId)
+                            break
+                        }
+                        is ChannelOutcome.Failed -> {
+                            failures += "«${ch.name}»: ${out.reason}"
+                            LogStore.warn("Ошибка через «${ch.name}»: ${out.reason}")
+                        }
+                    }
                 }
             }
+        } catch (e: TimeoutCancellationException) {
+            failures += "Общий таймаут каскада (${CASCADE_TIMEOUT_MS / 1000}с)"
+            LogStore.warn("Каскад прерван по общему таймауту")
         }
+        sent?.let { return@withContext it }
         Result.Err(failures)
     }
 
