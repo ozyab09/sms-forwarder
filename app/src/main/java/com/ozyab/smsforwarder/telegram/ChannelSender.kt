@@ -2,6 +2,7 @@ package com.ozyab.smsforwarder.telegram
 
 import com.ozyab.smsforwarder.util.LogStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -99,6 +100,11 @@ object ChannelSender {
      *
      * @return результаты в том же порядке, что и [channels].
      */
+    /** Потолок одновременных проверок: каждый канал поднимает свой OkHttp-клиент
+     *  с thread-pool, поэтому при десятках каналов ограничиваем параллельность. */
+    private const val MAX_PARALLEL_TESTS = 4
+
+    @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun testAll(
         text: String,
         token: String,
@@ -106,9 +112,10 @@ object ChannelSender {
         channels: List<Channel>,
         sender: suspend (Channel) -> ChannelOutcome = { realSender(text, token, chatId, it) },
     ): List<ChannelTestResult> = withContext(Dispatchers.IO) {
+        val limiter = Dispatchers.IO.limitedParallelism(MAX_PARALLEL_TESTS)
         coroutineScope {
             channels.map { ch ->
-                async {
+                async(limiter) {
                     when (val r = sender(ch)) {
                         is ChannelOutcome.Sent -> ChannelTestResult(ch, true, messageId = r.messageId)
                         is ChannelOutcome.Failed -> ChannelTestResult(ch, false, error = r.reason)

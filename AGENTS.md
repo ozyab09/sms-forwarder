@@ -8,7 +8,7 @@
 ## 🎯 Project Overview
 
 **SMS Forwarder** — Android app forwarding incoming SMS & missed calls to Telegram via Bot API.
-- Min SDK: 26 (Android 8.0), Target: 34 (Android 14)
+- Min SDK: 29 (Android 10), Target: 34 (Android 14)
 - Language: Kotlin, Gradle Kotlin DSL
 - Architecture: Clean separation — UI, Receivers, Foreground Service, Telegram Client
 - Privacy-first: encrypted token storage, no logs, no analytics
@@ -287,7 +287,10 @@ python3 generate_icons.py logo_transparent.png
 
 | Issue | Workaround / Fix |
 |-------|------------------|
-| Proxy shown in UI test even when disabled | Fixed in `ProxyConfig.current()` — returns null when `!proxyEnabled` (commit 5075c74) |
+| FGS-старт из PHONE_STATE на Android 12+ | `ForwardService.start` обёрнут в try/catch; при запрете событие сохраняется в файл очереди и уйдёт при следующем старте сервиса |
+| Без `READ_CALL_LOG` номера пропущенных не приходят (Android 9+) | UI предупреждает: фича «пропущенные» требует разрешения «Журнал вызовов» |
+| «Стоп» сервиса | Очередь отбрасывается (включая файл на диске) — остановка означает остановку пересылки |
+| Пользовательский block-regex (ReDoS) | Паттерны с вложенными квантификаторами/альтернациями отклоняются (`SmsFilter.isDangerousRegex`); regex компилируется один раз |
 | Vendor autostart (MIUI, EMUI, OneUI) | Onboarding shows vendor-specific instructions; `START_STICKY` helps but not 100% |
 | Android 13+ notification permission | Not requested — channel is `IMPORTANCE_MIN`, user can disable in system settings |
 | CallLog permission revoked on some OEMs | OFFHOOK-трекинг: без READ_CALL_LOG пропущенным считается RINGING→IDLE без OFFHOOK; принятые вызовы не пересылаются |

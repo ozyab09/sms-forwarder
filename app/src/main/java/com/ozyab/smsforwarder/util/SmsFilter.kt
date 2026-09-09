@@ -12,8 +12,50 @@ import java.util.regex.Pattern
  *  - "whitelist" — только номера из белого списка (шаблоны с *, разделитель — запятая)
  *
  * Дополнительно: block-regex — если текст/номер совпал, SMS не пересылается.
+ * Регекс компилируется один раз; потенциально опасные паттерны (ReDoS) отклоняются.
  */
 object SmsFilter {
+
+    @Volatile
+    private var cachedBlockRegex: Pattern? = null
+    @Volatile
+    private var cachedBlockSource: String? = null
+
+    /**
+     * Группа с квантификатором или альтернацией, за которой идёт ещё один
+     * квантификатор — классический катастрофический backtracking (ReDoS),
+     * способный повесить поток на длинном тексте. Такие паттерны отклоняем.
+     */
+    private val DANGEROUS_REGEX = Regex("\([^()]*(?:[*+?]|\\|)[^()]*\)\\s*[*+{]")
+
+    /** Компилируем block-regex один раз (а не на каждое SMS). */
+    private fun blockPattern(): Pattern? {
+        val src = Prefs.smsBlockRegex.trim()
+        if (src.isEmpty()) {
+            cachedBlockRegex = null
+            cachedBlockSource = null
+            return null
+        }
+        cachedBlockSource?.let { if (it == src) return cachedBlockRegex }
+        if (isDangerousRegex(src)) {
+            LogStore.warn("Block-regex отклонён как потенциально опасный (ReDoS): $src")
+            cachedBlockRegex = null
+            cachedBlockSource = src
+            return null
+        }
+        val p = try {
+            Pattern.compile(src, Pattern.CASE_INSENSITIVE)
+        } catch (e: Exception) {
+            null // кривой regex — игнорируем блокировку
+        }
+        cachedBlockRegex = p
+        cachedBlockSource = src
+        return p
+    }
+
+    /** true, если паттерн похож на ReDoS (консервативная эвристика). */
+    internal fun isDangerousRegex(pattern: String): Boolean =
+        DANGEROUS_REGEX.containsMatchIn(pattern)
 
     /** Проверяет, нужно ли переслать SMS. */
     fun shouldForward(
@@ -28,16 +70,9 @@ object SmsFilter {
         }
 
         // Block-regex: совпал в номере или тексте → не пересылаем
-        val regex = Prefs.smsBlockRegex.trim()
-        if (regex.isNotEmpty()) {
-            val p = try {
-                Pattern.compile(regex, Pattern.CASE_INSENSITIVE)
-            } catch (e: Exception) {
-                null // кривой regex — игнорируем блокировку
-            }
-            if (p != null && (p.matcher(sender).find() || p.matcher(body).find())) {
-                return false
-            }
+        val p = blockPattern()
+        if (p != null && (p.matcher(sender).find() || p.matcher(body).find())) {
+            return false
         }
 
         return when (Prefs.filterMode) {
