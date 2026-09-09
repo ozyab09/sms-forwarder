@@ -47,7 +47,7 @@ object ProxyConfig {
         val s = current()
         val (proxy, err) = okHttpProxy(s)
         if (err != null) return OkHttpClient.Builder().build() to err
-        if (proxy == null) return OkHttpClient.Builder()
+        if (proxy == null || s == null) return OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .writeTimeout(20, TimeUnit.SECONDS)
@@ -57,10 +57,10 @@ object ProxyConfig {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .writeTimeout(20, TimeUnit.SECONDS)
-        if (proxy != null) b.proxy(proxy)
+        b.proxy(proxy)
 
         // Базовая авторизация для HTTP-прокси (если заданы логин/пароль)
-        if (proxy != null && s.user.isNotBlank()) {
+        if (s.user.isNotBlank()) {
             val creds = okhttp3.Credentials.basic(s.user, s.pass)
             b.proxyAuthenticator { _, response ->
                 response.request.newBuilder()
