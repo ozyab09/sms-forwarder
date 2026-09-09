@@ -38,6 +38,9 @@ object Prefs {
     const val KEY_SMS_WHITELIST = "sms_whitelist" // число через запятую
     const val KEY_SMS_BLOCK_REGEX = "sms_block_regex" // regex (однострочный)
 
+    // Каналы отправки (JSON в secure prefs)
+    const val KEY_CHANNELS_JSON = "channels_json"
+
     private lateinit var secure: SharedPreferences
     private lateinit var plain: SharedPreferences
 
@@ -62,6 +65,11 @@ object Prefs {
     var proxyPass: String
         get() = secure.getString(KEY_PROXY_PASS, "") ?: ""
         set(v) = secure.edit().putString(KEY_PROXY_PASS, v).apply()
+
+    /** JSON-массив каналов отправки (secure). */
+    var channelsJson: String
+        get() = secure.getString(KEY_CHANNELS_JSON, "") ?: ""
+        set(v) = secure.edit().putString(KEY_CHANNELS_JSON, v).apply()
 
     // --- plain ---
     var chatId: String
@@ -108,6 +116,34 @@ object Prefs {
     var onboardingComplete: Boolean
         get() = plain.getBoolean(KEY_ONBOARDING_COMPLETE, false)
         set(v) = plain.edit().putBoolean(KEY_ONBOARDING_COMPLETE, v).apply()
+
+    // --- Миграция старого одиночного прокси (v0.4.x) в канал ---
+
+    /** Возвращает канал из старых настроек прокси, если они заполнены и включены. */
+    fun migrateLegacyProxyToChannel(): com.ozyab.smsforwarder.telegram.Channel? {
+        if (!proxyEnabled) return null
+        if (proxyHost.isBlank() || proxyPort <= 0) return null
+        return com.ozyab.smsforwarder.telegram.Channel(
+            id = "proxy-legacy",
+            type = proxyType,
+            name = "Прокси",
+            host = proxyHost,
+            port = proxyPort,
+            user = proxyUser,
+            pass = proxyPass,
+            enabled = true,
+        )
+    }
+
+    /** Очистка старых полей одиночного прокси после миграции. */
+    fun clearLegacyProxy() {
+        plain.edit().remove(KEY_PROXY_ENABLED).apply()
+        plain.edit().remove(KEY_PROXY_TYPE).apply()
+        plain.edit().remove(KEY_PROXY_HOST).apply()
+        plain.edit().remove(KEY_PROXY_PORT).apply()
+        plain.edit().remove(KEY_PROXY_USER).apply()
+        secure.edit().remove(KEY_PROXY_PASS).apply()
+    }
 
     // --- Детальные фильтры SMS ---
     var filterMode: String
