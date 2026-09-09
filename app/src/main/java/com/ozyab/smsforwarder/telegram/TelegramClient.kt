@@ -19,8 +19,6 @@ import org.json.JSONObject
  */
 object TelegramClient {
 
-    private const val API_BASE = "https://api.telegram.org"
-
     /** Верхняя граница на каскад каналов для getUpdates/getMe (каждый канал уже ограничен callTimeout). */
     private const val CASCADE_TIMEOUT_MS = 120_000L
 
@@ -61,7 +59,7 @@ object TelegramClient {
                     if (buildErr != null) { failures += buildErr; continue }
                     try {
                         val req = Request.Builder()
-                            .url("$API_BASE/bot$token/getUpdates")
+                            .url("${ChannelClientFactory.API_BASE}/bot$token/getUpdates")
                             .build()
                         client.newCall(req).execute().use { resp ->
                             val json = JSONObject(resp.body?.string().orEmpty())
@@ -87,8 +85,6 @@ object TelegramClient {
                         if (foundChatId != null) break
                     } catch (e: Exception) {
                         failures += "«${ch.name}»: ${e.message ?: e.javaClass.simpleName}"
-                    } finally {
-                        client.dispatcher.executorService.shutdown()
                     }
                 }
             }
@@ -112,7 +108,7 @@ object TelegramClient {
                     if (buildErr != null) continue
                     try {
                         val req = Request.Builder()
-                            .url("$API_BASE/bot$token/getMe")
+                            .url("${ChannelClientFactory.API_BASE}/bot$token/getMe")
                             .build()
                         client.newCall(req).execute().use { resp ->
                             val json = JSONObject(resp.body?.string().orEmpty())
@@ -123,8 +119,6 @@ object TelegramClient {
                         }
                         if (found != null) break
                     } catch (_: Exception) {
-                    } finally {
-                        client.dispatcher.executorService.shutdown()
                     }
                 }
             }

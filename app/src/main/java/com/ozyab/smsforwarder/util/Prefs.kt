@@ -46,6 +46,9 @@ object Prefs {
     const val KEY_SMS_WHITELIST = "sms_whitelist" // число через запятую
     const val KEY_SMS_BLOCK_REGEX = "sms_block_regex" // regex (однострочный)
 
+    // Тема оформления: "system" | "light" | "dark"
+    const val KEY_THEME_MODE = "theme_mode"
+
     // Каналы отправки (JSON в secure prefs)
     const val KEY_CHANNELS_JSON = "channels_json"
 
@@ -322,6 +325,17 @@ object Prefs {
         awaitReady()
         return botToken.isNotBlank() && chatId.isNotBlank()
     }
+
+    /** Тема оформления: "system" (по системе) | "light" | "dark". */
+    var themeMode: String
+        get() {
+            awaitReady()
+            return plain.getString(KEY_THEME_MODE, "system") ?: "system"
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putString(KEY_THEME_MODE, v).apply()
+        }
 
     /** Время последней проверки обновлений (throttle сетевых запросов). */
     var lastUpdateCheck: Long

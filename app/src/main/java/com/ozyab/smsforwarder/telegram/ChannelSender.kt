@@ -32,8 +32,6 @@ object ChannelSender {
         data class Failed(val reason: String) : ChannelOutcome()
     }
 
-    private const val API_BASE = "https://api.telegram.org"
-
     /**
      * Общий бюджет времени на весь каскад каналов. Каждый канал ограничен
      * callTimeout (30с) внутри ChannelClientFactory; этот лимит — верхняя граница
@@ -139,7 +137,7 @@ object ChannelSender {
         if (buildErr != null) return ChannelTestOutcome.Failed(buildErr)
         return try {
             val req = Request.Builder()
-                .url("$API_BASE/bot$token/getMe")
+                .url("${ChannelClientFactory.API_BASE}/bot$token/getMe")
                 .build()
             client.newCall(req).execute().use { resp ->
                 val json = JSONObject(resp.body?.string().orEmpty())
@@ -156,8 +154,6 @@ object ChannelSender {
             }
         } catch (e: Exception) {
             ChannelTestOutcome.Failed(e.message ?: e.javaClass.simpleName)
-        } finally {
-            client.dispatcher.executorService.shutdown()
         }
     }
 
@@ -177,7 +173,7 @@ object ChannelSender {
                 .add("disable_notification", "true")
                 .build()
             val req = Request.Builder()
-                .url("$API_BASE/bot$token/sendMessage")
+                .url("${ChannelClientFactory.API_BASE}/bot$token/sendMessage")
                 .post(body)
                 .build()
             client.newCall(req).execute().use { resp ->
@@ -192,8 +188,6 @@ object ChannelSender {
             }
         } catch (e: Exception) {
             ChannelOutcome.Failed(e.message ?: e.javaClass.simpleName)
-        } finally {
-            client.dispatcher.executorService.shutdown()
         }
     }
 }

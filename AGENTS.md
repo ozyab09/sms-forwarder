@@ -282,7 +282,8 @@ python3 generate_icons.py logo_transparent.png
 | CallLog permission revoked on some OEMs | OFFHOOK-трекинг: без READ_CALL_LOG пропущенным считается RINGING→IDLE без OFFHOOK; принятые вызовы не пересылаются |
 | SMS receiver order | No priority set — works alongside default SMS app; no `READ_SMS` needed for incoming |
 | Проверка обновлений | Авто-проверка раз в сутки + ручная кнопка «Проверить обновления»; метка throttle ставится только при успешном ответе GitHub API (сбой сети не блокирует повторные проверки) |
-| Тёмная тема | Все тексты/иконки используют цвета темы (`textColorPrimary/Secondary`, `colorControlNormal`) — хардкод чёрного недопустим в новых layout |
+| Тёмная тема | Все тексты/иконки используют цвета темы (`textColorPrimary/Secondary`, `colorControlNormal`) — хардкод чёрного недопустим в новых layout. Выбор темы: `Prefs.themeMode` + `ThemeManager.apply()` в onCreate каждой Activity |
+| OkHttp-клиенты | Кэшируются в `ChannelClientFactory` по конфигурации канала, `invalidate()` при изменении каналов; НЕ закрывать клиенты после использования (в отличие от старого кода с shutdown) |
 
 ---
 
