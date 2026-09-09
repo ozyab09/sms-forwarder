@@ -65,6 +65,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etChatId: TextInputEditText
     private lateinit var btnGetMyId: MaterialButton
     private lateinit var btnTest: MaterialButton
+    private lateinit var btnCheckUpdate: MaterialButton
     private lateinit var swSms: SwitchMaterial
     private lateinit var swCalls: SwitchMaterial
     private lateinit var swShortCodes: SwitchMaterial
@@ -169,6 +170,7 @@ class MainActivity : AppCompatActivity() {
             LogStore.clear()
             renderLogs()
         }
+        btnCheckUpdate = findViewById(R.id.btn_check_update)
     }
 
     private fun loadPrefs() {
@@ -189,6 +191,7 @@ class MainActivity : AppCompatActivity() {
             savePrefs()
             testConnection()
         }
+        btnCheckUpdate.setOnClickListener { checkForUpdates(force = true) }
         btnGetMyId.setOnClickListener {
             savePrefs()
             val token = etToken.text?.toString()?.trim().orEmpty()
@@ -582,14 +585,39 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Проверка новой версии на GitHub — не чаще раза в сутки (бережём сеть/трафик). */
-    private fun checkForUpdates() {
+    /**
+     * Проверка новой версии на GitHub.
+     *
+     * @param force true — ручная кнопка: проверяем всегда. false — авто-проверка
+     *   при запуске: не чаще раза в сутки (бережём сеть/трафик).
+     *
+     * Важно: метка «последняя проверка» ставится ТОЛЬКО при успешном ответе API
+     * ([UpdateChecker.CheckResult.Unavailable] не считается) — иначе один сбой
+     * сети или rate-limit GitHub блокировал бы проверки на 24 часа.
+     */
+    private fun checkForUpdates(force: Boolean = false) {
+        val now = System.currentTimeMillis()
         val last = Prefs.lastUpdateCheck
-        if (System.currentTimeMillis() - last < UPDATE_CHECK_INTERVAL_MS) return
-        Prefs.lastUpdateCheck = System.currentTimeMillis()
+        if (!force && now - last < UPDATE_CHECK_INTERVAL_MS) return
         scope.launch {
-            val info = UpdateChecker.check() ?: return@launch
-            showUpdateDialog(info)
+            when (val res = UpdateChecker.check()) {
+                is UpdateChecker.CheckResult.Update -> {
+                    Prefs.lastUpdateCheck = now
+                    showUpdateDialog(res.info)
+                }
+                is UpdateChecker.CheckResult.UpToDate -> {
+                    Prefs.lastUpdateCheck = now
+                    if (force) Toast.makeText(
+                        this@MainActivity, R.string.update_none_available, Toast.LENGTH_LONG
+                    ).show()
+                }
+                is UpdateChecker.CheckResult.Unavailable -> {
+                    // Сеть/API недоступны — НЕ ставим метку, попробуем в следующий раз
+                    if (force) Toast.makeText(
+                        this@MainActivity, R.string.update_check_failed, Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         }
     }
 

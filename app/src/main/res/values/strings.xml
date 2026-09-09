@@ -107,4 +107,7 @@
     <string name="update_later">Позже</string>
     <string name="update_downloading">Загрузка обновления…</string>
     <string name="update_download_failed">Не удалось начать загрузку: %1$s</string>
+    <string name="btn_check_updates">Проверить обновления</string>
+    <string name="update_none_available">Установлена актуальная версия</string>
+    <string name="update_check_failed">Не удалось проверить обновления: нет сети или GitHub недоступен</string>
 </resources>

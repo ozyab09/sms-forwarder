@@ -24,8 +24,20 @@ object UpdateChecker {
         val notes: String,           // описание релиза
     )
 
-    /** Проверяет наличие новой версии. null — обновлений нет или ошибка. */
-    suspend fun check(): UpdateInfo? = withContext(Dispatchers.IO) {
+    /**
+     * Результат проверки обновлений.
+     *
+     * [Unavailable] — API не ответил (нет сети / rate-limit GitHub): это НЕ
+     * «обновлений нет», повторить стоит в следующий раз.
+     */
+    sealed class CheckResult {
+        data class Update(val info: UpdateInfo) : CheckResult()
+        object UpToDate : CheckResult()
+        object Unavailable : CheckResult()
+    }
+
+    /** Проверяет наличие новой версии на GitHub. */
+    suspend fun check(): CheckResult = withContext(Dispatchers.IO) {
         val client = okhttp3.OkHttpClient.Builder()
             .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
@@ -38,15 +50,15 @@ object UpdateChecker {
                 .header("User-Agent", "SMSForwarder")
                 .build()
             client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) return@withContext null
+                if (!resp.isSuccessful) return@withContext CheckResult.Unavailable
                 val json = JSONObject(resp.body?.string().orEmpty())
                 val tag = json.optString("tag_name", "").removePrefix("v")
                 val current = BuildConfig.VERSION_NAME.removePrefix("v")
 
                 // Новая версия? (простое сравнение major.minor.patch)
-                if (compareVersions(tag, current) <= 0) return@withContext null
+                if (compareVersions(tag, current) <= 0) return@withContext CheckResult.UpToDate
 
-                val assets = json.optJSONArray("assets") ?: return@withContext null
+                val assets = json.optJSONArray("assets") ?: return@withContext CheckResult.Unavailable
                 var apkUrl: String? = null
                 for (i in 0 until assets.length()) {
                     val a = assets.optJSONObject(i)
@@ -56,17 +68,19 @@ object UpdateChecker {
                         break
                     }
                 }
-                if (apkUrl == null) return@withContext null
+                if (apkUrl == null) return@withContext CheckResult.Unavailable
 
-                UpdateInfo(
-                    latestVersion = tag,
-                    apkUrl = apkUrl,
-                    releaseUrl = json.optString("html_url", ""),
-                    notes = json.optString("body", ""),
+                CheckResult.Update(
+                    UpdateInfo(
+                        latestVersion = tag,
+                        apkUrl = apkUrl,
+                        releaseUrl = json.optString("html_url", ""),
+                        notes = json.optString("body", ""),
+                    )
                 )
             }
         } catch (e: Exception) {
-            null // нет сети / GitHub недоступен — не мешаем запуску
+            CheckResult.Unavailable // нет сети / GitHub недоступен — не мешаем запуску
         } finally {
             // Не даём утечь thread-pool OkHttp при каждом запуске приложения.
             client.dispatcher.executorService.shutdown()

@@ -107,4 +107,7 @@
     <string name="update_later">Later</string>
     <string name="update_downloading">Downloading update…</string>
     <string name="update_download_failed">Failed to start download: %1$s</string>
+    <string name="btn_check_updates">Check for updates</string>
+    <string name="update_none_available">You're up to date</string>
+    <string name="update_check_failed">Couldn't check for updates: no network or GitHub unavailable</string>
 </resources>
