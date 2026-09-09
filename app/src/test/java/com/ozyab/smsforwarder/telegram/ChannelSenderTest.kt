@@ -73,7 +73,7 @@ class ChannelSenderTest {
         assertTrue(reasons[1].contains("Прокси 1"))
     }
 
-    // --- testAll: параллельная проверка всех каналов ---
+    // --- testAll: параллельная проверка подключения (getMe) по всем каналам ---
 
     @Test
     fun `testAll runs channels in parallel`() = runTest {
@@ -84,12 +84,12 @@ class ChannelSenderTest {
         )
         val active = AtomicInteger(0)
         val maxConcurrent = AtomicInteger(0)
-        val r = ChannelSender.testAll("hi", token, chatId, channels) {
+        val r = ChannelSender.testAll(token, channels) {
             val cur = active.incrementAndGet()
             maxConcurrent.updateAndGet { maxOf(it, cur) }
             delay(150)
             active.decrementAndGet()
-            ChannelSender.ChannelOutcome.Sent(1)
+            ChannelSender.ChannelTestOutcome.Ok("test_bot")
         }
         assertEquals(3, r.size)
         assertTrue("каналы должны тестироваться параллельно", maxConcurrent.get() >= 3)
@@ -103,20 +103,20 @@ class ChannelSenderTest {
             channel("p1", "Прокси 1", Channel.TYPE_HTTP),
             channel("p2", "Прокси 2", Channel.TYPE_SOCKS5),
         )
-        val r = ChannelSender.testAll("hi", token, chatId, channels) {
+        val r = ChannelSender.testAll(token, channels) {
             when (it.id) {
-                "direct" -> ChannelSender.ChannelOutcome.Sent(111)
-                "p1" -> ChannelSender.ChannelOutcome.Failed("timeout")
-                else -> ChannelSender.ChannelOutcome.Sent(333)
+                "direct" -> ChannelSender.ChannelTestOutcome.Ok("bot_a")
+                "p1" -> ChannelSender.ChannelTestOutcome.Failed("timeout")
+                else -> ChannelSender.ChannelTestOutcome.Ok("bot_c")
             }
         }
         assertEquals(3, r.size)
         assertTrue(r[0].ok)
-        assertEquals(111L, r[0].messageId)
+        assertEquals("bot_a", r[0].botUsername)
         assertTrue(!r[1].ok)
         assertEquals("timeout", r[1].error)
         assertTrue(r[2].ok)
-        assertEquals(333L, r[2].messageId)
+        assertEquals("bot_c", r[2].botUsername)
         assertEquals("неудача одного канала не должна останавливать остальные", 1, r.count { !it.ok })
     }
 
@@ -127,19 +127,30 @@ class ChannelSenderTest {
             channel("b", "B"),
             channel("c", "C"),
         )
-        val r = ChannelSender.testAll("hi", token, chatId, channels) {
+        val r = ChannelSender.testAll(token, channels) {
             if (it.id == "b") delay(200) else delay(10)
-            ChannelSender.ChannelOutcome.Sent(1)
+            ChannelSender.ChannelTestOutcome.Ok("bot")
         }
         assertEquals(listOf("A", "B", "C"), r.map { it.channel.name })
     }
 
     @Test
     fun `testAll with no channels returns empty list`() = runTest {
-        val r = ChannelSender.testAll("hi", token, chatId, emptyList()) {
-            ChannelSender.ChannelOutcome.Sent(1)
+        val r = ChannelSender.testAll(token, emptyList()) {
+            ChannelSender.ChannelTestOutcome.Ok("bot")
         }
         assertTrue(r.isEmpty())
+    }
+
+    @Test
+    fun `testAll getMe with blank username is a failure`() = runTest {
+        val channels = listOf(channel("direct", "Без прокси"))
+        val r = ChannelSender.testAll(token, channels) {
+            ChannelSender.ChannelTestOutcome.Failed("getMe: пустой username")
+        }
+        assertEquals(1, r.size)
+        assertTrue(!r[0].ok)
+        assertTrue(r[0].error!!.contains("пустой username"))
     }
 
     private fun runTest(block: suspend () -> Unit) {

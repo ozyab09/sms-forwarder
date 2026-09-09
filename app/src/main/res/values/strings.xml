@@ -92,11 +92,10 @@
     <string name="proxy_need_host_port">Укажи хост и порт</string>
     <string name="test_no_channels">Нет включённых каналов</string>
     <string name="test_dialog_title">Проверка каналов</string>
-    <string name="test_channel_ok">✅ «%1$s» — успех (id %2$d)</string>
+    <string name="test_channel_ok">✅ «%1$s» — бот @%2$s доступен</string>
     <string name="test_channel_fail">❌ «%1$s»: %2$s</string>
     <string name="test_error_unknown">ошибка</string>
-    <string name="test_all_ok">✅ Все каналы работают (%1$d из %2$d)</string>
-    <string name="test_all_partial">⚠️ Работает %1$d из %2$d каналов</string>
+    <string name="test_connection_ok">Соединение бота @%1$s через канал «%2$s» успешно</string>
     <string name="test_all_none">❌ Ни один канал не работает</string>
     <string name="warn_call_log_permission">Без разрешения «Журнал вызовов» пропущенные вызовы не будут пересылаться</string>
 

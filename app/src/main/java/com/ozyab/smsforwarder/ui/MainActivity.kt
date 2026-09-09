@@ -483,9 +483,8 @@ class MainActivity : AppCompatActivity() {
     private fun testConnection() {
         savePrefs()
         val token = Prefs.botToken
-        val chatId = Prefs.chatId
-        if (token.isBlank() || chatId.isBlank()) {
-            Toast.makeText(this, R.string.toast_enter_token_and_chatid, Toast.LENGTH_LONG).show()
+        if (token.isBlank()) {
+            Toast.makeText(this, R.string.toast_enter_token, Toast.LENGTH_LONG).show()
             return
         }
         val channels = ChannelStore.enabled()
@@ -497,9 +496,10 @@ class MainActivity : AppCompatActivity() {
         btnTest.text = getString(R.string.testing)
         LogStore.info("Проверка связи через каналы: ${channels.joinToString { it.name }}")
         scope.launch {
-            // Параллельно тестируем ВСЕ каналы, результат — по каждому отдельно
+            // Параллельно проверяем ВСЕ каналы через getMe (без отправки сообщений),
+            // результат — по каждому отдельно
             val results = withContext(Dispatchers.IO) {
-                ChannelSender.testAll("✅ SMS Forwarder: проверка связи", token, chatId, channels)
+                ChannelSender.testAll(token, channels)
             }
             btnTest.isEnabled = true
             btnTest.text = getString(R.string.btn_test_connection)
@@ -508,20 +508,24 @@ class MainActivity : AppCompatActivity() {
             val summary = buildString {
                 for (r in results) {
                     if (r.ok) {
-                        LogStore.ok("Тест «${r.channel.name}» — успех (id ${r.messageId})")
-                        appendLine(getString(R.string.test_channel_ok, r.channel.name, r.messageId ?: 0L))
+                        val bot = r.botUsername ?: "?"
+                        LogStore.ok("Тест «${r.channel.name}» — бот @$bot доступен")
+                        appendLine(getString(R.string.test_channel_ok, r.channel.name, bot))
+                        // Тост про успех: соединение бота через этот канал
+                        Toast.makeText(
+                            this@MainActivity,
+                            getString(R.string.test_connection_ok, bot, r.channel.name),
+                            Toast.LENGTH_LONG,
+                        ).show()
                     } else {
                         LogStore.error("Тест «${r.channel.name}» — ${r.error ?: "ошибка"}")
                         appendLine(getString(R.string.test_channel_fail, r.channel.name, r.error ?: getString(R.string.test_error_unknown)))
                     }
                 }
             }
-            val toast = when {
-                okCount == results.size -> getString(R.string.test_all_ok, okCount, results.size)
-                okCount > 0 -> getString(R.string.test_all_partial, okCount, results.size)
-                else -> getString(R.string.test_all_none)
+            if (okCount == 0) {
+                Toast.makeText(this@MainActivity, R.string.test_all_none, Toast.LENGTH_LONG).show()
             }
-            Toast.makeText(this@MainActivity, toast, Toast.LENGTH_LONG).show()
             AlertDialog.Builder(this@MainActivity)
                 .setTitle(R.string.test_dialog_title)
                 .setMessage(summary)
