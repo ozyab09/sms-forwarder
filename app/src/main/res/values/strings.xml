@@ -25,6 +25,7 @@
     <string name="pref_proxy_pass">Пароль (опционально)</string>
     <string name="channels_add_proxy">+ Добавить прокси</string>
     <string name="channels_direct">Без прокси</string>
+    <string name="proxy_type_none">Без прокси</string>
     <string name="channels_proxy_name">Название канала</string>
     <string name="channels_proxy_edit">Редактировать прокси</string>
     <string name="channels_proxy_delete">Удалить канал?</string>
