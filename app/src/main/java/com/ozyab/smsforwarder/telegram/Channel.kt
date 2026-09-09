@@ -110,6 +110,28 @@ object ChannelStore {
         setAll(all().filterNot { it.id == id })
     }
 
+    /**
+     * Переместить канал вверх/вниз относительно других прокси-каналов.
+     * Канал «Без прокси» (direct) всегда первый и не двигается.
+     *
+     * @param delta -1 = выше, +1 = ниже.
+     * @return true, если перестановка выполнена.
+     */
+    fun move(id: String, delta: Int): Boolean {
+        val cur = all()
+        val direct = cur.first()
+        val proxies = cur.drop(1).toMutableList()
+        val idx = proxies.indexOfFirst { it.id == id }
+        if (idx < 0) return false
+        val newIdx = idx + delta
+        if (newIdx < 0 || newIdx >= proxies.size) return false
+        val tmp = proxies[idx]
+        proxies[idx] = proxies[newIdx]
+        proxies[newIdx] = tmp
+        setAll(listOf(direct) + proxies)
+        return true
+    }
+
     /** Первое чтение: миграция старых одиночных прокси-настроек (v0.4.x) в канал. */
     private fun cachedOrLoad(): List<Channel>? {
         cache?.let { return it }

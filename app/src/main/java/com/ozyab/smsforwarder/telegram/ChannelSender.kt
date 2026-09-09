@@ -3,6 +3,9 @@ package com.ozyab.smsforwarder.telegram
 import com.ozyab.smsforwarder.util.LogStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.Request
@@ -76,6 +79,43 @@ object ChannelSender {
         }
         sent?.let { return@withContext it }
         Result.Err(failures)
+    }
+
+    /** Результат теста одного канала. */
+    data class ChannelTestResult(
+        val channel: Channel,
+        val ok: Boolean,
+        val messageId: Long? = null,
+        val error: String? = null,
+    )
+
+    /**
+     * Параллельная проверка ВСЕХ каналов (для кнопки «Проверить связь»).
+     *
+     * Тестовое сообщение отправляется через каждый канал одновременно;
+     * результат собирается по каждому отдельно (не останавливаемся на первом
+     * успешном). Каждый канал ограничен callTimeout (30с) внутри
+     * [ChannelClientFactory], поэтому общее время ≈ худшему каналу, а не сумме.
+     *
+     * @return результаты в том же порядке, что и [channels].
+     */
+    suspend fun testAll(
+        text: String,
+        token: String,
+        chatId: String,
+        channels: List<Channel>,
+        sender: suspend (Channel) -> ChannelOutcome = { realSender(text, token, chatId, it) },
+    ): List<ChannelTestResult> = withContext(Dispatchers.IO) {
+        coroutineScope {
+            channels.map { ch ->
+                async {
+                    when (val r = sender(ch)) {
+                        is ChannelOutcome.Sent -> ChannelTestResult(ch, true, messageId = r.messageId)
+                        is ChannelOutcome.Failed -> ChannelTestResult(ch, false, error = r.reason)
+                    }
+                }
+            }.awaitAll()
+        }
     }
 
     /** Реальная отправка через Bot API по одному каналу. */

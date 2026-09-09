@@ -37,6 +37,22 @@
     </LinearLayout>
 
     <ImageButton
+        android:id="@+id/ch_up"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_arrow_up"
+        android:contentDescription="Выше" />
+
+    <ImageButton
+        android:id="@+id/ch_down"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_arrow_down"
+        android:contentDescription="Ниже" />
+
+    <ImageButton
         android:id="@+id/ch_edit"
         android:layout_width="40dp"
         android:layout_height="40dp"
