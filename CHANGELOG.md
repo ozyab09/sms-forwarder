@@ -4,6 +4,16 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версионирование — [SemVer](https://semver.org/lang/ru/).
 
+## [0.4.11] - 2026-09-09
+
+### Исправлено
+- **CI: устранены warning'и релизной сборки**: невалидный input `cache`
+  у `setup-android` v4.0.1 (SDK и так предустановлен на раннере);
+  `action-gh-release` обновлён с v2.6.2 (Node 20, deprecated) до v3.0.3 (Node 24)
+- **Устаревший DSL в build.gradle.kts**: `resConfigs` →
+  `androidResources.localeFilters`, `buildDir` → `layout.buildDirectory`
+  (warning'и AGP/Kotlin при каждой сборке)
+
 ## [0.4.10] - 2026-09-09
 
 ### Изменено
