@@ -13,8 +13,8 @@
     <string name="btn_get_my_id">Get my ID</string>
     <string name="btn_test_connection">Test connection</string>
 
-    <!-- Proxy -->
-    <string name="pref_proxy_section">Proxy (to bypass blocking)</string>
+    <!-- Proxy / Channels -->
+    <string name="pref_proxy_section">Sending channels</string>
     <string name="pref_proxy_enabled">Use proxy</string>
     <string name="pref_proxy_type">Proxy type</string>
     <string name="proxy_type_http">HTTP</string>
@@ -23,6 +23,18 @@
     <string name="pref_proxy_port">Port</string>
     <string name="pref_proxy_user">Login (optional)</string>
     <string name="pref_proxy_pass">Password (optional)</string>
+    <string name="channels_add_proxy">+ Add proxy</string>
+    <string name="channels_direct">No proxy</string>
+    <string name="channels_proxy_name">Channel name</string>
+    <string name="channels_proxy_edit">Edit proxy</string>
+    <string name="channels_proxy_delete">Delete channel?</string>
+    <string name="channels_proxy_delete_confirm">Channel \u00ab%s\u00bb will be deleted.</string>
+    <string name="channels_no_proxies">No proxy channels. Tap \u00ab+ Add proxy\u00bb.</string>
+
+    <!-- Logs -->
+    <string name="tab_logs">Logs</string>
+    <string name="logs_empty">No entries yet. Start the service or test connection.</string>
+    <string name="logs_clear">Clear</string>
 
     <!-- Toggles -->
     <string name="pref_sms_enabled">Forward SMS</string>
