@@ -51,6 +51,7 @@ object LogStore {
         listeners.remove(l)
     }
 
+    @Synchronized
     fun clear() {
         entries.clear()
     }
