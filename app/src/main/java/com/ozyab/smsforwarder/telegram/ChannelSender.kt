@@ -82,46 +82,82 @@ object ChannelSender {
         Result.Err(failures)
     }
 
-    /** Результат теста одного канала. */
+    /** Результат теста подключения одного канала (через getMe). */
     data class ChannelTestResult(
         val channel: Channel,
         val ok: Boolean,
-        val messageId: Long? = null,
+        val botUsername: String? = null,
         val error: String? = null,
     )
 
-    /**
-     * Параллельная проверка ВСЕХ каналов (для кнопки «Проверить связь»).
-     *
-     * Тестовое сообщение отправляется через каждый канал одновременно;
-     * результат собирается по каждому отдельно (не останавливаемся на первом
-     * успешном). Каждый канал ограничен callTimeout (30с) внутри
-     * [ChannelClientFactory], поэтому общее время ≈ худшему каналу, а не сумме.
-     *
-     * @return результаты в том же порядке, что и [channels].
-     */
+    /** Результат проверки getMe через один канал. */
+    sealed class ChannelTestOutcome {
+        data class Ok(val botUsername: String) : ChannelTestOutcome()
+        data class Failed(val reason: String) : ChannelTestOutcome()
+    }
+
     /** Потолок одновременных проверок: каждый канал поднимает свой OkHttp-клиент
      *  с thread-pool, поэтому при десятках каналов ограничиваем параллельность. */
     private const val MAX_PARALLEL_TESTS = 4
 
+    /**
+     * Параллельная проверка подключения ко ВСЕМ каналам (для кнопки «Проверить связь»).
+     *
+     * Через каждый канал запрашивается getMe (информация о боте) — сообщение
+     * пользователю НЕ отправляется. Результат собирается по каждому каналу
+     * отдельно (не останавливаемся на первом успешном). Каждый канал ограничен
+     * callTimeout (30с) внутри [ChannelClientFactory], поэтому общее время
+     * ≈ худшему каналу, а не сумме.
+     *
+     * @return результаты в том же порядке, что и [channels].
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun testAll(
-        text: String,
         token: String,
-        chatId: String,
         channels: List<Channel>,
-        sender: suspend (Channel) -> ChannelOutcome = { realSender(text, token, chatId, it) },
+        tester: suspend (Channel) -> ChannelTestOutcome = { realGetMe(token, it) },
     ): List<ChannelTestResult> = withContext(Dispatchers.IO) {
         val limiter = Dispatchers.IO.limitedParallelism(MAX_PARALLEL_TESTS)
         coroutineScope {
             channels.map { ch ->
                 async(limiter) {
-                    when (val r = sender(ch)) {
-                        is ChannelOutcome.Sent -> ChannelTestResult(ch, true, messageId = r.messageId)
-                        is ChannelOutcome.Failed -> ChannelTestResult(ch, false, error = r.reason)
+                    when (val r = tester(ch)) {
+                        is ChannelTestOutcome.Ok -> ChannelTestResult(ch, true, botUsername = r.botUsername)
+                        is ChannelTestOutcome.Failed -> ChannelTestResult(ch, false, error = r.reason)
                     }
                 }
             }.awaitAll()
+        }
+    }
+
+    /** Реальная проверка getMe через Bot API по одному каналу (без отправки сообщений). */
+    private suspend fun realGetMe(
+        token: String,
+        channel: Channel,
+    ): ChannelTestOutcome {
+        val (client, buildErr) = ChannelClientFactory.build(channel)
+        if (buildErr != null) return ChannelTestOutcome.Failed(buildErr)
+        return try {
+            val req = Request.Builder()
+                .url("$API_BASE/bot$token/getMe")
+                .build()
+            client.newCall(req).execute().use { resp ->
+                val json = JSONObject(resp.body?.string().orEmpty())
+                if (resp.isSuccessful && json.optBoolean("ok", false)) {
+                    val username = json.optJSONObject("result")?.optString("username", "")
+                    if (username.isNullOrBlank()) {
+                        ChannelTestOutcome.Failed("getMe: пустой username")
+                    } else {
+                        ChannelTestOutcome.Ok(username)
+                    }
+                } else {
+                    ChannelTestOutcome.Failed(json.optString("description", "HTTP ${resp.code}"))
+                }
+            }
+        } catch (e: Exception) {
+            ChannelTestOutcome.Failed(e.message ?: e.javaClass.simpleName)
+        } finally {
+            client.dispatcher.executorService.shutdown()
         }
     }
 
