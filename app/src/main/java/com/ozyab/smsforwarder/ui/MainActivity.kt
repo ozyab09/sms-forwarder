@@ -40,6 +40,7 @@ import com.ozyab.smsforwarder.telegram.Channel
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.telegram.ChannelSender
 import com.ozyab.smsforwarder.telegram.TelegramClient
+import com.ozyab.smsforwarder.update.UpdateChecker
 import com.ozyab.smsforwarder.update.UpdateManager
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
@@ -205,7 +206,7 @@ class MainActivity : AppCompatActivity() {
         }
         btnCheckUpdate.setOnClickListener { UpdateManager.checkForUpdates(this, scope, force = true) }
         btnGithub.setOnClickListener {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ozyab09/sms-forwarder")))
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.PROJECT_URL)))
         }
         rgTheme.setOnCheckedChangeListener { _, checkedId ->
             val mode = when (checkedId) {
