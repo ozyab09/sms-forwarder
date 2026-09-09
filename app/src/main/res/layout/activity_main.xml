@@ -219,7 +219,15 @@
                     android:layout_marginTop="16dp"
                     android:text="🔒 Токен хранится в шифрованном хранилище устройства.\nСлужба работает в фоне без всплывающих уведомлений.\nНа Android 13+ можно отключить канал уведомления — пересылка продолжится."
                     android:textSize="12sp"
-                    android:textColor="@android:color/darker_gray" />
+                    android:textColor="?android:attr/textColorSecondary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_check_update"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/btn_check_updates" />
 
             </LinearLayout>
         </ScrollView>
