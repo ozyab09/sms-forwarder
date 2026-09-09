@@ -14,6 +14,24 @@ import org.json.JSONObject
  */
 object UpdateChecker {
 
+    /** Единственный источник правды о странице проекта (кнопка в «О приложении» и т.п.). */
+    const val PROJECT_URL = "https://github.com/ozyab09/sms-forwarder"
+
+    /**
+     * Убирает из текста релиза автоматические GitHub-ссылки (PR, compare),
+     * чтобы в приложении не показывались ссылки на PR вместо проекта.
+     */
+    fun stripGitHubAutoLinks(notes: String): String = notes
+        .replace(GITHUB_LINK_REGEX, "")
+        .lines()
+        .filter { it.isNotBlank() }
+        .joinToString("\n")
+        .trim()
+
+    private val GITHUB_LINK_REGEX = Regex(
+        "https?://github\\.com/\\S+/\\S+/(?:pull|issues|compare)/\\S+",
+    )
+
     private const val REPO = "ozyab09/sms-forwarder"
     private const val API = "https://api.github.com/repos/$REPO/releases/latest"
 

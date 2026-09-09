@@ -65,7 +65,7 @@ object UpdateManager {
             appendLine(context.getString(R.string.update_current, BuildConfig.VERSION_NAME))
             appendLine()
             if (info.notes.isNotBlank()) {
-                appendLine(info.notes.take(500))
+                appendLine(UpdateChecker.stripGitHubAutoLinks(info.notes).take(500))
             }
         }
         AlertDialog.Builder(context)
