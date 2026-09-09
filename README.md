@@ -10,11 +10,9 @@
 
 ---
 
-## 📸 Скриншоты
+## 📸 Скриншот
 
-| Настройки | Проверка связи | Статус |
-|:---:|:---:|:---:|
-| ![Настройки](docs/screenshots/settings.png) | ![Проверка](docs/screenshots/test.png) | ![Статус](docs/screenshots/status.png) |
+![SMS Forwarder](docs/screenshots/app.png)
 
 ---
 
