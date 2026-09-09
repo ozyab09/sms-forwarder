@@ -4,12 +4,19 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import java.util.concurrent.CountDownLatch
 
 /**
  * Хранилище настроек.
  *
  * Чувствительные поля (токен бота, пароль прокси) — в EncryptedSharedPreferences.
  * Обычные настройки — в обычных SharedPreferences.
+ *
+ * Инициализация асинхронная: [init] лишь запускает фоновый поток, в котором
+ * создаются MasterKey и EncryptedSharedPreferences (самые медленные операции).
+ * Холодный старт приложения не блокируется; любой доступ к настройкам через
+ * [awaitReady] дожидается завершения инициализации (один раз, обычно десятки
+ * миллисекунд), поэтому чтения/записи безопасны из любого потока.
  */
 object Prefs {
 
@@ -42,11 +49,40 @@ object Prefs {
     // Каналы отправки (JSON в secure prefs)
     const val KEY_CHANNELS_JSON = "channels_json"
 
+    private val initLock = Any()
+    private val readyLatch = CountDownLatch(1)
+    @Volatile private var initStarted = false
+    @Volatile private var initDone = false
+
     private lateinit var secure: SharedPreferences
     private lateinit var plain: SharedPreferences
 
+    /**
+     * Запускает асинхронную инициализацию (идемпотентно, не блокирует поток).
+     * Вызывается из Application.onCreate; далее любой компонент (Activity,
+     * Receiver, Service) получает готовые Prefs через [awaitReady].
+     */
     fun init(context: Context) {
-        if (::secure.isInitialized) return
+        synchronized(initLock) {
+            if (initStarted) return
+            initStarted = true
+        }
+        val appContext = context.applicationContext
+        val t = Thread({
+            try {
+                doInit(appContext)
+            } catch (e: Throwable) {
+                LogStore.error("Prefs init failed: ${e.message}")
+            } finally {
+                initDone = true
+                readyLatch.countDown()
+            }
+        }, "prefs-init")
+        t.isDaemon = true
+        t.start()
+    }
+
+    private fun doInit(context: Context) {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
@@ -58,70 +94,172 @@ object Prefs {
         plain = context.getSharedPreferences(FILE_PLAIN, Context.MODE_PRIVATE)
     }
 
+    /**
+     * Блокирует вызывающий поток до готовности Prefs; после инициализации —
+     * мгновенно. Вызывается в начале каждого аксессора.
+     */
+    private fun awaitReady() {
+        if (initDone) return
+        // init() ещё не вызывался — такого быть не должно (Application.onCreate
+        // стартует раньше любых компонентов); возвращаемся и падаем честно,
+        // а не зависаем навсегда.
+        if (!initStarted) return
+        try {
+            readyLatch.await()
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
+    }
+
     // --- secure ---
     var botToken: String
-        get() = secure.getString(KEY_BOT_TOKEN, "") ?: ""
-        set(v) = secure.edit().putString(KEY_BOT_TOKEN, v).apply()
+        get() {
+            awaitReady()
+            return secure.getString(KEY_BOT_TOKEN, "") ?: ""
+        }
+        set(v) {
+            awaitReady()
+            secure.edit().putString(KEY_BOT_TOKEN, v).apply()
+        }
 
     var proxyPass: String
-        get() = secure.getString(KEY_PROXY_PASS, "") ?: ""
-        set(v) = secure.edit().putString(KEY_PROXY_PASS, v).apply()
+        get() {
+            awaitReady()
+            return secure.getString(KEY_PROXY_PASS, "") ?: ""
+        }
+        set(v) {
+            awaitReady()
+            secure.edit().putString(KEY_PROXY_PASS, v).apply()
+        }
 
     /** JSON-массив каналов отправки (secure). */
     var channelsJson: String
-        get() = secure.getString(KEY_CHANNELS_JSON, "") ?: ""
-        set(v) = secure.edit().putString(KEY_CHANNELS_JSON, v).apply()
+        get() {
+            awaitReady()
+            return secure.getString(KEY_CHANNELS_JSON, "") ?: ""
+        }
+        set(v) {
+            awaitReady()
+            secure.edit().putString(KEY_CHANNELS_JSON, v).apply()
+        }
 
     // --- plain ---
     var chatId: String
-        get() = plain.getString(KEY_CHAT_ID, "") ?: ""
-        set(v) = plain.edit().putString(KEY_CHAT_ID, v).apply()
+        get() {
+            awaitReady()
+            return plain.getString(KEY_CHAT_ID, "") ?: ""
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putString(KEY_CHAT_ID, v).apply()
+        }
 
     var smsEnabled: Boolean
-        get() = plain.getBoolean(KEY_SMS_ENABLED, true)
-        set(v) = plain.edit().putBoolean(KEY_SMS_ENABLED, v).apply()
+        get() {
+            awaitReady()
+            return plain.getBoolean(KEY_SMS_ENABLED, true)
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putBoolean(KEY_SMS_ENABLED, v).apply()
+        }
 
     var callsEnabled: Boolean
-        get() = plain.getBoolean(KEY_CALLS_ENABLED, true)
-        set(v) = plain.edit().putBoolean(KEY_CALLS_ENABLED, v).apply()
+        get() {
+            awaitReady()
+            return plain.getBoolean(KEY_CALLS_ENABLED, true)
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putBoolean(KEY_CALLS_ENABLED, v).apply()
+        }
 
     var shortCodesFilter: Boolean
-        get() = plain.getBoolean(KEY_SHORT_CODES_FILTER, true)
-        set(v) = plain.edit().putBoolean(KEY_SHORT_CODES_FILTER, v).apply()
+        get() {
+            awaitReady()
+            return plain.getBoolean(KEY_SHORT_CODES_FILTER, true)
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putBoolean(KEY_SHORT_CODES_FILTER, v).apply()
+        }
 
     var proxyEnabled: Boolean
-        get() = plain.getBoolean(KEY_PROXY_ENABLED, false)
-        set(v) = plain.edit().putBoolean(KEY_PROXY_ENABLED, v).apply()
+        get() {
+            awaitReady()
+            return plain.getBoolean(KEY_PROXY_ENABLED, false)
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putBoolean(KEY_PROXY_ENABLED, v).apply()
+        }
 
     var proxyType: String
-        get() = plain.getString(KEY_PROXY_TYPE, "http") ?: "http"
-        set(v) = plain.edit().putString(KEY_PROXY_TYPE, v).apply()
+        get() {
+            awaitReady()
+            return plain.getString(KEY_PROXY_TYPE, "http") ?: "http"
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putString(KEY_PROXY_TYPE, v).apply()
+        }
 
     var proxyHost: String
-        get() = plain.getString(KEY_PROXY_HOST, "") ?: ""
-        set(v) = plain.edit().putString(KEY_PROXY_HOST, v).apply()
+        get() {
+            awaitReady()
+            return plain.getString(KEY_PROXY_HOST, "") ?: ""
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putString(KEY_PROXY_HOST, v).apply()
+        }
 
     var proxyPort: Int
-        get() = plain.getInt(KEY_PROXY_PORT, 0)
-        set(v) = plain.edit().putInt(KEY_PROXY_PORT, v).apply()
+        get() {
+            awaitReady()
+            return plain.getInt(KEY_PROXY_PORT, 0)
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putInt(KEY_PROXY_PORT, v).apply()
+        }
 
     var proxyUser: String
-        get() = plain.getString(KEY_PROXY_USER, "") ?: ""
-        set(v) = plain.edit().putString(KEY_PROXY_USER, v).apply()
+        get() {
+            awaitReady()
+            return plain.getString(KEY_PROXY_USER, "") ?: ""
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putString(KEY_PROXY_USER, v).apply()
+        }
 
     var sentCount: Int
-        get() = plain.getInt(KEY_SENT_COUNT, 0)
-        set(v) = plain.edit().putInt(KEY_SENT_COUNT, v).apply()
+        get() {
+            awaitReady()
+            return plain.getInt(KEY_SENT_COUNT, 0)
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putInt(KEY_SENT_COUNT, v).apply()
+        }
 
     /** Прошёл ли пользователь онбординг. */
     var onboardingComplete: Boolean
-        get() = plain.getBoolean(KEY_ONBOARDING_COMPLETE, false)
-        set(v) = plain.edit().putBoolean(KEY_ONBOARDING_COMPLETE, v).apply()
+        get() {
+            awaitReady()
+            return plain.getBoolean(KEY_ONBOARDING_COMPLETE, false)
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putBoolean(KEY_ONBOARDING_COMPLETE, v).apply()
+        }
 
     // --- Миграция старого одиночного прокси (v0.4.x) в канал ---
 
     /** Возвращает канал из старых настроек прокси, если они заполнены и включены. */
     fun migrateLegacyProxyToChannel(): com.ozyab.smsforwarder.telegram.Channel? {
+        awaitReady()
         if (!proxyEnabled) return null
         if (proxyHost.isBlank() || proxyPort <= 0) return null
         return com.ozyab.smsforwarder.telegram.Channel(
@@ -138,6 +276,7 @@ object Prefs {
 
     /** Очистка старых полей одиночного прокси после миграции. */
     fun clearLegacyProxy() {
+        awaitReady()
         plain.edit().remove(KEY_PROXY_ENABLED).apply()
         plain.edit().remove(KEY_PROXY_TYPE).apply()
         plain.edit().remove(KEY_PROXY_HOST).apply()
@@ -148,23 +287,50 @@ object Prefs {
 
     // --- Детальные фильтры SMS ---
     var filterMode: String
-        get() = plain.getString(KEY_FILTER_MODE, "all") ?: "all"
-        set(v) = plain.edit().putString(KEY_FILTER_MODE, v).apply()
+        get() {
+            awaitReady()
+            return plain.getString(KEY_FILTER_MODE, "all") ?: "all"
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putString(KEY_FILTER_MODE, v).apply()
+        }
 
     /** Белый список номеров (через запятую, допускаются шаблоны с *). */
     var smsWhitelist: String
-        get() = plain.getString(KEY_SMS_WHITELIST, "") ?: ""
-        set(v) = plain.edit().putString(KEY_SMS_WHITELIST, v).apply()
+        get() {
+            awaitReady()
+            return plain.getString(KEY_SMS_WHITELIST, "") ?: ""
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putString(KEY_SMS_WHITELIST, v).apply()
+        }
 
     /** Regex: если совпал — SMS не пересылаем. */
     var smsBlockRegex: String
-        get() = plain.getString(KEY_SMS_BLOCK_REGEX, "") ?: ""
-        set(v) = plain.edit().putString(KEY_SMS_BLOCK_REGEX, v).apply()
+        get() {
+            awaitReady()
+            return plain.getString(KEY_SMS_BLOCK_REGEX, "") ?: ""
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putString(KEY_SMS_BLOCK_REGEX, v).apply()
+        }
 
-    fun isConfigured(): Boolean = botToken.isNotBlank() && chatId.isNotBlank()
+    fun isConfigured(): Boolean {
+        awaitReady()
+        return botToken.isNotBlank() && chatId.isNotBlank()
+    }
 
     /** Время последней проверки обновлений (throttle сетевых запросов). */
     var lastUpdateCheck: Long
-        get() = plain.getLong(KEY_LAST_UPDATE_CHECK, 0L)
-        set(v) = plain.edit().putLong(KEY_LAST_UPDATE_CHECK, v).apply()
+        get() {
+            awaitReady()
+            return plain.getLong(KEY_LAST_UPDATE_CHECK, 0L)
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putLong(KEY_LAST_UPDATE_CHECK, v).apply()
+        }
 }

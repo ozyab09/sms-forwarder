@@ -52,8 +52,8 @@
 | `receiver` | `BootReceiver` | Auto-start service on boot |
 | `service` | `ForwardService` | Foreground service, queue, retries, notifications |
 | `telegram` | `TelegramClient` | Bot API sendMessage / getUpdates / getMe |
-| `telegram` | `ProxyConfig` | HTTP/SOCKS5 proxy for OkHttp (respects `proxyEnabled`) |
-| `util` | `Prefs` | Encrypted (token, proxyPass) + plain prefs |
+| `telegram` | `Channel` | ChannelStore: список каналов (direct + прокси), приоритет, `testAll` |
+| `util` | `Prefs` | Encrypted (token, proxyPass, channels) + plain prefs; **async init** (MasterKey создаётся в фоне, аксессоры ждут готовности) |
 | `util` | `ContactNames` | Resolve phone number → contact name (cached) |
 
 ---
@@ -72,30 +72,15 @@
 
 ---
 
-## 🌐 Proxy Implementation
+## 🌐 Channels & Proxy
 
-```kotlin
-// ProxyConfig.kt — critical fix applied (commit 5075c74)
-fun current(): ProxySettings? {
-    if (!Prefs.proxyEnabled) return null  // ← respects UI toggle
-    return ProxySettings(...)
-}
-
-fun okHttpProxy(s: ProxySettings?): Pair<Proxy?, String?> {
-    if (s == null) return null to null    // ← no proxy when disabled
-    ...
-}
-
-fun httpClient(): Pair<OkHttpClient, String?> {
-    val (proxy, err) = okHttpProxy(current())
-    if (err != null) return client to err
-    if (proxy == null) return clientWithoutProxy to null  // ← direct connection
-    return clientWithProxy to null
-}
-```
-
-**Proxy types supported**: `http`, `socks5`
-**Auth**: Basic auth for HTTP proxy (user/pass from prefs)
+- Каналы отправки — список `Channel` (прямое соединение + HTTP/SOCKS5 прокси),
+  хранится как JSON в secure prefs (`Prefs.channelsJson`), прямой канал всегда
+  первый и неотключаемый.
+- Типы прокси: `http`, `socks5`. Basic auth работает для HTTP; SOCKS5 с логином/
+  паролем отклоняется с явной ошибкой (OkHttp не умеет авторизацию SOCKS5).
+- `ChannelSender.testAll` проверяет все каналы параллельно (лимит 4), каскадная
+  отправка с общим таймаутом (callTimeout 30с, каскад ≤ 120с).
 
 ---
 
@@ -128,11 +113,11 @@ fun httpClient(): Pair<OkHttpClient, String?> {
 ```
 
 ### Test Coverage Areas
-- `Prefs` encryption/decryption roundtrip
-- `ProxyConfig` null handling when disabled
-- `ContactNames` phone normalization + cache
-- `TelegramClient` request/response parsing (mocked OkHttp)
 - `SendQueue` ordering + retry logic (per-event backoff, отброс после попыток, переполнение)
+- `ChannelSender.testAll` parallel checks (независимость результатов, порядок)
+- `SmsFilter` whitelist matching + ReDoS-детектор
+- `ContactNames` phone normalization + cache
+- `UpdateChecker` version comparison
 
 ---
 
