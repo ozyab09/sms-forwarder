@@ -92,11 +92,10 @@
     <string name="proxy_need_host_port">Enter host and port</string>
     <string name="test_no_channels">No enabled channels</string>
     <string name="test_dialog_title">Channel check</string>
-    <string name="test_channel_ok">✅ \u00ab%1$s\u00bb — ok (id %2$d)</string>
+    <string name="test_channel_ok">✅ \u00ab%1$s\u00bb — bot @%2$s reachable</string>
     <string name="test_channel_fail">❌ \u00ab%1$s\u00bb: %2$s</string>
     <string name="test_error_unknown">error</string>
-    <string name="test_all_ok">✅ All channels work (%1$d of %2$d)</string>
-    <string name="test_all_partial">⚠️ %1$d of %2$d channels work</string>
+    <string name="test_connection_ok">Connected to bot @%1$s via \u00ab%2$s\u00bb channel</string>
     <string name="test_all_none">❌ No channel works</string>
     <string name="warn_call_log_permission">Without the \u00abCall log\u00bb permission missed calls won\'t be forwarded</string>
 
