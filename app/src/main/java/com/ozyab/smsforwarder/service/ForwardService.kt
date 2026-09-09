@@ -18,32 +18,35 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentLinkedQueue
-import kotlin.math.min
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Фоновый сервис пересылки.
  *
  * - Foreground service с НЕВИДИМЫМ уведомлением (IMPORTANCE_MIN).
  * - START_STICKY: перезапускается системой при убийстве.
- * - Очередь событий; отправка КАСКАДОМ по каналам (direct → прокси 1 → ...).
- * - Ретраи: при сбое всех каналов интервал удваивается (15с, 30с, 60с, ...,
- *   кап 10 мин, суммарное окно ~15 минут).
- * - Пишет статусы в LogStore (вкладка «Логи»).
+ * - Очередь событий [SendQueue]: новые события обрабатываются немедленно,
+ *   ретраи упавших НЕ блокируют новые (нет head-of-line blocking).
+ * - Ретраи per-event: 15с → 30с → … кап 10 мин; после [SendQueue.MAX_ATTEMPTS]
+ *   попыток событие отбрасывается с записью в лог.
+ * - Персистентность очереди ([EventQueueStore]) — события не теряются при смерти
+ *   процесса, восстанавливаются при следующем старте.
+ * - Воркер спит до появления события/созревания ретрая (без polling).
  */
 class ForwardService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val queue = ConcurrentLinkedQueue<String>()
+    private val queue = SendQueue()
+
+    /** Пробуждение воркера при появлении нового события. */
+    private val wake = Channel<Unit>(Channel.CONFLATED)
 
     @Volatile
     private var workerStarted = false
-
-    /** Текущий интервал ретрая; сбрасывается к 15с после успеха. */
-    @Volatile
-    private var retryDelayMs = INITIAL_RETRY_MS
 
     companion object {
         private const val CHANNEL_ID = "forward_service"
@@ -51,11 +54,6 @@ class ForwardService : Service() {
         const val ACTION_START = "com.ozyab.smsforwarder.START"
         const val ACTION_STOP = "com.ozyab.smsforwarder.STOP"
         const val EXTRA_TEXT = "extra_text"
-
-        /** Стартовый интервал ретрая: 15 секунд. */
-        const val INITIAL_RETRY_MS = 15_000L
-        /** Кап одиночного интервала: 10 минут (суммарно ~15 минут окна). */
-        const val MAX_RETRY_MS = 600_000L
 
         fun start(context: Context) {
             val i = Intent(context, ForwardService::class.java).setAction(ACTION_START)
@@ -81,7 +79,7 @@ class ForwardService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
-                LogStore.info("Сервис остановлен")
+                LogStore.info("Сервис остановлен (${queue.size} событий в очереди сохранено)")
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -100,63 +98,74 @@ class ForwardService : Service() {
         if (!workerStarted) {
             workerStarted = true
             scope.launch {
-                while (true) {
-                    val text = queue.poll()
-                    if (text == null) {
-                        delay(2_000)
-                        continue
-                    }
-                    sendWithRetries(text)
+                val restored = EventQueueStore.load(this@ForwardService)
+                if (restored.isNotEmpty()) {
+                    queue.restore(restored)
+                    LogStore.warn("Восстановлено ${queue.size} неотправленных событий из прошлой сессии")
+                    persist()
                 }
+                runWorker()
             }
         }
         return START_STICKY
     }
 
-    /**
-     * Каскадная отправка с ретраями.
-     * Пробуем все включённые каналы по порядку; если все не вышли —
-     * возвращаем в очередь и ждём с удвоением интервала.
-     */
-    private suspend fun sendWithRetries(text: String) {
+    /** Добавить событие в очередь (вызывается из ресиверов). */
+    fun enqueue(text: String) {
+        queue.enqueue(text)
+        persist()
+        wake.trySend(Unit)
+    }
+
+    private suspend fun runWorker() {
+        while (coroutineContext.isActive) {
+            val ev = queue.pollReady()
+            if (ev != null) {
+                process(ev)
+                persist()
+                continue
+            }
+            // Нечего отправлять — ждём новое событие или созревание ретрая
+            val waitMs = queue.nextRetryDelayMs()
+            if (waitMs == null) {
+                wake.receive()
+            } else {
+                withTimeoutOrNull(waitMs) { wake.receive() }
+            }
+        }
+    }
+
+    private suspend fun process(ev: QueuedEvent) {
         val token = Prefs.botToken
         val chatId = Prefs.chatId
         if (token.isBlank() || chatId.isBlank()) {
             LogStore.warn("Не задан токен/chatId — событие отложено")
-            queue.add(text)
-            delay(retryDelayMs)
-            retryDelayMs = nextDelay(retryDelayMs)
+            if (queue.fail(ev)) {
+                LogStore.error("Событие отброшено после ${SendQueue.MAX_ATTEMPTS} попыток (не задан токен/chatId)")
+            }
             return
         }
 
         val channels = ChannelStore.enabled()
         LogStore.info("Отправка: каналов ${channels.size} (${channels.joinToString { it.name }})")
 
-        val result = ChannelSender.send(text, token, chatId, channels)
-        when (result) {
+        when (val result = ChannelSender.send(ev.text, token, chatId, channels)) {
             is ChannelSender.Result.Ok -> {
                 Prefs.sentCount = Prefs.sentCount + 1
-                retryDelayMs = INITIAL_RETRY_MS
                 LogStore.ok("Отправлено через «${result.channelName}» (id ${result.messageId})")
             }
             is ChannelSender.Result.Err -> {
                 val joined = result.reasons.joinToString("; ")
                 LogStore.error("Все каналы не вышли: $joined")
-                queue.add(text)
-                delay(retryDelayMs)
-                val next = nextDelay(retryDelayMs)
-                LogStore.warn("Ретрай через ${next / 1000}с (интервал удвоен)")
-                retryDelayMs = next
+                if (queue.fail(ev)) {
+                    LogStore.error("Событие отброшено после ${SendQueue.MAX_ATTEMPTS} попыток")
+                }
             }
         }
     }
 
-    /** Удвоение интервала с капом [MAX_RETRY_MS]. */
-    private fun nextDelay(current: Long): Long = min(current * 2, MAX_RETRY_MS)
-
-    /** Добавить событие в очередь (вызывается из ресиверов). */
-    fun enqueue(text: String) {
-        queue.add(text)
+    private fun persist() {
+        EventQueueStore.saveAsync(this, queue.snapshot())
     }
 
     private fun startAsForeground() {

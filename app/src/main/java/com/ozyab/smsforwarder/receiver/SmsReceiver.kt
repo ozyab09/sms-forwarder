@@ -4,10 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
-import android.telephony.SubscriptionManager
 import com.ozyab.smsforwarder.service.ForwardService
 import com.ozyab.smsforwarder.util.ContactNames
 import com.ozyab.smsforwarder.util.Prefs
+import com.ozyab.smsforwarder.util.ReceiverExecutor
 import com.ozyab.smsforwarder.util.SimInfo
 import com.ozyab.smsforwarder.util.SmsFilter
 import com.ozyab.smsforwarder.util.formatTimestamp
@@ -17,6 +17,9 @@ import com.ozyab.smsforwarder.util.formatTimestamp
  *
  * Срабатывает на каждое входящее сообщение (не требует статуса
  * Default SMS Handler). Форматирует и передаёт в ForwardService.
+ *
+ * Тяжёлая часть (контакты, SIM, фильтры) вынесена с main thread через
+ * [ReceiverExecutor] — под пачкой SMS главный поток не блокируется (ANR).
  */
 class SmsReceiver : BroadcastReceiver() {
 
@@ -27,32 +30,34 @@ class SmsReceiver : BroadcastReceiver() {
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
         if (messages.isEmpty()) return
 
-        val sb = StringBuilder()
-        for (m in messages) sb.append(m.messageBody ?: "")
-        val body = sb.toString()
+        ReceiverExecutor.goAsync(this) {
+            val sb = StringBuilder()
+            for (m in messages) sb.append(m.messageBody ?: "")
+            val body = sb.toString()
 
-        val sender = messages.firstOrNull()?.originatingAddress ?: "Неизвестный"
-        val ts = messages.firstOrNull()?.timestampMillis ?: System.currentTimeMillis()
+            val sender = messages.firstOrNull()?.originatingAddress ?: "Неизвестный"
+            val ts = messages.firstOrNull()?.timestampMillis ?: System.currentTimeMillis()
 
-        // Детальные фильтры (короткие номера, block-regex, режим contacts/whitelist)
-        if (!SmsFilter.shouldForward(context, sender, body)) return
+            // Детальные фильтры (короткие номера, block-regex, режим contacts/whitelist)
+            if (!SmsFilter.shouldForward(context, sender, body)) return@goAsync
 
-        val name = ContactNames.lookup(context, sender)
-        val time = formatTimestamp(ts)
-        // SIM-слот и оператор: берём subscriptionId из интента (на какую SIM пришло)
-        val subId = if (android.os.Build.VERSION.SDK_INT >= 24)
-            intent.getIntExtra("subscription", -1).takeIf { it > 0 }
-        else null
-        val sim = SimInfo.describe(context, subId)
+            val name = ContactNames.lookup(context, sender)
+            val time = formatTimestamp(ts)
+            // SIM-слот и оператор: берём subscriptionId из интента (на какую SIM пришло)
+            val subId = if (android.os.Build.VERSION.SDK_INT >= 24)
+                intent.getIntExtra("subscription", -1).takeIf { it > 0 }
+            else null
+            val sim = SimInfo.describe(context, subId)
 
-        val text = buildString {
-            appendLine("📩 SMS [$time]")
-            if (sim != null) appendLine("SIM: $sim")
-            appendLine("От: $sender${if (name != null) " ($name)" else ""}")
-            appendLine("─".repeat(30))
-            append(body)
+            val text = buildString {
+                appendLine("📩 SMS [$time]")
+                if (sim != null) appendLine("SIM: $sim")
+                appendLine("От: $sender${if (name != null) " ($name)" else ""}")
+                appendLine("─".repeat(30))
+                append(body)
+            }
+
+            ForwardService.start(context, text)
         }
-
-        ForwardService.start(context, text)
     }
 }
