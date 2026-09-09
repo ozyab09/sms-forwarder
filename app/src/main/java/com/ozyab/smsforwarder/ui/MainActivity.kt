@@ -1,14 +1,11 @@
 package com.ozyab.smsforwarder.ui
 
 import android.Manifest
-import android.app.DownloadManager
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -16,13 +13,14 @@ import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.RadioGroup
 import android.widget.ScrollView
-import android.widget.AdapterView
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -42,9 +40,10 @@ import com.ozyab.smsforwarder.telegram.Channel
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.telegram.ChannelSender
 import com.ozyab.smsforwarder.telegram.TelegramClient
-import com.ozyab.smsforwarder.update.UpdateChecker
+import com.ozyab.smsforwarder.update.UpdateManager
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
+import com.ozyab.smsforwarder.util.ThemeManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -86,6 +85,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var panelLogs: View
     private lateinit var logsText: TextView
 
+    // О приложении
+    private lateinit var panelAbout: View
+    private lateinit var tvAboutVersion: TextView
+    private lateinit var rgTheme: RadioGroup
+    private lateinit var btnGithub: MaterialButton
+
     private val scope = CoroutineScope(Dispatchers.Main)
 
     // Логи пишутся из фоновых потоков (сервис/ресиверы) — рендер только на main
@@ -106,16 +111,19 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Prefs.init(this)
+        // Тема (светлая/тёмная/по системе) применяется до построения UI
+        ThemeManager.apply(this)
         setContentView(R.layout.activity_main)
 
         bindViews()
         loadPrefs()
+        loadAbout()
         setupActions()
         renderChannels()
         setupBottomNav()
 
         requestNeededPermissions()
-        checkForUpdates()
+        UpdateManager.checkForUpdates(this, scope)
     }
 
     override fun onResume() {
@@ -171,6 +179,10 @@ class MainActivity : AppCompatActivity() {
             renderLogs()
         }
         btnCheckUpdate = findViewById(R.id.btn_check_update)
+        panelAbout = findViewById(R.id.panel_about)
+        tvAboutVersion = findViewById(R.id.tv_about_version)
+        rgTheme = findViewById(R.id.rg_theme)
+        btnGithub = findViewById(R.id.btn_github)
     }
 
     private fun loadPrefs() {
@@ -191,7 +203,19 @@ class MainActivity : AppCompatActivity() {
             savePrefs()
             testConnection()
         }
-        btnCheckUpdate.setOnClickListener { checkForUpdates(force = true) }
+        btnCheckUpdate.setOnClickListener { UpdateManager.checkForUpdates(this, scope, force = true) }
+        btnGithub.setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ozyab09/sms-forwarder")))
+        }
+        rgTheme.setOnCheckedChangeListener { _, checkedId ->
+            val mode = when (checkedId) {
+                R.id.rb_theme_light -> ThemeManager.MODE_LIGHT
+                R.id.rb_theme_dark -> ThemeManager.MODE_DARK
+                else -> ThemeManager.MODE_SYSTEM
+            }
+            ThemeManager.setAndApply(this, mode)
+            LogStore.info("Тема: $mode")
+        }
         btnGetMyId.setOnClickListener {
             savePrefs()
             val token = etToken.text?.toString()?.trim().orEmpty()
@@ -249,13 +273,23 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_settings -> {
                     panelSettings.visibility = View.VISIBLE
                     panelLogs.visibility = View.GONE
+                    panelAbout.visibility = View.GONE
                     true
                 }
                 R.id.nav_logs -> {
                     savePrefs()
                     panelSettings.visibility = View.GONE
+                    panelLogs.visibility = View.GONE
+                    panelAbout.visibility = View.GONE
                     panelLogs.visibility = View.VISIBLE
                     renderLogs()
+                    true
+                }
+                R.id.nav_about -> {
+                    savePrefs()
+                    panelSettings.visibility = View.GONE
+                    panelLogs.visibility = View.GONE
+                    panelAbout.visibility = View.VISIBLE
                     true
                 }
                 else -> false
@@ -585,79 +619,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Проверка новой версии на GitHub.
-     *
-     * @param force true — ручная кнопка: проверяем всегда. false — авто-проверка
-     *   при запуске: не чаще раза в сутки (бережём сеть/трафик).
-     *
-     * Важно: метка «последняя проверка» ставится ТОЛЬКО при успешном ответе API
-     * ([UpdateChecker.CheckResult.Unavailable] не считается) — иначе один сбой
-     * сети или rate-limit GitHub блокировал бы проверки на 24 часа.
-     */
-    private fun checkForUpdates(force: Boolean = false) {
-        val now = System.currentTimeMillis()
-        val last = Prefs.lastUpdateCheck
-        if (!force && now - last < UPDATE_CHECK_INTERVAL_MS) return
-        scope.launch {
-            when (val res = UpdateChecker.check()) {
-                is UpdateChecker.CheckResult.Update -> {
-                    Prefs.lastUpdateCheck = now
-                    showUpdateDialog(res.info)
-                }
-                is UpdateChecker.CheckResult.UpToDate -> {
-                    Prefs.lastUpdateCheck = now
-                    if (force) Toast.makeText(
-                        this@MainActivity, R.string.update_none_available, Toast.LENGTH_LONG
-                    ).show()
-                }
-                is UpdateChecker.CheckResult.Unavailable -> {
-                    // Сеть/API недоступны — НЕ ставим метку, попробуем в следующий раз
-                    if (force) Toast.makeText(
-                        this@MainActivity, R.string.update_check_failed, Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
+    /** Заполнение панели «О приложении»: версия и выбранная тема. */
+    private fun loadAbout() {
+        tvAboutVersion.text = getString(R.string.about_version, BuildConfig.VERSION_NAME)
+        val checked = when (Prefs.themeMode) {
+            ThemeManager.MODE_LIGHT -> R.id.rb_theme_light
+            ThemeManager.MODE_DARK -> R.id.rb_theme_dark
+            else -> R.id.rb_theme_system
         }
-    }
-
-    companion object {
-        private const val UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000L // 24 часа
-    }
-
-    private fun showUpdateDialog(info: UpdateChecker.UpdateInfo) {
-        val msg = buildString {
-            appendLine(getString(R.string.update_available, info.latestVersion))
-            appendLine(getString(R.string.update_current, BuildConfig.VERSION_NAME))
-            appendLine()
-            if (info.notes.isNotBlank()) {
-                appendLine(info.notes.take(500))
-            }
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.update_dialog_title)
-            .setMessage(msg)
-            .setPositiveButton(R.string.update_download_install) { _, _ ->
-                downloadApk(info.apkUrl)
-            }
-            .setNegativeButton(R.string.update_later, null)
-            .show()
-    }
-
-    private fun downloadApk(url: String) {
-        try {
-            val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val req = DownloadManager.Request(Uri.parse(url)).apply {
-                setTitle("SMS Forwarder ${BuildConfig.VERSION_NAME} → обновление")
-                setDescription("Загрузка APK…")
-                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "sms-forwarder-update.apk")
-            }
-            dm.enqueue(req)
-            Toast.makeText(this, R.string.update_downloading, Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, getString(R.string.update_download_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
-        }
+        rgTheme.check(checked)
     }
 
     override fun onDestroy() {

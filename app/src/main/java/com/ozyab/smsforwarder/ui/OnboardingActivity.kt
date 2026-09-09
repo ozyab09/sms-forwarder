@@ -16,6 +16,7 @@ import com.google.android.material.textfield.TextInputEditText
 import com.ozyab.smsforwarder.R
 import com.ozyab.smsforwarder.telegram.TelegramClient
 import com.ozyab.smsforwarder.util.Prefs
+import com.ozyab.smsforwarder.util.ThemeManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -48,6 +49,8 @@ class OnboardingActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Prefs.init(this)
+        // Тема применяется и к онбордингу (пользователь мог выбрать её заранее)
+        ThemeManager.apply(this)
 
         if (Prefs.onboardingComplete) {
             goToMain()

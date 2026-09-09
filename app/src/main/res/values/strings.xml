@@ -34,6 +34,14 @@
 
     <!-- Логи -->
     <string name="tab_logs">Логи</string>
+    <string name="tab_about">О приложении</string>
+    <string name="about_version">Версия %1$s</string>
+    <string name="about_theme">Тема оформления</string>
+    <string name="about_theme_light">Светлая</string>
+    <string name="about_theme_dark">Тёмная</string>
+    <string name="about_theme_system">По системе</string>
+    <string name="about_project_link">Проект на GitHub</string>
+    <string name="about_privacy">Privacy-first: токен и пароли прокси хранятся в шифрованном хранилище, логи не покидают устройство, аналитики нет.</string>
     <string name="logs_empty">Пока нет записей. Запусти сервис или проверь связь.</string>
     <string name="logs_clear">Очистить</string>
 

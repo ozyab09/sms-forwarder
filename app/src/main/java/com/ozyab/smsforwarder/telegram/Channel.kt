@@ -99,6 +99,8 @@ object ChannelStore {
         for (c in normalized) arr.put(c.toJson())
         Prefs.channelsJson = arr.toString()
         cache = normalized
+        // Конфигурация каналов изменилась — OkHttp-клиенты пересоздадутся при следующем использовании
+        ChannelClientFactory.invalidate()
     }
 
     /** Добавить/обновить канал (по id). */
