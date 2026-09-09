@@ -64,6 +64,32 @@ class UtilTest {
         assertTrue(SmsFilter.whitelistMatches("+79161234567", list))
     }
 
+    // ===== Защита от ReDoS: опасные block-regex отклоняются =====
+
+    @Test
+    fun `dangerous nested quantifier regex is rejected`() {
+        assertTrue(SmsFilter.isDangerousRegex("(a+)+"))
+        assertTrue(SmsFilter.isDangerousRegex("([a-zA-Z]+)*"))
+        assertTrue(SmsFilter.isDangerousRegex("(a*)*"))
+        assertTrue(SmsFilter.isDangerousRegex("(a|aa)+"))
+        assertTrue(SmsFilter.isDangerousRegex("(\\d+)+"))
+    }
+
+    @Test
+    fun `safe regexes are allowed`() {
+        assertFalse(SmsFilter.isDangerousRegex("SPAM"))
+        assertFalse(SmsFilter.isDangerousRegex("\\d{4}"))
+        assertFalse(SmsFilter.isDangerousRegex("(ab)+"))
+        assertFalse(SmsFilter.isDangerousRegex("\\+79[0-9]{9}"))
+        assertFalse(SmsFilter.isDangerousRegex(""))
+    }
+
+    @Test
+    fun `malformed regex does not crash detector`() {
+        assertFalse(SmsFilter.isDangerousRegex("((("))
+        assertFalse(SmsFilter.isDangerousRegex("a+b*c?"))
+    }
+
     // ===== Сравнение версий для автообновления =====
 
     @Test

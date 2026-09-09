@@ -57,7 +57,12 @@ class ForwardService : Service() {
 
         fun start(context: Context) {
             val i = Intent(context, ForwardService::class.java).setAction(ACTION_START)
-            context.startForegroundService(i)
+            try {
+                context.startForegroundService(i)
+            } catch (e: Exception) {
+                // Android 12+: запуск FGS из фона ограничен — не роняем приложение
+                LogStore.warn("Не удалось запустить сервис из фона: ${e.message ?: e.javaClass.simpleName}")
+            }
         }
 
         /** Старт сервиса и постановка события в очередь (из ресиверов). */
@@ -65,7 +70,15 @@ class ForwardService : Service() {
             val i = Intent(context, ForwardService::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_TEXT, text)
-            context.startForegroundService(i)
+            try {
+                context.startForegroundService(i)
+            } catch (e: Exception) {
+                // Например, PHONE_STATE на Android 12+: FGS из фона запрещён.
+                // Событие не теряем — сохраняем в персистентную очередь,
+                // сервис подхватит его при следующем старте.
+                LogStore.warn("Фоновая пересылка временно недоступна: ${e.message ?: e.javaClass.simpleName}")
+                EventQueueStore.persistSingle(context, text)
+            }
         }
 
         fun stop(context: Context) {
@@ -79,7 +92,10 @@ class ForwardService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
-                LogStore.info("Сервис остановлен (${queue.size} событий в очереди сохранено)")
+                // «Стоп» — пользователь хочет остановить пересылку: очередь не держим
+                val dropped = queue.size
+                EventQueueStore.clear(this)
+                LogStore.info("Сервис остановлен${if (dropped > 0) " (отброшено неотправленных событий: $dropped)" else ""}")
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -100,9 +116,15 @@ class ForwardService : Service() {
             scope.launch {
                 val restored = EventQueueStore.load(this@ForwardService)
                 if (restored.isNotEmpty()) {
-                    queue.restore(restored)
-                    LogStore.warn("Восстановлено ${queue.size} неотправленных событий из прошлой сессии")
-                    persist()
+                    if (Prefs.isConfigured()) {
+                        queue.restore(restored)
+                        LogStore.warn("Восстановлено ${queue.size} неотправленных событий из прошлой сессии")
+                        persist()
+                    } else {
+                        // Настройки очищены — старые события отправлять некуда
+                        EventQueueStore.clear(this@ForwardService)
+                        LogStore.warn("Очередь из прошлой сессии отброшена: не задан токен/chatId")
+                    }
                 }
                 runWorker()
             }
@@ -165,7 +187,13 @@ class ForwardService : Service() {
     }
 
     private fun persist() {
-        EventQueueStore.saveAsync(this, queue.snapshot())
+        val snapshot = queue.snapshot()
+        if (snapshot.isEmpty()) {
+            // Не храним тексты SMS на диске без необходимости (privacy-first)
+            EventQueueStore.clear(this)
+        } else {
+            EventQueueStore.saveAsync(this, snapshot)
+        }
     }
 
     private fun startAsForeground() {

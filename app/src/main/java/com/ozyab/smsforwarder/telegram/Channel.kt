@@ -92,10 +92,13 @@ object ChannelStore {
     fun get(id: String): Channel? = all().find { it.id == id }
 
     fun setAll(channels: List<Channel>) {
+        // Нормализация: канал «Без прокси» всегда первый, всегда включён и не может
+        // быть выключен/изменён из хранилища (иначе можно остаться без каналов)
+        val normalized = listOf(Channel.direct()) + channels.filterNot { it.isDirect }
         val arr = JSONArray()
-        for (c in channels) arr.put(c.toJson())
+        for (c in normalized) arr.put(c.toJson())
         Prefs.channelsJson = arr.toString()
-        cache = channels
+        cache = normalized
     }
 
     /** Добавить/обновить канал (по id). */
