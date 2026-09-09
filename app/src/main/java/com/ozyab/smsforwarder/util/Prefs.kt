@@ -32,6 +32,7 @@ object Prefs {
     const val KEY_PROXY_USER = "proxy_user"
     const val KEY_SENT_COUNT = "sent_count"
     const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
+    const val KEY_LAST_UPDATE_CHECK = "last_update_check"
 
     // Детальные фильтры SMS
     const val KEY_FILTER_MODE = "filter_mode" // "all" | "contacts" | "whitelist"
@@ -162,9 +163,8 @@ object Prefs {
 
     fun isConfigured(): Boolean = botToken.isNotBlank() && chatId.isNotBlank()
 
-    /** Прокси настроен полностью? */
-    fun isProxyComplete(): Boolean {
-        if (!proxyEnabled) return true
-        return proxyHost.isNotBlank() && proxyPort > 0
-    }
+    /** Время последней проверки обновлений (throttle сетевых запросов). */
+    var lastUpdateCheck: Long
+        get() = plain.getLong(KEY_LAST_UPDATE_CHECK, 0L)
+        set(v) = plain.edit().putLong(KEY_LAST_UPDATE_CHECK, v).apply()
 }

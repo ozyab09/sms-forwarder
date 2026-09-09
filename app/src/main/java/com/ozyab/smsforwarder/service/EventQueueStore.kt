@@ -59,21 +59,69 @@ object EventQueueStore {
             val snapshot = pendingSave ?: return@execute
             pendingSave = null
             try {
-                val arr = JSONArray()
-                for (e in snapshot) {
-                    arr.put(
-                        JSONObject()
-                            .put("text", e.text)
-                            .put("attempts", e.attempts)
-                            .put("nextRetryAt", e.nextRetryAt)
-                    )
-                }
-                file(context).writeText(arr.toString())
+                write(context, snapshot)
             } catch (e: Exception) {
                 // Не критично: при следующем изменении очереди попробуем снова
             }
         }
     }
 
+    /**
+     * Сохранить одно событие в файл (когда сервис не может быть запущен из фона,
+     * например из PHONE_STATE на Android 12+). Добавляется к уже лежащим событиям;
+     * при следующем старте сервиса всё отправится.
+     */
+    fun persistSingle(context: Context, text: String) {
+        executor.execute {
+            try {
+                val existing = try {
+                    JSONArray(file(context).readText())
+                } catch (e: Exception) {
+                    JSONArray()
+                }
+                existing.put(
+                    JSONObject()
+                        .put("text", text)
+                        .put("attempts", 0)
+                        .put("nextRetryAt", System.currentTimeMillis())
+                )
+                // Держим файл ограниченным — самые свежие MAX_EVENTS событий
+                val arr = JSONArray()
+                val start = maxOf(0, existing.length() - MAX_EVENTS)
+                for (i in start until existing.length()) arr.put(existing.getJSONObject(i))
+                file(context).writeText(arr.toString())
+            } catch (e: Exception) {
+                // Не критично: событие может быть потеряно только при сбое диска
+            }
+        }
+    }
+
+    /** Асинхронное удаление файла очереди (при остановке/пустой очереди). */
+    fun clear(context: Context) {
+        executor.execute {
+            try {
+                val f = file(context)
+                if (f.exists()) f.delete()
+            } catch (e: Exception) {
+                // Не критично
+            }
+        }
+    }
+
+    private fun write(context: Context, events: List<QueuedEvent>) {
+        val arr = JSONArray()
+        for (e in events) {
+            arr.put(
+                JSONObject()
+                    .put("text", e.text)
+                    .put("attempts", e.attempts)
+                    .put("nextRetryAt", e.nextRetryAt)
+            )
+        }
+        file(context).writeText(arr.toString())
+    }
+
     private fun file(context: Context): File = File(context.filesDir, FILE_NAME)
+
+    private const val MAX_EVENTS = 100
 }

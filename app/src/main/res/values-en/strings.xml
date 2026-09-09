@@ -85,4 +85,27 @@
     <string name="toast_enter_token_and_chatid">Enter the token and Chat ID</string>
     <string name="testing">Testing…</string>
     <string name="write_to_bot_first">Send /start to the bot, then try again</string>
+
+    <!-- Audit: channels and connection test -->
+    <string name="channel_direct_detail">Direct connection</string>
+    <string name="channel_direct_exists">The \u00abNo proxy\u00bb channel always exists</string>
+    <string name="proxy_need_host_port">Enter host and port</string>
+    <string name="test_no_channels">No enabled channels</string>
+    <string name="test_dialog_title">Channel check</string>
+    <string name="test_channel_ok">✅ \u00ab%1$s\u00bb — ok (id %2$d)</string>
+    <string name="test_channel_fail">❌ \u00ab%1$s\u00bb: %2$s</string>
+    <string name="test_error_unknown">error</string>
+    <string name="test_all_ok">✅ All channels work (%1$d of %2$d)</string>
+    <string name="test_all_partial">⚠️ %1$d of %2$d channels work</string>
+    <string name="test_all_none">❌ No channel works</string>
+    <string name="warn_call_log_permission">Without the \u00abCall log\u00bb permission missed calls won\'t be forwarded</string>
+
+    <!-- Update -->
+    <string name="update_dialog_title">Update</string>
+    <string name="update_available">New version available: %1$s</string>
+    <string name="update_current">Current: %1$s</string>
+    <string name="update_download_install">Download and install</string>
+    <string name="update_later">Later</string>
+    <string name="update_downloading">Downloading update…</string>
+    <string name="update_download_failed">Failed to start download: %1$s</string>
 </resources>

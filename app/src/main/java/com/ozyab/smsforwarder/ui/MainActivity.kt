@@ -9,6 +9,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.LayoutInflater
@@ -83,12 +85,21 @@ class MainActivity : AppCompatActivity() {
     private lateinit var logsText: TextView
 
     private val scope = CoroutineScope(Dispatchers.Main)
-    private val logListener: (LogStore.Entry) -> Unit = { renderLogs() }
+
+    // Логи пишутся из фоновых потоков (сервис/ресиверы) — рендер только на main
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val logListener: (LogStore.Entry) -> Unit = { mainHandler.post { renderLogs() } }
 
     // Запрос разрешений (SMS + телефон + контакты) — один раз при старте
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { /* состояние можно игнорировать — предупреждаем в UI */ }
+    ) { result ->
+        if (result[Manifest.permission.READ_CALL_LOG] == false && Prefs.callsEnabled) {
+            // Без READ_CALL_LOG номера пропущенных не приходят (EXTRA_INCOMING_NUMBER)
+            LogStore.warn(getString(R.string.warn_call_log_permission))
+            Toast.makeText(this, R.string.warn_call_log_permission, Toast.LENGTH_LONG).show()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,6 +120,12 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         renderChannels()
         renderLogs()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Сохраняем ввод (токен/chatId) при уходе с экрана, а не только по кнопкам
+        savePrefs()
     }
 
     override fun onStart() {
@@ -276,12 +293,18 @@ class MainActivity : AppCompatActivity() {
 
         name.text = if (ch.isDirect) getString(R.string.channels_direct) else "${ch.host}:${ch.port}"
         detail.text = when {
-            ch.isDirect -> "Прямое соединение"
+            ch.isDirect -> getString(R.string.channel_direct_detail)
             else -> ch.type
         }
-        sw.isChecked = ch.enabled
-        sw.setOnCheckedChangeListener { _, checked ->
-            ChannelStore.upsert(ch.copy(enabled = checked))
+        if (ch.isDirect) {
+            // direct всегда первый, всегда включён и не изменяется
+            sw.isChecked = true
+            sw.isEnabled = false
+        } else {
+            sw.isChecked = ch.enabled
+            sw.setOnCheckedChangeListener { _, checked ->
+                ChannelStore.upsert(ch.copy(enabled = checked))
+            }
         }
         if (ch.isDirect) {
             // direct всегда первый и не перемещается
@@ -387,26 +410,21 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(R.string.save) { _, _ ->
                 val selectedType = typeSpinner.selectedItemPosition
                 if (selectedType == 0) {
-                    // Без прокси — не нужно проверять host/port
-                    val ch = Channel(
-                        id = existing?.id ?: UUID.randomUUID().toString(),
-                        type = Channel.TYPE_DIRECT,
-                        name = getString(R.string.channels_direct),
-                        host = "",
-                        port = 0,
-                        user = "",
-                        pass = "",
-                        enabled = true,
-                    )
-                    ChannelStore.upsert(ch)
-                    renderChannels()
-                    LogStore.info("Канал «Без прокси» сохранён")
+                    // «Без прокси» всегда есть отдельным каналом:
+                    // при редактировании прокси это означает удаление канала
+                    if (existing != null) {
+                        ChannelStore.remove(existing.id)
+                        renderChannels()
+                        LogStore.info("Канал «${existing.name}» удалён")
+                    } else {
+                        Toast.makeText(this, R.string.channel_direct_exists, Toast.LENGTH_SHORT).show()
+                    }
                 } else {
                     // HTTP или SOCKS5
                     val type = if (selectedType == 2) Channel.TYPE_SOCKS5 else Channel.TYPE_HTTP
                     val port = etPort.text.toString().trim().toIntOrNull() ?: 0
                     if (etHost.text.isNullOrBlank() || port <= 0) {
-                        Toast.makeText(this, "Укажи хост и порт", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, R.string.proxy_need_host_port, Toast.LENGTH_LONG).show()
                         return@setPositiveButton
                     }
                     val host = etHost.text.toString().trim()
@@ -457,7 +475,7 @@ class MainActivity : AppCompatActivity() {
         }
         val channels = ChannelStore.enabled()
         if (channels.isEmpty()) {
-            Toast.makeText(this, "Нет включённых каналов", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.test_no_channels, Toast.LENGTH_LONG).show()
             return
         }
         btnTest.isEnabled = false
@@ -476,21 +494,21 @@ class MainActivity : AppCompatActivity() {
                 for (r in results) {
                     if (r.ok) {
                         LogStore.ok("Тест «${r.channel.name}» — успех (id ${r.messageId})")
-                        appendLine("✅ «${r.channel.name}» — успех (id ${r.messageId})")
+                        appendLine(getString(R.string.test_channel_ok, r.channel.name, r.messageId ?: 0L))
                     } else {
                         LogStore.error("Тест «${r.channel.name}» — ${r.error ?: "ошибка"}")
-                        appendLine("❌ «${r.channel.name}»: ${r.error ?: "ошибка"}")
+                        appendLine(getString(R.string.test_channel_fail, r.channel.name, r.error ?: getString(R.string.test_error_unknown)))
                     }
                 }
             }
             val toast = when {
-                okCount == results.size -> "✅ Все каналы работают ($okCount из ${results.size})"
-                okCount > 0 -> "⚠️ Работает $okCount из ${results.size} каналов"
-                else -> "❌ Ни один канал не работает"
+                okCount == results.size -> getString(R.string.test_all_ok, okCount, results.size)
+                okCount > 0 -> getString(R.string.test_all_partial, okCount, results.size)
+                else -> getString(R.string.test_all_none)
             }
             Toast.makeText(this@MainActivity, toast, Toast.LENGTH_LONG).show()
             AlertDialog.Builder(this@MainActivity)
-                .setTitle("Проверка каналов")
+                .setTitle(R.string.test_dialog_title)
                 .setMessage(summary)
                 .setPositiveButton(R.string.ok, null)
                 .show()
@@ -545,30 +563,37 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Проверка новой версии на GitHub при каждом запуске. */
+    /** Проверка новой версии на GitHub — не чаще раза в сутки (бережём сеть/трафик). */
     private fun checkForUpdates() {
+        val last = Prefs.lastUpdateCheck
+        if (System.currentTimeMillis() - last < UPDATE_CHECK_INTERVAL_MS) return
+        Prefs.lastUpdateCheck = System.currentTimeMillis()
         scope.launch {
             val info = UpdateChecker.check() ?: return@launch
             showUpdateDialog(info)
         }
     }
 
+    companion object {
+        private const val UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000L // 24 часа
+    }
+
     private fun showUpdateDialog(info: UpdateChecker.UpdateInfo) {
         val msg = buildString {
-            appendLine("Доступна новая версия ${info.latestVersion}")
-            appendLine("Текущая: ${BuildConfig.VERSION_NAME}")
+            appendLine(getString(R.string.update_available, info.latestVersion))
+            appendLine(getString(R.string.update_current, BuildConfig.VERSION_NAME))
             appendLine()
             if (info.notes.isNotBlank()) {
                 appendLine(info.notes.take(500))
             }
         }
         AlertDialog.Builder(this)
-            .setTitle("Обновление")
+            .setTitle(R.string.update_dialog_title)
             .setMessage(msg)
-            .setPositiveButton("Скачать и установить") { _, _ ->
+            .setPositiveButton(R.string.update_download_install) { _, _ ->
                 downloadApk(info.apkUrl)
             }
-            .setNegativeButton("Позже", null)
+            .setNegativeButton(R.string.update_later, null)
             .show()
     }
 
@@ -582,9 +607,9 @@ class MainActivity : AppCompatActivity() {
                 setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "sms-forwarder-update.apk")
             }
             dm.enqueue(req)
-            Toast.makeText(this, "Загрузка обновления…", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.update_downloading, Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Не удалось начать загрузку: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.update_download_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
         }
     }
 
