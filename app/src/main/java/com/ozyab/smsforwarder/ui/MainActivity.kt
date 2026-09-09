@@ -274,19 +274,14 @@ class MainActivity : AppCompatActivity() {
         }
         sw.isChecked = ch.enabled
         sw.setOnCheckedChangeListener { _, checked ->
-            if (ch.isDirect) {
-                sw.isChecked = true // direct всегда включён
-            } else {
-                ChannelStore.upsert(ch.copy(enabled = checked))
-            }
+            ChannelStore.upsert(ch.copy(enabled = checked))
         }
         if (ch.isDirect) {
             edit.visibility = View.GONE
-            del.visibility = View.GONE
         } else {
             edit.setOnClickListener { showProxyDialog(ch) }
-            del.setOnClickListener { confirmDelete(ch) }
         }
+        del.setOnClickListener { confirmDelete(ch) }
         return row
     }
 
