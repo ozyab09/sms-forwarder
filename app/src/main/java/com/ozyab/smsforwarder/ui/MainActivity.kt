@@ -34,6 +34,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.ozyab.smsforwarder.BuildConfig
 import com.ozyab.smsforwarder.R
 import com.ozyab.smsforwarder.service.ForwardService
@@ -383,12 +384,26 @@ class MainActivity : AppCompatActivity() {
         val etHost = field(getString(R.string.pref_proxy_host), existing?.host ?: "")
         val etPort = field(getString(R.string.pref_proxy_port), existing?.port?.toString() ?: "")
         val etUser = field(getString(R.string.pref_proxy_user), existing?.user ?: "")
-        val etPass = field(getString(R.string.pref_proxy_pass), existing?.pass ?: "")
         etPort.inputType = android.text.InputType.TYPE_CLASS_NUMBER
+
+        // Пароль — маскированный, с переключателем видимости (глазик)
+        val passLayout = TextInputLayout(this).apply {
+            hint = getString(R.string.pref_proxy_pass)
+            endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
+            isPasswordVisibilityToggleEnabled = true
+        }
+        val etPass = TextInputEditText(this).apply {
+            setText(existing?.pass ?: "")
+            isSingleLine = true
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD or
+                android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        }
+        passLayout.addView(etPass)
 
         // Контейнер для полей прокси (скрываем для "Без прокси")
         val proxyFields = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        for (v in listOf(etHost, etPort, etUser, etPass)) proxyFields.addView(v)
+        for (v in listOf(etHost, etPort, etUser, passLayout)) proxyFields.addView(v)
         layout.addView(proxyFields)
 
         // Показываем/скрываем поля в зависимости от выбранного типа
