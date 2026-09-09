@@ -28,7 +28,11 @@ android {
         targetSdk = 34
         versionCode = major * 10000 + minor * 100 + patch
         versionName = "$major.$minor.$patch"
-        resConfigs("ru", "en")
+    }
+
+    androidResources {
+        // Вместо устаревшего resConfigs (AGP 8.9+)
+        localeFilters += listOf("ru", "en")
     }
 
     buildTypes {
@@ -42,7 +46,7 @@ android {
             // Подпись из CI-переменных (релизные сборки только в GitLab CI)
             signingConfig = if (System.getenv("KEYSTORE_BASE64") != null) {
                 signingConfigs.create("ci") {
-                    val keystoreFile = File(buildDir, "ci-keystore.jks")
+                    val keystoreFile = File(layout.buildDirectory.get().asFile, "ci-keystore.jks")
                     if (!keystoreFile.exists()) {
                         keystoreFile.parentFile?.mkdirs()
                         keystoreFile.writeBytes(
