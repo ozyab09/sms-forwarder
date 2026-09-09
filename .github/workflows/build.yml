@@ -2,13 +2,82 @@ name: Build
 
 permissions:
   contents: write
+  actions: write
 
 on:
-  pull_request:
   push:
+    branches: [main]
     tags: ["v*"]
+  pull_request:
 
 jobs:
+  release-tag:
+    name: Auto tag
+    # Только push в main: читает версию из gradle/libs.versions.toml,
+    # создаёт тег vX.Y.Z (если ещё нет) → тег триггерит release-джобу.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Read version from libs.versions.toml
+        id: read-version
+        run: |
+          MAJOR=$(grep -oP 'versionMajor = "\K[0-9]+' gradle/libs.versions.toml)
+          MINOR=$(grep -oP 'versionMinor = "\K[0-9]+' gradle/libs.versions.toml)
+          PATCH=$(grep -oP 'versionPatch = "\K[0-9]+' gradle/libs.versions.toml)
+          echo "version=v$MAJOR.$MINOR.$PATCH" >> "$GITHUB_OUTPUT"
+          echo "version=v$MAJOR.$MINOR.$PATCH"
+
+      - name: Check if tag exists
+        id: check-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ steps.read-version.outputs.version }}"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$VER" >/dev/null 2>&1; then
+            echo "Тег $VER уже существует — пропускаю"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create tag via API
+        if: steps.check-tag.outputs.created == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const ver = '${{ steps.read-version.outputs.version }}';
+            try {
+              await github.rest.git.createRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `refs/tags/${ver}`,
+                sha: context.sha
+              });
+              console.log(`Тег ${ver} создан`);
+            } catch (e) {
+              if (e.status === 422) {
+                console.log(`Тег ${ver} уже существует — ок`);
+              } else {
+                throw e;
+              }
+            }
+
+      - name: Trigger release workflow by tag
+        if: steps.check-tag.outputs.created == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const ver = '${{ steps.read-version.outputs.version }}';
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build.yml',
+              ref: ver
+            });
+            console.log(`Workflow запущен по тегу ${ver}`);
+
   build:
     name: Build debug APK
     if: github.event_name == 'pull_request'
