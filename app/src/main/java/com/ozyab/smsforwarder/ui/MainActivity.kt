@@ -20,6 +20,7 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -266,26 +267,21 @@ class MainActivity : AppCompatActivity() {
         val edit = row.findViewById<ImageButton>(R.id.ch_edit)
         val del = row.findViewById<ImageButton>(R.id.ch_delete)
 
-        name.text = ch.name.ifBlank { if (ch.isDirect) "Без прокси" else "Прокси" }
+        name.text = if (ch.isDirect) getString(R.string.channels_direct) else "${ch.host}:${ch.port}"
         detail.text = when {
             ch.isDirect -> "Прямое соединение"
-            else -> "${ch.type} · ${ch.host}:${ch.port}"
+            else -> ch.type
         }
         sw.isChecked = ch.enabled
         sw.setOnCheckedChangeListener { _, checked ->
-            if (ch.isDirect) {
-                sw.isChecked = true // direct всегда включён
-            } else {
-                ChannelStore.upsert(ch.copy(enabled = checked))
-            }
+            ChannelStore.upsert(ch.copy(enabled = checked))
         }
         if (ch.isDirect) {
             edit.visibility = View.GONE
-            del.visibility = View.GONE
         } else {
             edit.setOnClickListener { showProxyDialog(ch) }
-            del.setOnClickListener { confirmDelete(ch) }
         }
+        del.setOnClickListener { confirmDelete(ch) }
         return row
     }
 
@@ -309,54 +305,47 @@ class MainActivity : AppCompatActivity() {
             setPadding(60, 24, 60, 0)
         }
 
-        // Тип: HTTP / SOCKS5
-        val typeLabel = TextView(this).apply { text = getString(R.string.pref_proxy_type) }
-        val typeInput = AutoCompleteTextView(this).apply {
-            setAdapter(ArrayAdapter(
+        // Тип: выпадающий список HTTP / SOCKS5
+        val typeSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(
                 this@MainActivity,
                 android.R.layout.simple_list_item_1,
                 arrayOf(getString(R.string.proxy_type_http), getString(R.string.proxy_type_socks5))
-            ))
-            setText(
-                if (existing?.type == Channel.TYPE_SOCKS5) getString(R.string.proxy_type_socks5)
-                else getString(R.string.proxy_type_http),
-                false
+            )
+            setSelection(
+                if (existing?.type == Channel.TYPE_SOCKS5) 1 else 0
             )
         }
+        layout.addView(TextView(this).apply { setPadding(0, 8, 0, 4); text = getString(R.string.pref_proxy_type) })
+        layout.addView(typeSpinner)
 
         fun field(hint: String, value: String, singleLine: Boolean = true) =
-            EditText(this).apply {
-                this.hint = hint
-                setText(value)
-                isSingleLine = singleLine
-            }
+            EditText(this).apply { this.hint = hint; setText(value); isSingleLine = singleLine }
 
-        val etName = field(getString(R.string.channels_proxy_name), existing?.name ?: "")
         val etHost = field(getString(R.string.pref_proxy_host), existing?.host ?: "")
         val etPort = field(getString(R.string.pref_proxy_port), existing?.port?.toString() ?: "")
         val etUser = field(getString(R.string.pref_proxy_user), existing?.user ?: "")
         val etPass = field(getString(R.string.pref_proxy_pass), existing?.pass ?: "")
         etPort.inputType = android.text.InputType.TYPE_CLASS_NUMBER
 
-        layout.addView(typeLabel)
-        layout.addView(typeInput)
-        for (v in listOf(etName, etHost, etPort, etUser, etPass)) layout.addView(v)
+        for (v in listOf(etHost, etPort, etUser, etPass)) layout.addView(v)
 
         AlertDialog.Builder(this)
             .setTitle(if (existing == null) R.string.channels_add_proxy else R.string.channels_proxy_edit)
             .setView(layout)
             .setPositiveButton(R.string.save) { _, _ ->
-                val type = if (typeInput.text.toString().contains("SOCKS")) Channel.TYPE_SOCKS5 else Channel.TYPE_HTTP
+                val type = if (typeSpinner.selectedItemPosition == 1) Channel.TYPE_SOCKS5 else Channel.TYPE_HTTP
                 val port = etPort.text.toString().trim().toIntOrNull() ?: 0
                 if (etHost.text.isNullOrBlank() || port <= 0) {
                     Toast.makeText(this, "Укажи хост и порт", Toast.LENGTH_LONG).show()
                     return@setPositiveButton
                 }
+                val host = etHost.text.toString().trim()
                 val ch = Channel(
                     id = existing?.id ?: UUID.randomUUID().toString(),
                     type = type,
-                    name = etName.text.toString().trim().ifBlank { "Прокси ${ChannelStore.all().count { !it.isDirect } + 1}" },
-                    host = etHost.text.toString().trim(),
+                    name = "$host:$port", // имя = адрес, показываем так в списке
+                    host = host,
                     port = port,
                     user = etUser.text.toString().trim(),
                     pass = etPass.text.toString(),

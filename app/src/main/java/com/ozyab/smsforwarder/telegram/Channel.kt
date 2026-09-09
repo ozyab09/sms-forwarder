@@ -98,18 +98,16 @@ object ChannelStore {
         cache = channels
     }
 
-    /** Добавить/обновить канал (по id). direct не редактируется и не удаляется. */
+    /** Добавить/обновить канал (по id). */
     fun upsert(channel: Channel) {
-        if (channel.isDirect) return
-        val cur = all().filterNot { it.isDirect }
+        val cur = all()
         val idx = cur.indexOfFirst { it.id == channel.id }
         val next = if (idx >= 0) cur.toMutableList().also { it[idx] = channel } else cur + channel
-        setAll(listOf(Channel.direct()) + next)
+        setAll(next)
     }
 
     fun remove(id: String) {
-        if (id == Channel.DIRECT_ID) return
-        setAll(listOf(Channel.direct()) + all().filterNot { it.isDirect || it.id == id })
+        setAll(all().filterNot { it.id == id })
     }
 
     /** Первое чтение: миграция старых одиночных прокси-настроек (v0.4.x) в канал. */
