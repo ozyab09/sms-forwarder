@@ -79,6 +79,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var actFilterMode: AutoCompleteTextView
     private lateinit var etWhitelist: TextInputEditText
     private lateinit var etBlockRegex: TextInputEditText
+    private lateinit var etTemplateSms: TextInputEditText
+    private lateinit var etTemplateCall: TextInputEditText
     private lateinit var filterModeValues: Array<String>
 
     // Логи
@@ -166,6 +168,15 @@ class MainActivity : AppCompatActivity() {
         actFilterMode = findViewById(R.id.act_filter_mode)
         etWhitelist = findViewById(R.id.et_whitelist)
         etBlockRegex = findViewById(R.id.et_block_regex)
+        etTemplateSms = findViewById(R.id.et_template_sms)
+        etTemplateCall = findViewById(R.id.et_template_call)
+        findViewById<MaterialButton>(R.id.btn_reset_templates).setOnClickListener {
+            etTemplateSms.setText("")
+            etTemplateCall.setText("")
+            savePrefs()
+            Toast.makeText(this, R.string.btn_reset_templates, Toast.LENGTH_SHORT).show()
+        }
+
         filterModeValues = resources.getStringArray(R.array.filter_mode_values)
         val filterLabels = resources.getStringArray(R.array.filter_mode_labels)
         actFilterMode.setAdapter(
@@ -197,6 +208,9 @@ class MainActivity : AppCompatActivity() {
         actFilterMode.setText(resources.getStringArray(R.array.filter_mode_labels)[modeIdx], false)
         etWhitelist.setText(Prefs.smsWhitelist)
         etBlockRegex.setText(Prefs.smsBlockRegex)
+
+        etTemplateSms.setText(Prefs.messageTemplateSms)
+        etTemplateCall.setText(Prefs.messageTemplateCall)
     }
 
     private fun setupActions() {
@@ -510,6 +524,9 @@ class MainActivity : AppCompatActivity() {
         Prefs.filterMode = filterModeValues[filterLabelsIndexOf(actFilterMode)]
         Prefs.smsWhitelist = etWhitelist.text?.toString()?.trim().orEmpty()
         Prefs.smsBlockRegex = etBlockRegex.text?.toString()?.trim().orEmpty()
+
+        Prefs.messageTemplateSms = etTemplateSms.text?.toString() ?: ""
+        Prefs.messageTemplateCall = etTemplateCall.text?.toString() ?: ""
     }
 
     private fun filterLabelsIndexOf(act: AutoCompleteTextView): Int {
