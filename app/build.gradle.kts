@@ -8,6 +8,10 @@ plugins {
     alias(libs.plugins.kotlin.kapt)
 }
 
+kapt {
+    correctErrorTypes = true
+}
+
 // SemVer из CI-тега (GITHUB_REF_NAME) или из gradle/libs.versions.toml (локально/debug)
 val ciTag: String? = System.getenv("GITHUB_REF_NAME")?.takeIf { it.startsWith("v") }
 val semverRegex = Regex("^v(\\d+)\\.(\\d+)\\.(\\d+)$")
