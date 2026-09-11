@@ -35,6 +35,8 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.ozyab.smsforwarder.BuildConfig
 import com.ozyab.smsforwarder.R
+import com.ozyab.smsforwarder.history.EventEntity
+import com.ozyab.smsforwarder.history.EventHistory
 import com.ozyab.smsforwarder.service.ForwardService
 import com.ozyab.smsforwarder.telegram.Channel
 import com.ozyab.smsforwarder.telegram.ChannelStore
@@ -87,6 +89,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var panelSettings: ScrollView
     private lateinit var panelLogs: View
     private lateinit var logsText: TextView
+
+    // История
+    private lateinit var panelHistory: View
+    private lateinit var historyList: LinearLayout
+    private lateinit var etHistorySearch: TextInputEditText
+    private lateinit var chipGroupHistory: com.google.android.material.chip.ChipGroup
 
     // О приложении
     private lateinit var panelAbout: View
@@ -190,6 +198,20 @@ class MainActivity : AppCompatActivity() {
             LogStore.clear()
             renderLogs()
         }
+
+        // История
+        panelHistory = findViewById(R.id.panel_history)
+        historyList = findViewById(R.id.history_list)
+        etHistorySearch = findViewById(R.id.et_history_search)
+        chipGroupHistory = findViewById(R.id.chip_group_history)
+        findViewById<MaterialButton>(R.id.btn_clear_history).setOnClickListener {
+            confirmClearHistory()
+        }
+        etHistorySearch.addTextChangedListener(textWatcher {
+            renderHistory()
+        })
+        chipGroupHistory.setOnCheckedStateChangeListener { _, _ -> renderHistory() }
+
         btnCheckUpdate = findViewById(R.id.btn_check_update)
         panelAbout = findViewById(R.id.panel_about)
         tvAboutVersion = findViewById(R.id.tv_about_version)
@@ -288,13 +310,24 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_settings -> {
                     panelSettings.visibility = View.VISIBLE
                     panelLogs.visibility = View.GONE
+                    panelHistory.visibility = View.GONE
                     panelAbout.visibility = View.GONE
+                    true
+                }
+                R.id.nav_history -> {
+                    savePrefs()
+                    panelSettings.visibility = View.GONE
+                    panelLogs.visibility = View.GONE
+                    panelHistory.visibility = View.VISIBLE
+                    panelAbout.visibility = View.GONE
+                    renderHistory()
                     true
                 }
                 R.id.nav_logs -> {
                     savePrefs()
                     panelSettings.visibility = View.GONE
                     panelLogs.visibility = View.GONE
+                    panelHistory.visibility = View.GONE
                     panelAbout.visibility = View.GONE
                     panelLogs.visibility = View.VISIBLE
                     renderLogs()
@@ -304,6 +337,7 @@ class MainActivity : AppCompatActivity() {
                     savePrefs()
                     panelSettings.visibility = View.GONE
                     panelLogs.visibility = View.GONE
+                    panelHistory.visibility = View.GONE
                     panelAbout.visibility = View.VISIBLE
                     true
                 }
@@ -603,6 +637,120 @@ class MainActivity : AppCompatActivity() {
         if (sb.isEmpty()) sb.append(getString(R.string.logs_empty))
         logsText.text = sb.toString()
     }
+
+    /** Загрузка истории из Room в фоне и рендер списка. */
+    private fun renderHistory() {
+        val type = when (chipGroupHistory.checkedChipId) {
+            R.id.chip_history_sms -> EventHistory.TYPE_SMS
+            R.id.chip_history_calls -> EventHistory.TYPE_MISSED
+            else -> null
+        }
+        val query = etHistorySearch.text?.toString()?.trim().orEmpty()
+        scope.launch {
+            val events = EventHistory.search(this@MainActivity, type, query)
+            historyList.removeAllViews()
+            if (events.isEmpty()) {
+                val empty = TextView(this@MainActivity).apply {
+                    text = getString(R.string.history_empty)
+                    setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.darker_gray))
+                    textSize = 14f
+                    setPadding(4, 24, 4, 8)
+                }
+                historyList.addView(empty)
+                return@launch
+            }
+            for (e in events) {
+                historyList.addView(buildHistoryRow(e))
+            }
+        }
+    }
+
+    private fun buildHistoryRow(e: EventEntity): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(4, 10, 4, 10)
+        }
+        val icon = when (e.type) {
+            EventHistory.TYPE_SMS -> "📨"
+            else -> "📵"
+        }
+        val statusIcon = when (e.status) {
+            EventHistory.STATUS_SENT -> "✅"
+            EventHistory.STATUS_FAILED -> "⚠️"
+            EventHistory.STATUS_DROPPED -> "❌"
+            else -> "⏳"
+        }
+        val sender = e.sender.ifBlank { "—" }
+        val title = "$icon $sender  $statusIcon ${dateTime(e.timestamp)}"
+        row.addView(
+            TextView(this).apply {
+                text = title
+                setTextSize(13f)
+                setTypeface(null, android.graphics.Typeface.BOLD)
+            }
+        )
+        val body = e.body.ifBlank { e.formattedText.ifBlank { "—" } }
+        if (body.isNotBlank() && body != "—") {
+            row.addView(
+                TextView(this).apply {
+                    text = body
+                    setTextSize(12f)
+                    setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.darker_gray))
+                    maxLines = 3
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                }
+            )
+        }
+        val status = when (e.status) {
+            EventHistory.STATUS_SENT -> getString(R.string.history_status_sent) + (e.channelName?.let { " · $it" } ?: "")
+            EventHistory.STATUS_FAILED -> getString(R.string.history_status_failed)
+            EventHistory.STATUS_DROPPED -> getString(R.string.history_status_dropped)
+            else -> getString(R.string.history_status_queued)
+        }
+        row.addView(
+            TextView(this).apply {
+                text = status
+                setTextSize(11f)
+                setTextColor(
+                    ContextCompat.getColor(
+                        this@MainActivity,
+                        when (e.status) {
+                            EventHistory.STATUS_SENT -> android.R.color.holo_green_dark
+                            EventHistory.STATUS_DROPPED -> android.R.color.holo_red_dark
+                            EventHistory.STATUS_FAILED -> android.R.color.holo_orange_dark
+                            else -> android.R.color.darker_gray
+                        }
+                    )
+                )
+            }
+        )
+        return row
+    }
+
+    private fun dateTime(ts: Long): String {
+        val sdf = java.text.SimpleDateFormat("dd.MM HH:mm", java.util.Locale.getDefault())
+        return sdf.format(java.util.Date(ts))
+    }
+
+    private fun confirmClearHistory() {
+        android.app.AlertDialog.Builder(this)
+            .setMessage(R.string.history_clear_confirm)
+            .setPositiveButton(R.string.ok) { _, _ ->
+                scope.launch {
+                    EventHistory.clear(this@MainActivity)
+                    renderHistory()
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun textWatcher(onChange: () -> Unit): android.text.TextWatcher =
+        object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) = onChange()
+        }
 
     private fun requestNeededPermissions() {
         val needed = mutableListOf(
