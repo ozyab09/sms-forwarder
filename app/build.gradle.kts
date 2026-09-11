@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.kapt)
 }
 
 // SemVer из CI-тега (GITHUB_REF_NAME) или из gradle/libs.versions.toml (локально/debug)
@@ -102,8 +103,15 @@ dependencies {
     implementation(libs.viewpager2)
     implementation(libs.androidx.security.crypto)
     implementation(libs.androidx.lifecycle.service)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    kapt(libs.androidx.room.compiler)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
 
+    // Тесты: JUnit + Room in-memory (Robolectric для Context в unit-тестах)
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.room.testing)
+    testImplementation(libs.robolectric)
 }

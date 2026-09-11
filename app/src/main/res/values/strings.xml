@@ -34,6 +34,18 @@
 
     <!-- Логи -->
     <string name="tab_logs">Логи</string>
+    <string name="tab_history">История</string>
+    <string name="history_empty">Пока нет событий. Запусти сервис и дождись пересылки.</string>
+    <string name="history_search_hint">Поиск: номер или текст</string>
+    <string name="history_all">Все</string>
+    <string name="history_sms">SMS</string>
+    <string name="history_calls">Звонки</string>
+    <string name="history_clear">Очистить</string>
+    <string name="history_clear_confirm">Удалить всю историю?</string>
+    <string name="history_status_sent">Отправлено</string>
+    <string name="history_status_failed">Не отправлено</string>
+    <string name="history_status_dropped">Отброшено</string>
+    <string name="history_status_queued">В очереди</string>
     <string name="tab_about">О приложении</string>
     <string name="about_version">Версия %1$s</string>
     <string name="about_theme">Тема оформления</string>
