@@ -2,25 +2,50 @@ package com.ozyab.smsforwarder.util
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import java.util.concurrent.CountDownLatch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 /**
  * Хранилище настроек.
  *
- * Чувствительные поля (токен бота, пароль прокси) — в EncryptedSharedPreferences.
- * Обычные настройки — в обычных SharedPreferences.
+ * Два уровня, privacy-first:
+ * - **plain**: Preference DataStore (async, атомарные правки, Flow-наблюдение).
+ *   При первом запуске мигрируются старые SharedPreferences «plain_prefs».
+ * - **secure**: EncryptedSharedPreferences (AES256-GCM) — только секреты
+ *   (токен бота, пароль прокси, каналы). В DataStore их не кладём: он
+ *   не шифрованный.
  *
- * Инициализация асинхронная: [init] лишь запускает фоновый поток, в котором
- * создаются MasterKey и EncryptedSharedPreferences (самые медленные операции).
- * Холодный старт приложения не блокируется; любой доступ к настройкам через
- * [awaitReady] дожидается завершения инициализации (один раз, обычно десятки
- * миллисекунд), поэтому чтения/записи безопасны из любого потока.
+ * API синхронный (как и раньше), чтобы не переписывать UI: аксессоры читают
+ * in-memory кэш (первая DataStore-эмиссия), а записи идут в кэш сразу
+ * (optimistic) и асинхронно — в DataStore. Цена: чтение всегда мгновенное,
+ * без блокировок главного потока.
+ *
+ * Инициализация асинхронная: [init] лишь запускает фоновый поток (secure)
+ * и корутину (DataStore); любой доступ через [awaitReady] дожидается готовности
+ * обоих (обычно десятки миллисекунд).
  */
 object Prefs {
 
-    private const val FILE_SECURE = "secure_prefs"
+    private const val FILE_SECURE = "secure_prefs" // НЕ менять: существующие данные
     private const val FILE_PLAIN = "plain_prefs"
 
     // Ключи (secure)
@@ -52,13 +77,25 @@ object Prefs {
     // Каналы отправки (JSON в secure prefs)
     const val KEY_CHANNELS_JSON = "channels_json"
 
+    // Шаблоны сообщений (plain)
+    const val KEY_MESSAGE_TEMPLATE_SMS = "message_template_sms"
+    const val KEY_MESSAGE_TEMPLATE_CALL = "message_template_call"
+
     private val initLock = Any()
-    private val readyLatch = CountDownLatch(1)
+    // Два счётчика: secure-инициализация + первая DataStore-эмиссия.
+    private val readyLatch = CountDownLatch(2)
     @Volatile private var initStarted = false
     @Volatile private var initDone = false
 
     private lateinit var secure: SharedPreferences
-    private lateinit var plain: SharedPreferences
+
+    /** DataStore для plain-настроек (создаётся в [init]). */
+    private lateinit var plainStore: DataStore<Preferences>
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** In-memory кэш plain-настроек (актуальный снимок DataStore). */
+    @Volatile private lateinit var cache: Preferences
 
     /**
      * Запускает асинхронную инициализацию (идемпотентно, не блокирует поток).
@@ -71,21 +108,47 @@ object Prefs {
             initStarted = true
         }
         val appContext = context.applicationContext
+
+        // Готовность наступает только когда ОБА уровня инициализированы:
+        // secure (EncryptedSharedPreferences) и первая эмиссия DataStore.
+        fun markReady() {
+            readyLatch.countDown()
+            if (readyLatch.count == 0L) initDone = true
+        }
+
+        // 1) Secure: MasterKey + EncryptedSharedPreferences (как раньше).
         val t = Thread({
             try {
-                doInit(appContext)
+                doInitSecure(appContext)
             } catch (e: Throwable) {
-                LogStore.error("Prefs init failed: ${e.message}")
+                LogStore.error("Prefs secure init failed: ${e.message}")
             } finally {
-                initDone = true
-                readyLatch.countDown()
+                markReady()
             }
-        }, "prefs-init")
+        }, "prefs-init-secure")
         t.isDaemon = true
         t.start()
+
+        // 2) Plain: DataStore c миграцией из старых SharedPreferences.
+        // Первая эмиссия загружает файл (и миграцию), после неё кэш готов.
+        // try/finally обязателен: если DataStore упадёт, лотч всё равно
+        // открываем, чтобы awaitReady() не завис навсегда (degraded mode).
+        plainStore = PreferenceDataStoreFactory.create(
+            produceFile = { appContext.preferencesDataStoreFile(FILE_PLAIN) },
+            migrations = listOf(SharedPreferencesMigration(appContext, FILE_PLAIN)),
+        )
+        scope.launch {
+            try {
+                plainStore.data
+                    .catch { e -> LogStore.error("DataStore read failed: ${e.message}") }
+                    .collect { prefs -> cache = prefs }
+            } finally {
+                markReady()
+            }
+        }
     }
 
-    private fun doInit(context: Context) {
+    private fun doInitSecure(context: Context) {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
@@ -94,7 +157,6 @@ object Prefs {
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
         )
-        plain = context.getSharedPreferences(FILE_PLAIN, Context.MODE_PRIVATE)
     }
 
     /**
@@ -114,7 +176,8 @@ object Prefs {
         }
     }
 
-    // --- secure ---
+    // --- secure (EncryptedSharedPreferences) ---
+
     var botToken: String
         get() {
             awaitReady()
@@ -146,117 +209,95 @@ object Prefs {
             secure.edit().putString(KEY_CHANNELS_JSON, v).apply()
         }
 
-    // --- plain ---
+    // --- plain (DataStore, через кэш) ---
+
+    // ВАЖНО: имена ключей совпадают со старыми SharedPreferences,
+    // поэтому миграция переносит значения автоматически.
+
     var chatId: String
-        get() {
-            awaitReady()
-            return plain.getString(KEY_CHAT_ID, "") ?: ""
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putString(KEY_CHAT_ID, v).apply()
-        }
+        get() = getString(KEY_CHAT_ID, "")
+        set(v) = setString(KEY_CHAT_ID, v)
 
     var smsEnabled: Boolean
-        get() {
-            awaitReady()
-            return plain.getBoolean(KEY_SMS_ENABLED, true)
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putBoolean(KEY_SMS_ENABLED, v).apply()
-        }
+        get() = getBoolean(KEY_SMS_ENABLED, true)
+        set(v) = setBoolean(KEY_SMS_ENABLED, v)
 
     var callsEnabled: Boolean
-        get() {
-            awaitReady()
-            return plain.getBoolean(KEY_CALLS_ENABLED, true)
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putBoolean(KEY_CALLS_ENABLED, v).apply()
-        }
+        get() = getBoolean(KEY_CALLS_ENABLED, true)
+        set(v) = setBoolean(KEY_CALLS_ENABLED, v)
 
     var shortCodesFilter: Boolean
-        get() {
-            awaitReady()
-            return plain.getBoolean(KEY_SHORT_CODES_FILTER, true)
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putBoolean(KEY_SHORT_CODES_FILTER, v).apply()
-        }
+        get() = getBoolean(KEY_SHORT_CODES_FILTER, true)
+        set(v) = setBoolean(KEY_SHORT_CODES_FILTER, v)
 
     var proxyEnabled: Boolean
-        get() {
-            awaitReady()
-            return plain.getBoolean(KEY_PROXY_ENABLED, false)
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putBoolean(KEY_PROXY_ENABLED, v).apply()
-        }
+        get() = getBoolean(KEY_PROXY_ENABLED, false)
+        set(v) = setBoolean(KEY_PROXY_ENABLED, v)
 
     var proxyType: String
-        get() {
-            awaitReady()
-            return plain.getString(KEY_PROXY_TYPE, "http") ?: "http"
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putString(KEY_PROXY_TYPE, v).apply()
-        }
+        get() = getString(KEY_PROXY_TYPE, "http")
+        set(v) = setString(KEY_PROXY_TYPE, v)
 
     var proxyHost: String
-        get() {
-            awaitReady()
-            return plain.getString(KEY_PROXY_HOST, "") ?: ""
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putString(KEY_PROXY_HOST, v).apply()
-        }
+        get() = getString(KEY_PROXY_HOST, "")
+        set(v) = setString(KEY_PROXY_HOST, v)
 
     var proxyPort: Int
-        get() {
-            awaitReady()
-            return plain.getInt(KEY_PROXY_PORT, 0)
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putInt(KEY_PROXY_PORT, v).apply()
-        }
+        get() = getInt(KEY_PROXY_PORT, 0)
+        set(v) = setInt(KEY_PROXY_PORT, v)
 
     var proxyUser: String
-        get() {
-            awaitReady()
-            return plain.getString(KEY_PROXY_USER, "") ?: ""
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putString(KEY_PROXY_USER, v).apply()
-        }
+        get() = getString(KEY_PROXY_USER, "")
+        set(v) = setString(KEY_PROXY_USER, v)
 
     var sentCount: Int
-        get() {
-            awaitReady()
-            return plain.getInt(KEY_SENT_COUNT, 0)
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putInt(KEY_SENT_COUNT, v).apply()
-        }
+        get() = getInt(KEY_SENT_COUNT, 0)
+        set(v) = setInt(KEY_SENT_COUNT, v)
 
     /** Прошёл ли пользователь онбординг. */
     var onboardingComplete: Boolean
-        get() {
-            awaitReady()
-            return plain.getBoolean(KEY_ONBOARDING_COMPLETE, false)
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putBoolean(KEY_ONBOARDING_COMPLETE, v).apply()
-        }
+        get() = getBoolean(KEY_ONBOARDING_COMPLETE, false)
+        set(v) = setBoolean(KEY_ONBOARDING_COMPLETE, v)
+
+    // --- Детальные фильтры SMS ---
+    var filterMode: String
+        get() = getString(KEY_FILTER_MODE, "all")
+        set(v) = setString(KEY_FILTER_MODE, v)
+
+    /** Белый список номеров (через запятую, допускаются шаблоны с *). */
+    var smsWhitelist: String
+        get() = getString(KEY_SMS_WHITELIST, "")
+        set(v) = setString(KEY_SMS_WHITELIST, v)
+
+    /** Regex: если совпал — SMS не пересылаем. */
+    var smsBlockRegex: String
+        get() = getString(KEY_SMS_BLOCK_REGEX, "")
+        set(v) = setString(KEY_SMS_BLOCK_REGEX, v)
+
+    /** Тема оформления: "system" (по системе) | "light" | "dark". */
+    var themeMode: String
+        get() = getString(KEY_THEME_MODE, "system")
+        set(v) = setString(KEY_THEME_MODE, v)
+
+    /** Время последней проверки обновлений (throttle сетевых запросов). */
+    var lastUpdateCheck: Long
+        get() = getLong(KEY_LAST_UPDATE_CHECK, 0L)
+        set(v) = setLong(KEY_LAST_UPDATE_CHECK, v)
+
+    /** Шаблон для SMS (plain). Пусто = дефолтный формат. */
+    var messageTemplateSms: String
+        get() = getString(KEY_MESSAGE_TEMPLATE_SMS, "")
+        set(v) = setString(KEY_MESSAGE_TEMPLATE_SMS, v)
+
+    /** Шаблон для пропущенных вызовов (plain). Пусто = дефолтный формат. */
+    var messageTemplateCall: String
+        get() = getString(KEY_MESSAGE_TEMPLATE_CALL, "")
+        set(v) = setString(KEY_MESSAGE_TEMPLATE_CALL, v)
+
+    fun isConfigured(): Boolean {
+        awaitReady()
+        return botToken.isNotBlank() && chatId.isNotBlank()
+    }
 
     // --- Миграция старого одиночного прокси (v0.4.x) в канал ---
 
@@ -280,97 +321,94 @@ object Prefs {
     /** Очистка старых полей одиночного прокси после миграции. */
     fun clearLegacyProxy() {
         awaitReady()
-        plain.edit().remove(KEY_PROXY_ENABLED).apply()
-        plain.edit().remove(KEY_PROXY_TYPE).apply()
-        plain.edit().remove(KEY_PROXY_HOST).apply()
-        plain.edit().remove(KEY_PROXY_PORT).apply()
-        plain.edit().remove(KEY_PROXY_USER).apply()
+        scope.launch {
+            runCatching {
+                plainStore.edit { p ->
+                    p.remove(booleanPreferencesKey(KEY_PROXY_ENABLED))
+                    p.remove(stringPreferencesKey(KEY_PROXY_TYPE))
+                    p.remove(stringPreferencesKey(KEY_PROXY_HOST))
+                    p.remove(intPreferencesKey(KEY_PROXY_PORT))
+                    p.remove(stringPreferencesKey(KEY_PROXY_USER))
+                }
+            }.onFailure { e -> LogStore.error("clearLegacyProxy failed: ${e.message}") }
+        }
         secure.edit().remove(KEY_PROXY_PASS).apply()
+        // Сразу отражаем в кэше, чтобы чтения после вызова вернули дефолты.
+        val mut = cache.toMutablePreferences()
+        mut.remove(booleanPreferencesKey(KEY_PROXY_ENABLED))
+        mut.remove(stringPreferencesKey(KEY_PROXY_TYPE))
+        mut.remove(stringPreferencesKey(KEY_PROXY_HOST))
+        mut.remove(intPreferencesKey(KEY_PROXY_PORT))
+        mut.remove(stringPreferencesKey(KEY_PROXY_USER))
+        cache = mut.toPreferences()
     }
 
-    // --- Детальные фильтры SMS ---
-    var filterMode: String
-        get() {
-            awaitReady()
-            return plain.getString(KEY_FILTER_MODE, "all") ?: "all"
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putString(KEY_FILTER_MODE, v).apply()
-        }
+    // --- Кэш-хелперы (plain) ---
 
-    /** Белый список номеров (через запятую, допускаются шаблоны с *). */
-    var smsWhitelist: String
-        get() {
-            awaitReady()
-            return plain.getString(KEY_SMS_WHITELIST, "") ?: ""
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putString(KEY_SMS_WHITELIST, v).apply()
-        }
-
-    /** Regex: если совпал — SMS не пересылаем. */
-    var smsBlockRegex: String
-        get() {
-            awaitReady()
-            return plain.getString(KEY_SMS_BLOCK_REGEX, "") ?: ""
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putString(KEY_SMS_BLOCK_REGEX, v).apply()
-        }
-
-    fun isConfigured(): Boolean {
+    private fun getString(key: String, default: String): String {
         awaitReady()
-        return botToken.isNotBlank() && chatId.isNotBlank()
+        return cache[stringPreferencesKey(key)] ?: default
     }
 
-    /** Тема оформления: "system" (по системе) | "light" | "dark". */
-    var themeMode: String
-        get() {
-            awaitReady()
-            return plain.getString(KEY_THEME_MODE, "system") ?: "system"
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putString(KEY_THEME_MODE, v).apply()
-        }
+    private fun getBoolean(key: String, default: Boolean): Boolean {
+        awaitReady()
+        return cache[booleanPreferencesKey(key)] ?: default
+    }
 
-    /** Время последней проверки обновлений (throttle сетевых запросов). */
-    var lastUpdateCheck: Long
-        get() {
-            awaitReady()
-            return plain.getLong(KEY_LAST_UPDATE_CHECK, 0L)
-        }
-        set(v) {
-            awaitReady()
-            plain.edit().putLong(KEY_LAST_UPDATE_CHECK, v).apply()
-        }
+    private fun getInt(key: String, default: Int): Int {
+        awaitReady()
+        return cache[intPreferencesKey(key)] ?: default
+    }
 
-    // --- Шаблоны сообщений ---
-    const val KEY_MESSAGE_TEMPLATE_SMS = "message_template_sms"
-    const val KEY_MESSAGE_TEMPLATE_CALL = "message_template_call"
+    private fun getLong(key: String, default: Long): Long {
+        awaitReady()
+        return cache[longPreferencesKey(key)] ?: default
+    }
 
-    /** Шаблон для SMS (plain). Пусто = дефолтный формат. */
-    var messageTemplateSms: String
-        get() {
-            awaitReady()
-            return plain.getString(KEY_MESSAGE_TEMPLATE_SMS, "") ?: ""
+    private fun setString(key: String, value: String) {
+        awaitReady()
+        val k = stringPreferencesKey(key)
+        updateCache(k, value)
+        scope.launch {
+            runCatching { plainStore.edit { it[k] = value } }
+                .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
         }
-        set(v) {
-            awaitReady()
-            plain.edit().putString(KEY_MESSAGE_TEMPLATE_SMS, v).apply()
-        }
+    }
 
-    /** Шаблон для пропущенных вызовов (plain). Пусто = дефолтный формат. */
-    var messageTemplateCall: String
-        get() {
-            awaitReady()
-            return plain.getString(KEY_MESSAGE_TEMPLATE_CALL, "") ?: ""
+    private fun setBoolean(key: String, value: Boolean) {
+        awaitReady()
+        val k = booleanPreferencesKey(key)
+        updateCache(k, value)
+        scope.launch {
+            runCatching { plainStore.edit { it[k] = value } }
+                .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
         }
-        set(v) {
-            awaitReady()
-            plain.edit().putString(KEY_MESSAGE_TEMPLATE_CALL, v).apply()
+    }
+
+    private fun setInt(key: String, value: Int) {
+        awaitReady()
+        val k = intPreferencesKey(key)
+        updateCache(k, value)
+        scope.launch {
+            runCatching { plainStore.edit { it[k] = value } }
+                .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
         }
+    }
+
+    private fun setLong(key: String, value: Long) {
+        awaitReady()
+        val k = longPreferencesKey(key)
+        updateCache(k, value)
+        scope.launch {
+            runCatching { plainStore.edit { it[k] = value } }
+                .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
+        }
+    }
+
+    /** Optimistic-обновление кэша: чтение сразу видит новое значение. */
+    private fun <T> updateCache(key: Preferences.Key<T>, value: T) {
+        val mut = cache.toMutablePreferences()
+        mut[key] = value
+        cache = mut.toPreferences()
+    }
 }
