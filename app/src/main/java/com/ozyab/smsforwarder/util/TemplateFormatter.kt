@@ -20,14 +20,14 @@ import java.util.Locale
 object TemplateFormatter {
 
     /** Дефолтный шаблон для SMS (сохраняет текущее поведение). */
-    const val DEFAULT_SMS_TEMPLATE = """📩 SMS [{time}]
+    val DEFAULT_SMS_TEMPLATE = """📩 SMS [{time}]
 {sim}
 От: {sender}{name}
 ──────────────────
 {text}""".trimIndent()
 
     /** Дефолтный шаблон для пропущенных вызовов. */
-    const val DEFAULT_CALL_TEMPLATE = """📵 Пропущенный [{time}]
+    val DEFAULT_CALL_TEMPLATE = """📵 Пропущенный [{time}]
 {sim}
 От: {number}{name}""".trimIndent()
 
