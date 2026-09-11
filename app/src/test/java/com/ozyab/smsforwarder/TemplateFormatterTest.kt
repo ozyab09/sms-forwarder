@@ -4,11 +4,17 @@ import com.ozyab.smsforwarder.util.TemplateFormatter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class TemplateFormatterTest {
 
-    // Timestamp: 2026-09-11 14:30:00 MSK (UTC+3) = 1757573400000
+    // Фиксированная метка; ожидаемые время/дата вычисляются в той же локали/таймзоне,
+    // что и у TemplateFormatter, поэтому тесты не зависят от таймзоны CI.
     private val ts = 1757573400000L
+    private val expectedTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(ts))
+    private val expectedDate = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(ts))
 
     @Test
     fun `default SMS template uses fallback when blank`() {
@@ -41,7 +47,7 @@ class TemplateFormatterTest {
             template = tpl, sender = "+79990001122", name = "Bob",
             text = "Test msg", timestamp = ts, type = "sms", sim = "Beeline"
         )
-        assertEquals("sms from +79990001122 (Bob): Test msg at 14:30:00 on 11.09.2026 via Beeline", result)
+        assertEquals("sms from +79990001122 (Bob): Test msg at $expectedTime on $expectedDate via Beeline", result)
     }
 
     @Test
@@ -96,6 +102,6 @@ class TemplateFormatterTest {
             template = tpl, sender = "12345", name = null,
             text = "hi", timestamp = ts, type = "sms", sim = null
         )
-        assertEquals("""{"sender":"12345","text":"hi","time":"14:30:00"}""", result)
+        assertEquals("""{"sender":"12345","text":"hi","time":"$expectedTime"}""", result)
     }
 }
