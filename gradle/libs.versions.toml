@@ -2,7 +2,7 @@
 # Версия приложения — bump здесь, CI сам создаст тег vX.Y.Z и релиз при мерже в main
 versionMajor = "0"
 versionMinor = "4"
-versionPatch = "17"
+versionPatch = "18"
 agp = "8.9.2"
 kotlin = "2.2.10"
 coreKtx = "1.13.1"
@@ -19,7 +19,7 @@ viewpager = "1.1.0-beta02"
 androidxTest = "1.6.1"
 robolectric = "4.13"
 timber = "5.0.1"
-datastore = "1.1.1"
+datastore = "1.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
