@@ -42,7 +42,8 @@ class TemplateFormatterTest {
 
     @Test
     fun `custom template replaces all placeholders`() {
-        val tpl = "{type} from {sender} ({name}): {text} at {time} on {date} via {sim}"
+        // {name} подставляется как " (Имя)" (с ведущим пробелом и скобками)
+        val tpl = "{type} from {sender}{name}: {text} at {time} on {date} via {sim}"
         val result = TemplateFormatter.format(
             template = tpl, sender = "+79990001122", name = "Bob",
             text = "Test msg", timestamp = ts, type = "sms", sim = "Beeline"
