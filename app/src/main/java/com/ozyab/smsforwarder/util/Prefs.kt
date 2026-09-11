@@ -347,4 +347,30 @@ object Prefs {
             awaitReady()
             plain.edit().putLong(KEY_LAST_UPDATE_CHECK, v).apply()
         }
+
+    // --- Шаблоны сообщений ---
+    const val KEY_MESSAGE_TEMPLATE_SMS = "message_template_sms"
+    const val KEY_MESSAGE_TEMPLATE_CALL = "message_template_call"
+
+    /** Шаблон для SMS (plain). Пусто = дефолтный формат. */
+    var messageTemplateSms: String
+        get() {
+            awaitReady()
+            return plain.getString(KEY_MESSAGE_TEMPLATE_SMS, "") ?: ""
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putString(KEY_MESSAGE_TEMPLATE_SMS, v).apply()
+        }
+
+    /** Шаблон для пропущенных вызовов (plain). Пусто = дефолтный формат. */
+    var messageTemplateCall: String
+        get() {
+            awaitReady()
+            return plain.getString(KEY_MESSAGE_TEMPLATE_CALL, "") ?: ""
+        }
+        set(v) {
+            awaitReady()
+            plain.edit().putString(KEY_MESSAGE_TEMPLATE_CALL, v).apply()
+        }
 }

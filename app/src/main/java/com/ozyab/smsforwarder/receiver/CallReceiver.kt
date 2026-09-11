@@ -11,7 +11,7 @@ import com.ozyab.smsforwarder.util.ContactNames
 import com.ozyab.smsforwarder.util.ReceiverExecutor
 import com.ozyab.smsforwarder.util.Prefs
 import com.ozyab.smsforwarder.util.SimInfo
-import com.ozyab.smsforwarder.util.formatTimestamp
+import com.ozyab.smsforwarder.util.TemplateFormatter
 
 /**
  * Отслеживание пропущенных вызовов.
@@ -139,14 +139,18 @@ object CallReceiverLogic {
 
     private fun buildEvent(context: Context, number: String): String {
         val name = ContactNames.lookup(context, number)
-        val time = formatTimestamp(System.currentTimeMillis())
+        val now = System.currentTimeMillis()
         // SIM: из PHONE_STATE нет subscriptionId — берём первую активную SIM
         val sim = SimInfo.describe(context, null)
-        return buildString {
-            appendLine("📵 Пропущенный [$time]")
-            if (sim != null) appendLine("SIM: $sim")
-            appendLine("От: $number${if (name != null) " ($name)" else ""}")
-        }
+        return TemplateFormatter.format(
+            template = Prefs.messageTemplateCall,
+            sender = number,
+            name = name,
+            text = "",
+            timestamp = now,
+            type = "missed",
+            sim = sim
+        )
     }
 }
 

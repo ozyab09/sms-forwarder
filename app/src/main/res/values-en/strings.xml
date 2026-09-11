@@ -58,6 +58,13 @@
     <string name="pref_block_regex">Block by regex</string>
     <string name="pref_block_regex_hint">If matched in number or text — don\'t forward</string>
 
+    <!-- Message templates -->
+    <string name="pref_templates_section">Message templates</string>
+    <string name="pref_template_sms_hint">SMS template</string>
+    <string name="pref_template_call_hint">Missed call template</string>
+    <string name="pref_template_placeholders">Available: {sender} {name} {text} {time} {date} {type} {sim} {number}. Empty = default format.</string>
+    <string name="btn_reset_templates">Reset templates</string>
+
     <!-- Status -->
     <string name="status_service">Service status</string>
     <string name="status_running">Running</string>

@@ -58,6 +58,13 @@
     <string name="pref_block_regex">Блокировать по regex</string>
     <string name="pref_block_regex_hint">Если совпало в номере или тексте — не пересылать</string>
 
+    <!-- Шаблоны сообщений -->
+    <string name="pref_templates_section">Шаблоны сообщений</string>
+    <string name="pref_template_sms_hint">Шаблон SMS</string>
+    <string name="pref_template_call_hint">Шаблон пропущенного вызова</string>
+    <string name="pref_template_placeholders">Доступно: {sender} {name} {text} {time} {date} {type} {sim} {number}. Пусто — стандартный формат.</string>
+    <string name="btn_reset_templates">Сбросить шаблоны</string>
+
     <!-- Статус -->
     <string name="status_service">Статус сервиса</string>
     <string name="status_running">Работает</string>
