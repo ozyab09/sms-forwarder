@@ -4,6 +4,12 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версионирование — [SemVer](https://semver.org/lang/ru/).
 
+## [0.4.17] - 2026-09-11
+
+### Добавлено
+- **Timber 5.0.1**: инициализация `DebugTree` в debug-сборках; `LogStore`
+  дублирует записи в logcat (тег `SmsFwd`) — удобная отладка вне приложения
+
 ## [0.4.16] - 2026-09-11
 
 ### Добавлено
