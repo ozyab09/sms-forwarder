@@ -1,0 +1,101 @@
+package com.ozyab.smsforwarder
+
+import com.ozyab.smsforwarder.util.TemplateFormatter
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class TemplateFormatterTest {
+
+    // Timestamp: 2026-09-11 14:30:00 MSK (UTC+3) = 1757573400000
+    private val ts = 1757573400000L
+
+    @Test
+    fun `default SMS template uses fallback when blank`() {
+        val result = TemplateFormatter.format(
+            template = "", sender = "+79161234567", name = "Иван",
+            text = "Hello!", timestamp = ts, type = "sms", sim = "МТС"
+        )
+        assertTrue(result.contains("📩 SMS"))
+        assertTrue(result.contains("+79161234567"))
+        assertTrue(result.contains("Иван"))
+        assertTrue(result.contains("Hello!"))
+        assertTrue(result.contains("МТС"))
+    }
+
+    @Test
+    fun `default call template uses fallback when blank`() {
+        val result = TemplateFormatter.format(
+            template = "", sender = "+79161234567", name = "Иван",
+            text = "", timestamp = ts, type = "missed", sim = "МТС"
+        )
+        assertTrue(result.contains("📵 Пропущенный"))
+        assertTrue(result.contains("+79161234567"))
+        assertTrue(result.contains("Иван"))
+    }
+
+    @Test
+    fun `custom template replaces all placeholders`() {
+        val tpl = "{type} from {sender} ({name}): {text} at {time} on {date} via {sim}"
+        val result = TemplateFormatter.format(
+            template = tpl, sender = "+79990001122", name = "Bob",
+            text = "Test msg", timestamp = ts, type = "sms", sim = "Beeline"
+        )
+        assertEquals("sms from +79990001122 (Bob): Test msg at 14:30:00 on 11.09.2026 via Beeline", result)
+    }
+
+    @Test
+    fun `name is wrapped in parentheses when present`() {
+        val result = TemplateFormatter.format(
+            template = "{sender}{name}", sender = "+79161234567", name = "Аня",
+            text = "", timestamp = ts, type = "sms", sim = null
+        )
+        assertEquals("+79161234567 (Аня)", result)
+    }
+
+    @Test
+    fun `name is empty string when null`() {
+        val result = TemplateFormatter.format(
+            template = "{sender}{name}", sender = "+79161234567", name = null,
+            text = "", timestamp = ts, type = "sms", sim = null
+        )
+        assertEquals("+79161234567", result)
+    }
+
+    @Test
+    fun `sim line is empty when null`() {
+        val result = TemplateFormatter.format(
+            template = "[{sim}]", sender = "+79161234567", name = null,
+            text = "", timestamp = ts, type = "sms", sim = null
+        )
+        assertEquals("[]", result)
+    }
+
+    @Test
+    fun `{number} is alias for {sender}`() {
+        val result = TemplateFormatter.format(
+            template = "{number}", sender = "+79991112233", name = null,
+            text = "", timestamp = ts, type = "missed", sim = null
+        )
+        assertEquals("+79991112233", result)
+    }
+
+    @Test
+    fun `text is empty for missed call`() {
+        val result = TemplateFormatter.format(
+            template = "Text: [{text}]", sender = "+79161234567", name = null,
+            text = "", timestamp = ts, type = "missed", sim = null
+        )
+        assertEquals("Text: []", result)
+    }
+
+    @Test
+    fun `user can build JSON template`() {
+        val tpl = """{"sender":"{sender}","text":"{text}","time":"{time}"}"""
+        val result = TemplateFormatter.format(
+            template = tpl, sender = "12345", name = null,
+            text = "hi", timestamp = ts, type = "sms", sim = null
+        )
+        assertEquals("""{"sender":"12345","text":"hi","time":"14:30:00"}""", result)
+    }
+}
