@@ -4,11 +4,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.CopyOnWriteArrayList
+import timber.log.Timber
 
 /**
- * Лог событий приложения (вкладка «Логи»).
+ * Лог событий приложения (вкладка «Логи») + мост в Timber.
  *
- * Кольцевой буфер с максимум [MAX_ENTRIES] записей. Работает в памяти.
+ * Каждая запись пишется в [Timber] (logcat, DebugTree в debug-сборках)
+ * и в кольцевой буфер с максимум [MAX_ENTRIES] записей для UI.
  * UI (MainActivity) подписывается через [addListener].
  */
 object LogStore {
@@ -33,6 +35,14 @@ object LogStore {
         entries.addLast(e)
         while (entries.size > MAX_ENTRIES) entries.removeFirst()
         for (l in listeners) l(e)
+        // Дублируем в logcat через Timber (DebugTree печатает только в debug).
+        // Без посаженных деревьев Timber молча пропускает — безопасно для release.
+        when (level) {
+            Level.INFO -> Timber.i(text)
+            Level.OK -> Timber.i(text)
+            Level.WARN -> Timber.w(text)
+            Level.ERROR -> Timber.e(text)
+        }
     }
 
     fun info(text: String) = log(Level.INFO, text)

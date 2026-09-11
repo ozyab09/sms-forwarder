@@ -2,7 +2,7 @@
 # Версия приложения — bump здесь, CI сам создаст тег vX.Y.Z и релиз при мерже в main
 versionMajor = "0"
 versionMinor = "4"
-versionPatch = "16"
+versionPatch = "17"
 agp = "8.9.2"
 kotlin = "2.2.10"
 coreKtx = "1.13.1"
@@ -18,6 +18,7 @@ junit = "4.13.2"
 viewpager = "1.1.0-beta02"
 androidxTest = "1.6.1"
 robolectric = "4.13"
+timber = "5.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -36,6 +37,7 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-test-core = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTest" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
