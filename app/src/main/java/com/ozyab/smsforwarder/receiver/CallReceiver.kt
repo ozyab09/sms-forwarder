@@ -166,7 +166,7 @@ class CallReceiver : android.content.BroadcastReceiver() {
         // Тяжёлая часть (CallLog, контакты) — не на главном потоке
         ReceiverExecutor.goAsync(this) {
             val text = CallReceiverLogic.onPhoneStateChanged(context, state, number) ?: return@goAsync
-            com.ozyab.smsforwarder.service.ForwardService.start(context, text)
+            com.ozyab.smsforwarder.service.ForwardService.start(context, text, type = "missed", sender = number ?: "")
         }
     }
 }

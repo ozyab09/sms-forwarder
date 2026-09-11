@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.ozyab.smsforwarder.R
+import com.ozyab.smsforwarder.history.EventHistory
 import com.ozyab.smsforwarder.telegram.ChannelSender
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.util.LogStore
@@ -54,6 +55,9 @@ class ForwardService : Service() {
         const val ACTION_START = "com.ozyab.smsforwarder.START"
         const val ACTION_STOP = "com.ozyab.smsforwarder.STOP"
         const val EXTRA_TEXT = "extra_text"
+        const val EXTRA_TYPE = "extra_type"
+        const val EXTRA_SENDER = "extra_sender"
+        const val EXTRA_EVENT_TIME = "extra_event_time"
 
         fun start(context: Context) {
             val i = Intent(context, ForwardService::class.java).setAction(ACTION_START)
@@ -66,18 +70,24 @@ class ForwardService : Service() {
         }
 
         /** Старт сервиса и постановка события в очередь (из ресиверов). */
-        fun start(context: Context, text: String) {
+        fun start(context: Context, text: String, type: String = "sms", sender: String = "", eventTime: Long = System.currentTimeMillis()) {
             val i = Intent(context, ForwardService::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_TEXT, text)
+                .putExtra(EXTRA_TYPE, type)
+                .putExtra(EXTRA_SENDER, sender)
+                .putExtra(EXTRA_EVENT_TIME, eventTime)
             try {
                 context.startForegroundService(i)
             } catch (e: Exception) {
-                // Например, PHONE_STATE на Android 12+: FGS из фона запрещён.
-                // Событие не теряем — сохраняем в персистентную очередь,
-                // сервис подхватит его при следующем старте.
                 LogStore.warn("Фоновая пересылка временно недоступна: ${e.message ?: e.javaClass.simpleName}")
-                EventQueueStore.persistSingle(context, text)
+                EventQueueStore.persistSingle(
+                    context,
+                    text,
+                    type = type,
+                    sender = sender,
+                    eventTime = eventTime,
+                )
             }
         }
 
@@ -108,7 +118,16 @@ class ForwardService : Service() {
             LogStore.info("Сервис запущен")
         }
 
-        intent?.getStringExtra(EXTRA_TEXT)?.let { enqueue(it) }
+        intent?.let { i ->
+            i.getStringExtra(EXTRA_TEXT)?.let { text ->
+                enqueue(
+                    text = text,
+                    type = i.getStringExtra(EXTRA_TYPE) ?: "sms",
+                    sender = i.getStringExtra(EXTRA_SENDER) ?: "",
+                    eventTime = i.getLongExtra(EXTRA_EVENT_TIME, System.currentTimeMillis()),
+                )
+            }
+        }
 
         // Постоянный цикл обработки очереди — только один раз за жизнь сервиса
         if (!workerStarted) {
@@ -133,8 +152,8 @@ class ForwardService : Service() {
     }
 
     /** Добавить событие в очередь (вызывается из ресиверов). */
-    fun enqueue(text: String) {
-        queue.enqueue(text)
+    fun enqueue(text: String, type: String = "sms", sender: String = "", eventTime: Long = System.currentTimeMillis()) {
+        queue.enqueue(text, type = type, sender = sender, eventTime = eventTime)
         persist()
         wake.trySend(Unit)
     }
@@ -164,6 +183,17 @@ class ForwardService : Service() {
             LogStore.warn("Не задан токен/chatId — событие отложено")
             if (queue.fail(ev)) {
                 LogStore.error("Событие отброшено после ${SendQueue.MAX_ATTEMPTS} попыток (не задан токен/chatId)")
+                EventHistory.record(
+                    context = this,
+                    sender = ev.sender,
+                    body = ev.text,
+                    timestamp = ev.eventTime,
+                    type = ev.type,
+                    status = EventHistory.STATUS_DROPPED,
+                    channelName = null,
+                    attempts = ev.attempts,
+                    formattedText = ev.text,
+                )
             }
             return
         }
@@ -175,13 +205,37 @@ class ForwardService : Service() {
             is ChannelSender.Result.Ok -> {
                 Prefs.sentCount = Prefs.sentCount + 1
                 LogStore.ok("Отправлено через «${result.channelName}» (id ${result.messageId})")
+                EventHistory.record(
+                    context = this,
+                    sender = ev.sender,
+                    body = ev.text,
+                    timestamp = ev.eventTime,
+                    type = ev.type,
+                    status = EventHistory.STATUS_SENT,
+                    channelName = result.channelName,
+                    attempts = ev.attempts + 1,
+                    formattedText = ev.text,
+                )
             }
             is ChannelSender.Result.Err -> {
                 val joined = result.reasons.joinToString("; ")
                 LogStore.error("Все каналы не вышли: $joined")
-                if (queue.fail(ev)) {
+                val isDropped = queue.fail(ev)
+                if (isDropped) {
                     LogStore.error("Событие отброшено после ${SendQueue.MAX_ATTEMPTS} попыток")
+                    EventHistory.record(
+                        context = this,
+                        sender = ev.sender,
+                        body = ev.text,
+                        timestamp = ev.eventTime,
+                        type = ev.type,
+                        status = EventHistory.STATUS_DROPPED,
+                        channelName = null,
+                        attempts = ev.attempts,
+                        formattedText = ev.text,
+                    )
                 }
+                // Если не отброшено — событие вернётся в ретрай, история не пишется
             }
         }
     }

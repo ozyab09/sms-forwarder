@@ -58,7 +58,7 @@ class SmsReceiver : BroadcastReceiver() {
                 sim = sim
             )
 
-            ForwardService.start(context, text)
+            ForwardService.start(context, text, type = "sms", sender = sender, eventTime = ts)
         }
     }
 }

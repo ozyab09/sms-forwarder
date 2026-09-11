@@ -2,7 +2,7 @@
 # Версия приложения — bump здесь, CI сам создаст тег vX.Y.Z и релиз при мерже в main
 versionMajor = "0"
 versionMinor = "4"
-versionPatch = "15"
+versionPatch = "16"
 agp = "8.9.2"
 kotlin = "2.2.10"
 coreKtx = "1.13.1"
@@ -11,10 +11,13 @@ material = "1.12.0"
 constraintlayout = "2.1.4"
 securityCrypto = "1.1.0-alpha06"
 lifecycle = "2.8.3"
+room = "2.7.2"
 okhttp = "4.12.0"
 coroutines = "1.8.1"
 junit = "4.13.2"
 viewpager = "1.1.0-beta02"
+androidxTest = "1.6.1"
+robolectric = "4.13"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -24,10 +27,17 @@ androidx-constraintlayout = { group = "androidx.constraintlayout", name = "const
 viewpager2 = { group = "androidx.viewpager2", name = "viewpager2", version.ref = "viewpager" }
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 androidx-lifecycle-service = { group = "androidx.lifecycle", name = "lifecycle-service", version.ref = "lifecycle" }
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-test-core = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTest" }
+androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }

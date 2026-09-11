@@ -40,7 +40,15 @@ object EventQueueStore {
                     val text = o.optString("text", "")
                     if (text.isBlank()) continue
                     // nextRetryAt сбрасывается при restore — события отправляются сразу после рестарта
-                    add(QueuedEvent(text = text, attempts = o.optInt("attempts", 0)))
+                    add(
+                        QueuedEvent(
+                            text = text,
+                            attempts = o.optInt("attempts", 0),
+                            type = o.optString("type", "sms"),
+                            sender = o.optString("sender", ""),
+                            eventTime = o.optLong("eventTime", 0L),
+                        )
+                    )
                 }
             }
         } catch (e: Exception) {
@@ -71,7 +79,7 @@ object EventQueueStore {
      * например из PHONE_STATE на Android 12+). Добавляется к уже лежащим событиям;
      * при следующем старте сервиса всё отправится.
      */
-    fun persistSingle(context: Context, text: String) {
+    fun persistSingle(context: Context, text: String, type: String = "sms", sender: String = "", eventTime: Long = System.currentTimeMillis()) {
         executor.execute {
             try {
                 val existing = try {
@@ -84,8 +92,10 @@ object EventQueueStore {
                         .put("text", text)
                         .put("attempts", 0)
                         .put("nextRetryAt", System.currentTimeMillis())
-                )
-                // Держим файл ограниченным — самые свежие MAX_EVENTS событий
+                        .put("type", type)
+                        .put("sender", sender)
+                        .put("eventTime", eventTime)
+                )                // Держим файл ограниченным — самые свежие MAX_EVENTS событий
                 val arr = JSONArray()
                 val start = maxOf(0, existing.length() - MAX_EVENTS)
                 for (i in start until existing.length()) arr.put(existing.getJSONObject(i))
@@ -116,6 +126,9 @@ object EventQueueStore {
                     .put("text", e.text)
                     .put("attempts", e.attempts)
                     .put("nextRetryAt", e.nextRetryAt)
+                    .put("type", e.type)
+                    .put("sender", e.sender)
+                    .put("eventTime", e.eventTime)
             )
         }
         writeAtomic(file(context), arr.toString())

@@ -9,6 +9,12 @@ data class QueuedEvent(
     val attempts: Int = 0,
     /** Ранний timestamp (ms), когда событию разрешена следующая попытка. */
     val nextRetryAt: Long = 0L,
+    /** Тип события: "sms" | "missed" (для истории). */
+    val type: String = "sms",
+    /** Отправитель (номер) — для истории. */
+    val sender: String = "",
+    /** Время события (ms) — для истории. */
+    val eventTime: Long = 0L,
 )
 
 /**
@@ -53,7 +59,7 @@ class SendQueue(
     fun isEmpty(): Boolean = size == 0
 
     /** Добавить новое событие (можно из любого потока). */
-    fun enqueue(text: String) {
+    fun enqueue(text: String, type: String = "sms", sender: String = "", eventTime: Long = 0L) {
         synchronized(lock) {
             if (pending.size + retries.size >= maxSize) {
                 when {
@@ -67,7 +73,15 @@ class SendQueue(
                     }
                 }
             }
-            pending.addLast(QueuedEvent(text = text, nextRetryAt = now()))
+            pending.addLast(
+                QueuedEvent(
+                    text = text,
+                    nextRetryAt = now(),
+                    type = type,
+                    sender = sender,
+                    eventTime = eventTime,
+                )
+            )
         }
     }
 
