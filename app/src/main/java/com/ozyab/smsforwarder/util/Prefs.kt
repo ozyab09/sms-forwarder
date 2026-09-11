@@ -4,16 +4,14 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.core.toMutablePreferences
-import androidx.datastore.preferences.core.toPreferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -96,7 +94,7 @@ object Prefs {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** In-memory кэш plain-настроек (актуальный снимок DataStore). */
-    @Volatile private var cache: Preferences = emptyPreferences()
+    @Volatile private var cache: Preferences = MutablePreferences()
 
     /**
      * Запускает асинхронную инициализацию (идемпотентно, не блокирует поток).
@@ -135,7 +133,7 @@ object Prefs {
         // try/finally обязателен: если DataStore упадёт, лотч всё равно
         // открываем, чтобы awaitReady() не завис навсегда (degraded mode).
         plainStore = PreferenceDataStoreFactory.create(
-            produceFile = { preferencesDataStoreFile(appContext, FILE_PLAIN) },
+            produceFile = { appContext.preferencesDataStoreFile(FILE_PLAIN) },
             migrations = listOf(SharedPreferencesMigration(appContext, FILE_PLAIN)),
         )
         scope.launch {
