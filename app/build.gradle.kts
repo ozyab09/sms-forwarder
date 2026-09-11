@@ -113,6 +113,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.timber)
+    implementation(libs.androidx.datastore.preferences)
 
     // Тесты: JUnit + Room in-memory (Robolectric для Context в unit-тестах)
     testImplementation(libs.junit)
