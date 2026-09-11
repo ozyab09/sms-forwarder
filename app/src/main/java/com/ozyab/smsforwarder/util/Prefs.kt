@@ -3,6 +3,7 @@ package com.ozyab.smsforwarder.util
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -13,7 +14,6 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.toMutablePreferences
 import androidx.datastore.preferences.core.toPreferences
-import androidx.datastore.preferences.migrations.SharedPreferencesMigration
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -90,6 +90,9 @@ object Prefs {
 
     private lateinit var secure: SharedPreferences
 
+    /** DataStore для plain-настроек (создаётся в [init]). */
+    private lateinit var plainStore: DataStore<Preferences>
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** In-memory кэш plain-настроек (актуальный снимок DataStore). */
@@ -127,12 +130,17 @@ object Prefs {
         t.isDaemon = true
         t.start()
 
-        // 2) Plain: DataStore. Первая эмиссия загружает файл (и миграцию), после
-        // неё кэш готов. try/finally обязателен: если DataStore упадёт, лотч всё
-        // равно открываем, чтобы awaitReady() не завис навсегда (degraded mode).
+        // 2) Plain: DataStore c миграцией из старых SharedPreferences.
+        // Первая эмиссия загружает файл (и миграцию), после неё кэш готов.
+        // try/finally обязателен: если DataStore упадёт, лотч всё равно
+        // открываем, чтобы awaitReady() не завис навсегда (degraded mode).
+        plainStore = PreferenceDataStoreFactory.create(
+            produceFile = { preferencesDataStoreFile(appContext, FILE_PLAIN) },
+            migrations = listOf(SharedPreferencesMigration(appContext, FILE_PLAIN)),
+        )
         scope.launch {
             try {
-                appContext.plainDataStore.data
+                plainStore.data
                     .catch { e -> LogStore.error("DataStore read failed: ${e.message}") }
                     .collect { prefs -> cache = prefs }
             } finally {
@@ -316,7 +324,7 @@ object Prefs {
         awaitReady()
         scope.launch {
             runCatching {
-                plainDataStore.edit { p ->
+                plainStore.edit { p ->
                     p.remove(booleanPreferencesKey(KEY_PROXY_ENABLED))
                     p.remove(stringPreferencesKey(KEY_PROXY_TYPE))
                     p.remove(stringPreferencesKey(KEY_PROXY_HOST))
@@ -363,7 +371,7 @@ object Prefs {
         val k = stringPreferencesKey(key)
         updateCache(k, value)
         scope.launch {
-            runCatching { plainDataStore.edit { it[k] = value } }
+            runCatching { plainStore.edit { it[k] = value } }
                 .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
         }
     }
@@ -373,7 +381,7 @@ object Prefs {
         val k = booleanPreferencesKey(key)
         updateCache(k, value)
         scope.launch {
-            runCatching { plainDataStore.edit { it[k] = value } }
+            runCatching { plainStore.edit { it[k] = value } }
                 .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
         }
     }
@@ -383,7 +391,7 @@ object Prefs {
         val k = intPreferencesKey(key)
         updateCache(k, value)
         scope.launch {
-            runCatching { plainDataStore.edit { it[k] = value } }
+            runCatching { plainStore.edit { it[k] = value } }
                 .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
         }
     }
@@ -393,7 +401,7 @@ object Prefs {
         val k = longPreferencesKey(key)
         updateCache(k, value)
         scope.launch {
-            runCatching { plainDataStore.edit { it[k] = value } }
+            runCatching { plainStore.edit { it[k] = value } }
                 .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
         }
     }
@@ -404,12 +412,4 @@ object Prefs {
         mut[key] = value
         cache = mut.toPreferences()
     }
-}
-
-/** DataStore для plain-настроек с миграцией из старых SharedPreferences. */
-private val Context.plainDataStore: DataStore<Preferences> by lazy {
-    PreferenceDataStoreFactory.create(
-        produceFile = { preferencesDataStoreFile(this, Prefs.FILE_PLAIN) },
-        migrations = listOf(SharedPreferencesMigration(this, Prefs.FILE_PLAIN)),
-    )
 }
