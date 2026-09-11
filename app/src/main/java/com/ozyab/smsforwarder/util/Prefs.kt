@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -94,7 +95,7 @@ object Prefs {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** In-memory кэш plain-настроек (актуальный снимок DataStore). */
-    @Volatile private var cache: Preferences = MutablePreferences()
+    @Volatile private lateinit var cache: Preferences
 
     /**
      * Запускает асинхронную инициализацию (идемпотентно, не блокирует поток).
