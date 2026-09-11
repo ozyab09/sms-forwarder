@@ -112,6 +112,7 @@ dependencies {
     kapt(libs.androidx.room.compiler)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.timber)
 
     // Тесты: JUnit + Room in-memory (Robolectric для Context в unit-тестах)
     testImplementation(libs.junit)
