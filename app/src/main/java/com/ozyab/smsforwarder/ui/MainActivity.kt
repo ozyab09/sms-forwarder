@@ -293,9 +293,9 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, R.string.toast_enter_token_and_chatid, Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
-            ForwardService.start(this, "🟢 SMS Forwarder запущен")
-            Toast.makeText(this, R.string.status_running, Toast.LENGTH_SHORT).show()
-            requestBatteryExemption()
+            // Сначала проверяем связь через все каналы (как в "Тестировать"),
+            // но сервис запускаем в любом случае
+            testConnectionAndStartService()
         }
         btnStop.setOnClickListener {
             ForwardService.stop(this)
@@ -606,6 +606,53 @@ class MainActivity : AppCompatActivity() {
                             getString(R.string.test_connection_ok, bot, r.channel.name),
                             Toast.LENGTH_LONG,
                         ).show()
+                    } else {
+                        LogStore.error("Тест «${r.channel.name}» — ${r.error ?: "ошибка"}")
+                        appendLine(getString(R.string.test_channel_fail, r.channel.name, r.error ?: getString(R.string.test_error_unknown)))
+                    }
+                }
+            }
+            if (okCount == 0) {
+                Toast.makeText(this@MainActivity, R.string.test_all_none, Toast.LENGTH_LONG).show()
+            }
+            AlertDialog.Builder(this@MainActivity)
+                .setTitle(R.string.test_dialog_title)
+                .setMessage(summary)
+                .setPositiveButton(R.string.ok, null)
+                .show()
+        }
+    }
+
+    /**
+     * Запуск сервиса + проверка связи с ботом (getMe), как в «Тестировать»,
+     * но БЕЗ отправки приветственного сообщения в Telegram.
+     */
+    private fun testConnectionAndStartService() {
+        // Сервис запускается сразу и без отправки сообщений
+        ForwardService.start(this)
+        Toast.makeText(this, R.string.status_running, Toast.LENGTH_SHORT).show()
+        requestBatteryExemption()
+
+        val token = Prefs.botToken
+        if (token.isBlank()) return
+        val channels = ChannelStore.enabled()
+        if (channels.isEmpty()) return
+
+        LogStore.info("Проверка связи при запуске через каналы: ${channels.joinToString { it.name }}")
+        scope.launch {
+            // Параллельно проверяем ВСЕ каналы через getMe (без отправки сообщений),
+            // результат — по каждому отдельно
+            val results = withContext(Dispatchers.IO) {
+                ChannelSender.testAll(token, channels)
+            }
+
+            val okCount = results.count { it.ok }
+            val summary = buildString {
+                for (r in results) {
+                    if (r.ok) {
+                        val bot = r.botUsername ?: "?"
+                        LogStore.ok("Тест «${r.channel.name}» — бот @$bot доступен")
+                        appendLine(getString(R.string.test_channel_ok, r.channel.name, bot))
                     } else {
                         LogStore.error("Тест «${r.channel.name}» — ${r.error ?: "ошибка"}")
                         appendLine(getString(R.string.test_channel_fail, r.channel.name, r.error ?: getString(R.string.test_error_unknown)))
