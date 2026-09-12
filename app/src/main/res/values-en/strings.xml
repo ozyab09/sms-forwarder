@@ -54,6 +54,16 @@
     <string name="about_theme_system">System</string>
     <string name="about_project_link">Project on GitHub</string>
     <string name="about_privacy">Privacy-first: bot token and proxy passwords are stored encrypted, logs never leave the device, no analytics.</string>
+
+    <!-- Backup -->
+    <string name="about_backup">Backup</string>
+    <string name="btn_export_settings">Export</string>
+    <string name="btn_import_settings">Import</string>
+    <string name="backup_privacy_note">Bot token and proxy passwords are NOT included — re-enter them on import.</string>
+    <string name="toast_export_ok">Settings saved</string>
+    <string name="toast_import_ok">Settings imported</string>
+    <string name="toast_import_failed">Could not import file</string>
+    <string name="toast_export_failed">Could not save file</string>
     <string name="logs_empty">No entries yet. Start the service or test connection.</string>
     <string name="logs_clear">Clear</string>
 

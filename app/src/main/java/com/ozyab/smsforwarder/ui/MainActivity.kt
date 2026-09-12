@@ -45,12 +45,14 @@ import com.ozyab.smsforwarder.update.UpdateChecker
 import com.ozyab.smsforwarder.update.UpdateManager
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
+import com.ozyab.smsforwarder.util.SettingsBackup
 import com.ozyab.smsforwarder.util.ThemeManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.util.UUID
 
 /**
@@ -95,6 +97,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvAboutVersion: TextView
     private lateinit var rgTheme: RadioGroup
     private lateinit var btnGithub: MaterialButton
+    private lateinit var btnExportSettings: MaterialButton
+    private lateinit var btnImportSettings: MaterialButton
 
     private val scope = CoroutineScope(Dispatchers.Main)
 
@@ -110,6 +114,31 @@ class MainActivity : AppCompatActivity() {
             // Без READ_CALL_LOG номера пропущенных не приходят (EXTRA_INCOMING_NUMBER)
             LogStore.warn(getString(R.string.warn_call_log_permission))
             Toast.makeText(this, R.string.warn_call_log_permission, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // Экспорт настроек (SAF: CreateDocument)
+    private val exportLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            val ok = SettingsBackup.write(this, uri, SettingsBackup.export().toString())
+            if (ok) {
+                LogStore.ok(getString(R.string.toast_export_ok))
+                Toast.makeText(this, R.string.toast_export_ok, Toast.LENGTH_LONG).show()
+            } else {
+                LogStore.error(getString(R.string.toast_export_failed))
+                Toast.makeText(this, R.string.toast_export_failed, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // Импорт настроек (SAF: OpenDocument)
+    private val importLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            importSettings(uri)
         }
     }
 
@@ -201,6 +230,8 @@ class MainActivity : AppCompatActivity() {
         tvAboutVersion = findViewById(R.id.tv_about_version)
         rgTheme = findViewById(R.id.rg_theme)
         btnGithub = findViewById(R.id.btn_github)
+        btnExportSettings = findViewById(R.id.btn_export_settings)
+        btnImportSettings = findViewById(R.id.btn_import_settings)
     }
 
     private fun loadPrefs() {
@@ -221,6 +252,14 @@ class MainActivity : AppCompatActivity() {
         btnCheckUpdate.setOnClickListener { UpdateManager.checkForUpdates(this, scope, force = true) }
         btnGithub.setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.PROJECT_URL)))
+        }
+        btnExportSettings.setOnClickListener {
+            savePrefs()
+            exportLauncher.launch(SettingsBackup.defaultFileName())
+        }
+        btnImportSettings.setOnClickListener {
+            savePrefs()
+            importLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
         }
         rgTheme.setOnCheckedChangeListener { _, checkedId ->
             val mode = when (checkedId) {
@@ -807,6 +846,37 @@ class MainActivity : AppCompatActivity() {
             else -> R.id.rb_theme_system
         }
         rgTheme.check(checked)
+    }
+
+    /** Читает файл и применяет настройки; обновляет UI. */
+    private fun importSettings(uri: android.net.Uri) {
+        scope.launch {
+            val json = withContext(Dispatchers.IO) { SettingsBackup.read(this@MainActivity, uri) }
+            if (json == null) {
+                LogStore.error(getString(R.string.toast_import_failed))
+                Toast.makeText(this@MainActivity, R.string.toast_import_failed, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            val result = try {
+                withContext(Dispatchers.IO) { SettingsBackup.import(JSONObject(json)) }
+            } catch (e: Exception) {
+                LogStore.error("Импорт: ${e.message}")
+                Toast.makeText(this@MainActivity, R.string.toast_import_failed, Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            LogStore.ok(
+                getString(R.string.toast_import_ok) +
+                    " — каналов: ${result.channelsImported}" +
+                    if (result.tokenKept) ", токен сохранён" else ", токен не задан"
+            )
+            Toast.makeText(this@MainActivity, R.string.toast_import_ok, Toast.LENGTH_LONG).show()
+            // Обновляем UI после импорта
+            loadPrefs()
+            renderChannels()
+            loadAbout()
+            // Тема могла измениться — применяем глобально (Activity пересоздаётся автоматически)
+            ThemeManager.apply(this@MainActivity)
+        }
     }
 
     override fun onDestroy() {
