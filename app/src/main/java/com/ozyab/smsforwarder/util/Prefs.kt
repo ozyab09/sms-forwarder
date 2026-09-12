@@ -75,6 +75,11 @@ object Prefs {
     const val KEY_MESSAGE_TEMPLATE_SMS = "message_template_sms"
     const val KEY_MESSAGE_TEMPLATE_CALL = "message_template_call"
 
+    // Тихие часы (plain)
+    const val KEY_QUIET_HOURS_ENABLED = "quiet_hours_enabled"
+    const val KEY_QUIET_HOURS_START = "quiet_hours_start" // минуты от полуночи
+    const val KEY_QUIET_HOURS_END = "quiet_hours_end"
+
     private val initLock = Any()
     // Два счётчика: secure-инициализация + первая DataStore-эмиссия.
     private val readyLatch = CountDownLatch(2)
@@ -281,6 +286,19 @@ object Prefs {
     var messageTemplateCall: String
         get() = getString(KEY_MESSAGE_TEMPLATE_CALL, "")
         set(v) = setString(KEY_MESSAGE_TEMPLATE_CALL, v)
+
+    // --- Тихие часы (минуты от полуночи) ---
+    var quietHoursEnabled: Boolean
+        get() = getBoolean(KEY_QUIET_HOURS_ENABLED, false)
+        set(v) = setBoolean(KEY_QUIET_HOURS_ENABLED, v)
+
+    var quietHoursStart: Int
+        get() = getInt(KEY_QUIET_HOURS_START, 23 * 60)
+        set(v) = setInt(KEY_QUIET_HOURS_START, v)
+
+    var quietHoursEnd: Int
+        get() = getInt(KEY_QUIET_HOURS_END, 8 * 60)
+        set(v) = setInt(KEY_QUIET_HOURS_END, v)
 
     fun isConfigured(): Boolean {
         awaitReady()

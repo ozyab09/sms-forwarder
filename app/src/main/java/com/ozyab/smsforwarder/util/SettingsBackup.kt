@@ -47,6 +47,9 @@ object SettingsBackup {
             .put("themeMode", Prefs.themeMode)
             .put("messageTemplateSms", Prefs.messageTemplateSms)
             .put("messageTemplateCall", Prefs.messageTemplateCall)
+            .put("quietHoursEnabled", Prefs.quietHoursEnabled)
+            .put("quietHoursStart", Prefs.quietHoursStart)
+            .put("quietHoursEnd", Prefs.quietHoursEnd)
 
         // Каналы: не-direct, без секретов (pass) и без id (при импорте новые)
         val channels = JSONArray()
@@ -95,6 +98,9 @@ object SettingsBackup {
         Prefs.themeMode = settings.optString("themeMode", Prefs.themeMode)
         Prefs.messageTemplateSms = settings.optString("messageTemplateSms", Prefs.messageTemplateSms)
         Prefs.messageTemplateCall = settings.optString("messageTemplateCall", Prefs.messageTemplateCall)
+        Prefs.quietHoursEnabled = settings.optBoolean("quietHoursEnabled", Prefs.quietHoursEnabled)
+        Prefs.quietHoursStart = settings.optInt("quietHoursStart", Prefs.quietHoursStart)
+        Prefs.quietHoursEnd = settings.optInt("quietHoursEnd", Prefs.quietHoursEnd)
 
         // Каналы: заменяем все прокси-каналы (direct остаётся всегда первым).
         val arr = json.optJSONArray("channels")

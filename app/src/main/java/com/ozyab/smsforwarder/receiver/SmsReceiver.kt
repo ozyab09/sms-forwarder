@@ -7,6 +7,7 @@ import android.provider.Telephony
 import com.ozyab.smsforwarder.service.ForwardService
 import com.ozyab.smsforwarder.util.ContactNames
 import com.ozyab.smsforwarder.util.Prefs
+import com.ozyab.smsforwarder.util.QuietHours
 import com.ozyab.smsforwarder.util.ReceiverExecutor
 import com.ozyab.smsforwarder.util.SimInfo
 import com.ozyab.smsforwarder.util.TemplateFormatter
@@ -25,6 +26,11 @@ class SmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
         if (!Prefs.smsEnabled) return
+
+        // Тихие часы: не пересылаем в указанный период
+        if (QuietHours.isActiveNow()) {
+            return
+        }
 
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
         if (messages.isEmpty()) return
