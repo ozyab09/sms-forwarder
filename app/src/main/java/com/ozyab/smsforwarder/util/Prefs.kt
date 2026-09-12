@@ -131,8 +131,9 @@ object Prefs {
 
         // 2) Plain: DataStore c миграцией из старых SharedPreferences.
         // Первая эмиссия загружает файл (и миграцию), после неё кэш готов.
-        // try/finally обязателен: если DataStore упадёт, лотч всё равно
-        // открываем, чтобы awaitReady() не завис навсегда (degraded mode).
+        // ВАЖНО: markReady() вызывается при ПЕРВОЙ эмиссии (collect на DataStore
+        // бесконечен и finally не выполнится при здоровом потоке) и в finally
+        // как страховка на случай падения/отмены до первой эмиссии.
         plainStore = PreferenceDataStoreFactory.create(
             produceFile = { appContext.preferencesDataStoreFile(FILE_PLAIN) },
             migrations = listOf(SharedPreferencesMigration(appContext, FILE_PLAIN)),
@@ -141,7 +142,12 @@ object Prefs {
             try {
                 plainStore.data
                     .catch { e -> LogStore.error("DataStore read failed: ${e.message}") }
-                    .collect { prefs -> cache = prefs }
+                    .collect { prefs ->
+                        cache = prefs
+                        markReady()
+                    }
+            } catch (e: Throwable) {
+                LogStore.error("DataStore init failed: ${e.message}")
             } finally {
                 markReady()
             }
@@ -162,6 +168,11 @@ object Prefs {
     /**
      * Блокирует вызывающий поток до готовности Prefs; после инициализации —
      * мгновенно. Вызывается в начале каждого аксессора.
+     *
+     * Страховочный таймаут: даже если что-то пошло не так (DataStore не
+     * эмитит, secure упал), главный поток не должен висеть — старт приложения
+     * важнее идеальной готовности настроек. Возвращаемся с тем, что есть
+     * (кэш может быть пустым — аксессоры вернут дефолты).
      */
     private fun awaitReady() {
         if (initDone) return
@@ -170,7 +181,9 @@ object Prefs {
         // а не зависаем навсегда.
         if (!initStarted) return
         try {
-            readyLatch.await()
+            if (!readyLatch.await(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                LogStore.warn("Prefs init timeout — использую дефолтные значения")
+            }
         } catch (_: InterruptedException) {
             Thread.currentThread().interrupt()
         }
@@ -181,32 +194,32 @@ object Prefs {
     var botToken: String
         get() {
             awaitReady()
-            return secure.getString(KEY_BOT_TOKEN, "") ?: ""
+            return if (::secure.isInitialized) secure.getString(KEY_BOT_TOKEN, "") ?: "" else ""
         }
         set(v) {
             awaitReady()
-            secure.edit().putString(KEY_BOT_TOKEN, v).apply()
+            if (::secure.isInitialized) secure.edit().putString(KEY_BOT_TOKEN, v).apply()
         }
 
     var proxyPass: String
         get() {
             awaitReady()
-            return secure.getString(KEY_PROXY_PASS, "") ?: ""
+            return if (::secure.isInitialized) secure.getString(KEY_PROXY_PASS, "") ?: "" else ""
         }
         set(v) {
             awaitReady()
-            secure.edit().putString(KEY_PROXY_PASS, v).apply()
+            if (::secure.isInitialized) secure.edit().putString(KEY_PROXY_PASS, v).apply()
         }
 
     /** JSON-массив каналов отправки (secure). */
     var channelsJson: String
         get() {
             awaitReady()
-            return secure.getString(KEY_CHANNELS_JSON, "") ?: ""
+            return if (::secure.isInitialized) secure.getString(KEY_CHANNELS_JSON, "") ?: "" else ""
         }
         set(v) {
             awaitReady()
-            secure.edit().putString(KEY_CHANNELS_JSON, v).apply()
+            if (::secure.isInitialized) secure.edit().putString(KEY_CHANNELS_JSON, v).apply()
         }
 
     // --- plain (DataStore, через кэш) ---
@@ -334,41 +347,43 @@ object Prefs {
         }
         secure.edit().remove(KEY_PROXY_PASS).apply()
         // Сразу отражаем в кэше, чтобы чтения после вызова вернули дефолты.
-        val mut = cache.toMutablePreferences()
-        mut.remove(booleanPreferencesKey(KEY_PROXY_ENABLED))
-        mut.remove(stringPreferencesKey(KEY_PROXY_TYPE))
-        mut.remove(stringPreferencesKey(KEY_PROXY_HOST))
-        mut.remove(intPreferencesKey(KEY_PROXY_PORT))
-        mut.remove(stringPreferencesKey(KEY_PROXY_USER))
-        cache = mut.toPreferences()
+        if (::cache.isInitialized) {
+            val mut = cache.toMutablePreferences()
+            mut.remove(booleanPreferencesKey(KEY_PROXY_ENABLED))
+            mut.remove(stringPreferencesKey(KEY_PROXY_TYPE))
+            mut.remove(stringPreferencesKey(KEY_PROXY_HOST))
+            mut.remove(intPreferencesKey(KEY_PROXY_PORT))
+            mut.remove(stringPreferencesKey(KEY_PROXY_USER))
+            cache = mut.toPreferences()
+        }
     }
 
     // --- Кэш-хелперы (plain) ---
 
     private fun getString(key: String, default: String): String {
         awaitReady()
-        return cache[stringPreferencesKey(key)] ?: default
+        return if (::cache.isInitialized) cache[stringPreferencesKey(key)] ?: default else default
     }
 
     private fun getBoolean(key: String, default: Boolean): Boolean {
         awaitReady()
-        return cache[booleanPreferencesKey(key)] ?: default
+        return if (::cache.isInitialized) cache[booleanPreferencesKey(key)] ?: default else default
     }
 
     private fun getInt(key: String, default: Int): Int {
         awaitReady()
-        return cache[intPreferencesKey(key)] ?: default
+        return if (::cache.isInitialized) cache[intPreferencesKey(key)] ?: default else default
     }
 
     private fun getLong(key: String, default: Long): Long {
         awaitReady()
-        return cache[longPreferencesKey(key)] ?: default
+        return if (::cache.isInitialized) cache[longPreferencesKey(key)] ?: default else default
     }
 
     private fun setString(key: String, value: String) {
         awaitReady()
         val k = stringPreferencesKey(key)
-        updateCache(k, value)
+        if (::cache.isInitialized) updateCache(k, value)
         scope.launch {
             runCatching { plainStore.edit { it[k] = value } }
                 .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
@@ -378,7 +393,7 @@ object Prefs {
     private fun setBoolean(key: String, value: Boolean) {
         awaitReady()
         val k = booleanPreferencesKey(key)
-        updateCache(k, value)
+        if (::cache.isInitialized) updateCache(k, value)
         scope.launch {
             runCatching { plainStore.edit { it[k] = value } }
                 .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
@@ -388,7 +403,7 @@ object Prefs {
     private fun setInt(key: String, value: Int) {
         awaitReady()
         val k = intPreferencesKey(key)
-        updateCache(k, value)
+        if (::cache.isInitialized) updateCache(k, value)
         scope.launch {
             runCatching { plainStore.edit { it[k] = value } }
                 .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
@@ -398,7 +413,7 @@ object Prefs {
     private fun setLong(key: String, value: Long) {
         awaitReady()
         val k = longPreferencesKey(key)
-        updateCache(k, value)
+        if (::cache.isInitialized) updateCache(k, value)
         scope.launch {
             runCatching { plainStore.edit { it[k] = value } }
                 .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
