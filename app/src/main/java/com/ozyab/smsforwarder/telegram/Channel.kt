@@ -137,6 +137,21 @@ object ChannelStore {
         return true
     }
 
+    /**
+     * Поднять прокси-канал на первое место среди прокси (сразу после direct).
+     *
+     * Используется при promote-on-success: после успешной отправки через канал
+     * он становится приоритетным для следующих сообщений. Если канал уже первый
+     * (или не найден / является direct), порядок не меняется.
+     *
+     * @return true, если порядок был изменён.
+     */
+    fun promote(id: String): Boolean {
+        val next = promoteOrder(all(), id) ?: return false
+        setAll(next)
+        return true
+    }
+
     /** Первое чтение: миграция старых одиночных прокси-настроек (v0.4.x) в канал. */
     private fun cachedOrLoad(): List<Channel>? {
         cache?.let { return it }
@@ -173,4 +188,19 @@ object ChannelStore {
     fun invalidate() {
         cache = null
     }
+}
+
+/**
+ * Чистая функция promote-on-success (без хранилища, тестируется отдельно):
+ * возвращает новый порядок каналов с каналом [id] на первом месте среди прокси
+ * (сразу после direct) или null, если порядок менять не надо.
+ */
+internal fun promoteOrder(cur: List<Channel>, id: String): List<Channel>? {
+    if (cur.isEmpty()) return null
+    val direct = cur.first()
+    val proxies = cur.drop(1)
+    if (proxies.size < 2) return null
+    val idx = proxies.indexOfFirst { it.id == id }
+    if (idx <= 0) return null // не найден или уже первый
+    return listOf(direct) + listOf(proxies[idx]) + proxies.filterIndexed { i, _ -> i != idx }
 }
