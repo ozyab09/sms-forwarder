@@ -25,9 +25,13 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.switchmaterial.SwitchMaterial
@@ -40,8 +44,6 @@ import com.ozyab.smsforwarder.history.EventHistory
 import com.ozyab.smsforwarder.service.ForwardService
 import com.ozyab.smsforwarder.telegram.Channel
 import com.ozyab.smsforwarder.telegram.ChannelStore
-import com.ozyab.smsforwarder.telegram.ChannelSender
-import com.ozyab.smsforwarder.telegram.TelegramClient
 import com.ozyab.smsforwarder.update.UpdateChecker
 import com.ozyab.smsforwarder.update.UpdateManager
 import com.ozyab.smsforwarder.util.LogStore
@@ -106,6 +108,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnExportSettings: MaterialButton
     private lateinit var btnImportSettings: MaterialButton
 
+    /** ViewModel: состояние настроек и операции (переживает поворот экрана). */
+    private val viewModel: MainViewModel by viewModels()
+
+    /** true — тест запущен кнопкой «Запустить» (без отдельного тоста об успехе). */
+    private var startServiceAfterTest = false
+
     private val scope = CoroutineScope(Dispatchers.Main)
 
     // Логи пишутся из фоновых потоков (сервис/ресиверы) — рендер только на main
@@ -161,6 +169,7 @@ class MainActivity : AppCompatActivity() {
         setupActions()
         renderChannels()
         setupBottomNav()
+        collectViewModel()
 
         requestNeededPermissions()
         UpdateManager.checkForUpdates(this, scope)
@@ -203,10 +212,18 @@ class MainActivity : AppCompatActivity() {
 
         etTemplateSms = findViewById(R.id.et_template_sms)
         etTemplateCall = findViewById(R.id.et_template_call)
+        etTemplateSms.addTextChangedListener(textWatcher {
+            viewModel.setTemplateSms(etTemplateSms.text?.toString() ?: "")
+        })
+        etTemplateCall.addTextChangedListener(textWatcher {
+            viewModel.setTemplateCall(etTemplateCall.text?.toString() ?: "")
+        })
         findViewById<MaterialButton>(R.id.btn_reset_templates).setOnClickListener {
             etTemplateSms.setText("")
             etTemplateCall.setText("")
-            savePrefs()
+            viewModel.setTemplateSms("")
+            viewModel.setTemplateCall("")
+            viewModel.save()
             Toast.makeText(this, R.string.btn_reset_templates, Toast.LENGTH_SHORT).show()
         }
 
@@ -246,38 +263,108 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadPrefs() {
-        etToken.setText(Prefs.botToken)
-        etChatId.setText(Prefs.chatId)
-        swSms.isChecked = Prefs.smsEnabled
-        swCalls.isChecked = Prefs.callsEnabled
+        viewModel.load()
+        renderPrefs()
+    }
 
-        etTemplateSms.setText(Prefs.messageTemplateSms)
-        etTemplateCall.setText(Prefs.messageTemplateCall)
+    /** Рендер состояния настроек из ViewModel в виджеты. */
+    private fun renderPrefs() {
+        val s = viewModel.state.value
+        etToken.setText(s.botToken)
+        etChatId.setText(s.chatId)
+        swSms.isChecked = s.smsEnabled
+        swCalls.isChecked = s.callsEnabled
+
+        etTemplateSms.setText(s.templateSms)
+        etTemplateCall.setText(s.templateCall)
 
         // Тихие часы
-        swQuietHours.isChecked = Prefs.quietHoursEnabled
-        layoutQuietTimes.visibility = if (Prefs.quietHoursEnabled) View.VISIBLE else View.GONE
-        btnQuietStart.text = formatTime(Prefs.quietHoursStart)
-        btnQuietEnd.text = formatTime(Prefs.quietHoursEnd)
+        swQuietHours.isChecked = s.quietHoursEnabled
+        layoutQuietTimes.visibility = if (s.quietHoursEnabled) View.VISIBLE else View.GONE
+        btnQuietStart.text = formatTime(s.quietHoursStart)
+        btnQuietEnd.text = formatTime(s.quietHoursEnd)
+    }
+
+    /**
+     * Подписка на ViewModel: состояние (кнопки «занято») и одноразовые
+     * события (тосты, диалоги проверки каналов, определение Chat ID).
+     */
+    private fun collectViewModel() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.state.collect { s ->
+                        btnTest.isEnabled = !s.testing
+                        btnTest.text = getString(if (s.testing) R.string.testing else R.string.btn_test_connection)
+                        btnGetMyId.isEnabled = !s.resolvingChatId
+                    }
+                }
+                launch {
+                    viewModel.events.collect { e -> handleUiEvent(e) }
+                }
+            }
+        }
+    }
+
+    private fun handleUiEvent(e: UiEvent) {
+        when (e) {
+            is UiEvent.ToastRes -> Toast.makeText(this, e.resId, Toast.LENGTH_LONG).show()
+            is UiEvent.TestFinished -> showTestResult(e.channels, e.okCount, toastOnSuccess = !startServiceAfterTest)
+            is UiEvent.ChatIdResolved -> Toast.makeText(this, "Chat ID: ${e.id}", Toast.LENGTH_LONG).show()
+            is UiEvent.ChatIdFailed -> {
+                if (e.botUsername != null) {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/${e.botUsername}")))
+                }
+                Toast.makeText(this, "${e.reason} — напиши боту /start", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /** Диалог с результатами проверки каналов (общий для «Тест» и «Запуск»). */
+    private fun showTestResult(channels: List<TestChannel>, okCount: Int, toastOnSuccess: Boolean) {
+        val summary = buildString {
+            for (r in channels) {
+                if (r.ok) {
+                    val bot = r.botUsername ?: "?"
+                    appendLine(getString(R.string.test_channel_ok, r.name, bot))
+                    if (toastOnSuccess) {
+                        Toast.makeText(this@MainActivity, getString(R.string.test_connection_ok, bot, r.name), Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    appendLine(getString(R.string.test_channel_fail, r.name, r.error ?: getString(R.string.test_error_unknown)))
+                }
+            }
+        }
+        if (okCount == 0) {
+            Toast.makeText(this, R.string.test_all_none, Toast.LENGTH_LONG).show()
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.test_dialog_title)
+            .setMessage(summary)
+            .setPositiveButton(R.string.ok, null)
+            .show()
     }
 
     private fun setupActions() {
         btnTest.setOnClickListener {
-            savePrefs()
-            testConnection()
+            startServiceAfterTest = false
+            viewModel.testConnection()
         }
         btnCheckUpdate.setOnClickListener { UpdateManager.checkForUpdates(this, scope, force = true) }
         btnGithub.setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.PROJECT_URL)))
         }
         btnExportSettings.setOnClickListener {
-            savePrefs()
+            viewModel.save()
             exportLauncher.launch(SettingsBackup.defaultFileName())
         }
         btnImportSettings.setOnClickListener {
-            savePrefs()
+            viewModel.save()
             importLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
         }
+        // Ввод токена/chatId синхронизируем в состояние ViewModel
+        etToken.addTextChangedListener(textWatcher { viewModel.setBotToken(etToken.text?.toString().orEmpty()) })
+        etChatId.addTextChangedListener(textWatcher { viewModel.setChatId(etChatId.text?.toString().orEmpty()) })
         rgTheme.setOnCheckedChangeListener { _, checkedId ->
             val mode = when (checkedId) {
                 R.id.rb_theme_light -> ThemeManager.MODE_LIGHT
@@ -289,52 +376,25 @@ class MainActivity : AppCompatActivity() {
         }
         swQuietHours.setOnCheckedChangeListener { _, checked ->
             layoutQuietTimes.visibility = if (checked) View.VISIBLE else View.GONE
-            Prefs.quietHoursEnabled = checked
+            viewModel.setQuietHoursEnabled(checked)
         }
         btnQuietStart.setOnClickListener { showTimePicker(isStart = true) }
         btnQuietEnd.setOnClickListener { showTimePicker(isStart = false) }
-        btnGetMyId.setOnClickListener {
-            savePrefs()
-            val token = etToken.text?.toString()?.trim().orEmpty()
-            if (token.isBlank()) {
-                Toast.makeText(this, R.string.pref_bot_token_hint, Toast.LENGTH_LONG).show()
-                return@setOnClickListener
-            }
-            btnGetMyId.isEnabled = false
-            scope.launch {
-                val result = withContext(Dispatchers.IO) { TelegramClient.resolveChatId() }
-                btnGetMyId.isEnabled = true
-                when (result) {
-                    is TelegramClient.Result.Ok -> {
-                        etChatId.setText(result.messageId.toString())
-                        Prefs.chatId = result.messageId.toString()
-                        LogStore.ok("Chat ID определён: ${result.messageId}")
-                        Toast.makeText(this@MainActivity, "Chat ID: ${result.messageId}", Toast.LENGTH_LONG).show()
-                    }
-                    is TelegramClient.Result.Err -> {
-                        LogStore.error("Chat ID не определён: ${result.reason}")
-                        scope.launch {
-                            val username = withContext(Dispatchers.IO) { TelegramClient.getBotUsername() }
-                            if (username != null) {
-                                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/$username")))
-                            }
-                            Toast.makeText(this@MainActivity, "${result.reason} — напиши боту /start", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }
-            }
-        }
-        swSms.setOnCheckedChangeListener { _, v -> Prefs.smsEnabled = v }
-        swCalls.setOnCheckedChangeListener { _, v -> Prefs.callsEnabled = v }
+        btnGetMyId.setOnClickListener { viewModel.resolveChatId() }
+        swSms.setOnCheckedChangeListener { _, v -> viewModel.setSmsEnabled(v) }
+        swCalls.setOnCheckedChangeListener { _, v -> viewModel.setCallsEnabled(v) }
         btnStart.setOnClickListener {
-            savePrefs()
+            viewModel.save()
             if (!Prefs.isConfigured()) {
                 Toast.makeText(this, R.string.toast_enter_token_and_chatid, Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
-            // Сначала проверяем связь через все каналы (как в "Тестировать"),
-            // но сервис запускаем в любом случае
-            testConnectionAndStartService()
+            // Сервис запускаем сразу; затем проверяем связь по каналам (без отправки)
+            startServiceAfterTest = true
+            ForwardService.start(this)
+            Toast.makeText(this, R.string.status_running, Toast.LENGTH_SHORT).show()
+            requestBatteryExemption()
+            viewModel.testConnection()
         }
         btnStop.setOnClickListener {
             ForwardService.stop(this)
@@ -588,117 +648,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun savePrefs() {
-        Prefs.botToken = etToken.text?.toString()?.trim().orEmpty()
-        Prefs.chatId = etChatId.text?.toString()?.trim().orEmpty()
-        Prefs.smsEnabled = swSms.isChecked
-        Prefs.callsEnabled = swCalls.isChecked
-
-        Prefs.messageTemplateSms = etTemplateSms.text?.toString() ?: ""
-        Prefs.messageTemplateCall = etTemplateCall.text?.toString() ?: ""
-
-        // Тихие часы
-        Prefs.quietHoursEnabled = swQuietHours.isChecked
-    }
-
-    private fun testConnection() {
-        savePrefs()
-        val token = Prefs.botToken
-        if (token.isBlank()) {
-            Toast.makeText(this, R.string.toast_enter_token, Toast.LENGTH_LONG).show()
-            return
-        }
-        val channels = ChannelStore.enabled()
-        if (channels.isEmpty()) {
-            Toast.makeText(this, R.string.test_no_channels, Toast.LENGTH_LONG).show()
-            return
-        }
-        btnTest.isEnabled = false
-        btnTest.text = getString(R.string.testing)
-        LogStore.info("Проверка связи через каналы: ${channels.joinToString { it.name }}")
-        scope.launch {
-            // Параллельно проверяем ВСЕ каналы через getMe (без отправки сообщений),
-            // результат — по каждому отдельно
-            val results = withContext(Dispatchers.IO) {
-                ChannelSender.testAll(token, channels)
-            }
-            btnTest.isEnabled = true
-            btnTest.text = getString(R.string.btn_test_connection)
-
-            val okCount = results.count { it.ok }
-            val summary = buildString {
-                for (r in results) {
-                    if (r.ok) {
-                        val bot = r.botUsername ?: "?"
-                        LogStore.ok("Тест «${r.channel.name}» — бот @$bot доступен")
-                        appendLine(getString(R.string.test_channel_ok, r.channel.name, bot))
-                        // Тост про успех: соединение бота через этот канал
-                        Toast.makeText(
-                            this@MainActivity,
-                            getString(R.string.test_connection_ok, bot, r.channel.name),
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    } else {
-                        LogStore.error("Тест «${r.channel.name}» — ${r.error ?: "ошибка"}")
-                        appendLine(getString(R.string.test_channel_fail, r.channel.name, r.error ?: getString(R.string.test_error_unknown)))
-                    }
-                }
-            }
-            if (okCount == 0) {
-                Toast.makeText(this@MainActivity, R.string.test_all_none, Toast.LENGTH_LONG).show()
-            }
-            AlertDialog.Builder(this@MainActivity)
-                .setTitle(R.string.test_dialog_title)
-                .setMessage(summary)
-                .setPositiveButton(R.string.ok, null)
-                .show()
-        }
-    }
-
-    /**
-     * Запуск сервиса + проверка связи с ботом (getMe), как в «Тестировать»,
-     * но БЕЗ отправки приветственного сообщения в Telegram.
-     */
-    private fun testConnectionAndStartService() {
-        // Сервис запускается сразу и без отправки сообщений
-        ForwardService.start(this)
-        Toast.makeText(this, R.string.status_running, Toast.LENGTH_SHORT).show()
-        requestBatteryExemption()
-
-        val token = Prefs.botToken
-        if (token.isBlank()) return
-        val channels = ChannelStore.enabled()
-        if (channels.isEmpty()) return
-
-        LogStore.info("Проверка связи при запуске через каналы: ${channels.joinToString { it.name }}")
-        scope.launch {
-            // Параллельно проверяем ВСЕ каналы через getMe (без отправки сообщений),
-            // результат — по каждому отдельно
-            val results = withContext(Dispatchers.IO) {
-                ChannelSender.testAll(token, channels)
-            }
-
-            val okCount = results.count { it.ok }
-            val summary = buildString {
-                for (r in results) {
-                    if (r.ok) {
-                        val bot = r.botUsername ?: "?"
-                        LogStore.ok("Тест «${r.channel.name}» — бот @$bot доступен")
-                        appendLine(getString(R.string.test_channel_ok, r.channel.name, bot))
-                    } else {
-                        LogStore.error("Тест «${r.channel.name}» — ${r.error ?: "ошибка"}")
-                        appendLine(getString(R.string.test_channel_fail, r.channel.name, r.error ?: getString(R.string.test_error_unknown)))
-                    }
-                }
-            }
-            if (okCount == 0) {
-                Toast.makeText(this@MainActivity, R.string.test_all_none, Toast.LENGTH_LONG).show()
-            }
-            AlertDialog.Builder(this@MainActivity)
-                .setTitle(R.string.test_dialog_title)
-                .setMessage(summary)
-                .setPositiveButton(R.string.ok, null)
-                .show()
-        }
+        // Шаблоны вводились в EditText — синхронизируем в состояние и сохраняем
+        viewModel.setTemplateSms(etTemplateSms.text?.toString() ?: "")
+        viewModel.setTemplateCall(etTemplateCall.text?.toString() ?: "")
+        viewModel.save()
     }
 
     private fun renderLogs() {
@@ -907,7 +860,7 @@ class MainActivity : AppCompatActivity() {
 
     /** Пикер времени для начала/конца тихих часов. */
     private fun showTimePicker(isStart: Boolean) {
-        val current = if (isStart) Prefs.quietHoursStart else Prefs.quietHoursEnd
+        val current = if (isStart) viewModel.state.value.quietHoursStart else viewModel.state.value.quietHoursEnd
         val hour = current / 60
         val minute = current % 60
         TimePickerDialog(
@@ -915,12 +868,13 @@ class MainActivity : AppCompatActivity() {
             { _, h, m ->
                 val mins = QuietHours.toMinutes(h, m)
                 if (isStart) {
-                    Prefs.quietHoursStart = mins
+                    viewModel.setQuietHoursStart(mins)
                     btnQuietStart.text = formatTime(mins)
                 } else {
-                    Prefs.quietHoursEnd = mins
+                    viewModel.setQuietHoursEnd(mins)
                     btnQuietEnd.text = formatTime(mins)
                 }
+                viewModel.save()
             },
             hour, minute, true
         ).show()
