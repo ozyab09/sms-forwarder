@@ -29,8 +29,7 @@ import org.robolectric.shadows.ShadowLooper
     sdk = [30],
     qualifiers = "port",
     manifest = Config.NONE,
-    resourceDir = "../main/res",
-    assetsDir = "../main/assets"
+    resourceDir = "../main/res"
 )
 class MainActivityLaunchTest {
 
