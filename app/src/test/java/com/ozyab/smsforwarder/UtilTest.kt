@@ -3,6 +3,7 @@ package com.ozyab.smsforwarder
 import com.ozyab.smsforwarder.update.UpdateChecker
 import com.ozyab.smsforwarder.util.formatTimestamp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
