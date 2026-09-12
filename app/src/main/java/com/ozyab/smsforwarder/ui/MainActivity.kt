@@ -378,7 +378,7 @@ class MainActivity : AppCompatActivity() {
         val edit = row.findViewById<ImageButton>(R.id.ch_edit)
         val del = row.findViewById<ImageButton>(R.id.ch_delete)
 
-        name.text = if (ch.isDirect) getString(R.string.channels_direct) else "${ch.host}:${ch.port}"
+        name.text = if (ch.isDirect) "🔒 ${getString(R.string.channels_direct)}" else "${ch.host}:${ch.port}"
         detail.text = when {
             ch.isDirect -> getString(R.string.channel_direct_detail)
             else -> ch.type

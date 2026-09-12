@@ -44,6 +44,8 @@ object ChannelSender {
      *
      * @param channels каналы в порядке приоритета (уже отфильтрованы enabled).
      * @param sender функция отправки через один канал (по умолчанию — Bot API).
+     * @param onSuccess колбэк, вызываемый при успешной отправке каналом
+     *   (имя канала). Используется для promote-on-success в сервисе.
      */
     suspend fun send(
         text: String,
@@ -51,6 +53,7 @@ object ChannelSender {
         chatId: String,
         channels: List<Channel>,
         sender: suspend (Channel) -> ChannelOutcome = { realSender(text, token, chatId, it) },
+        onSuccess: (Channel) -> Unit = {},
     ): Result = withContext(Dispatchers.IO) {
         if (channels.isEmpty()) return@withContext Result.Err(listOf("Нет включённых каналов"))
         val failures = mutableListOf<String>()
@@ -63,6 +66,7 @@ object ChannelSender {
                         is ChannelOutcome.Sent -> {
                             LogStore.info("Отправка через «${ch.name}» — успех")
                             sent = Result.Ok(ch.name, out.messageId)
+                            onSuccess(ch)
                             break
                         }
                         is ChannelOutcome.Failed -> {
