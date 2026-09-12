@@ -107,6 +107,7 @@ dependencies {
     implementation(libs.viewpager2)
     implementation(libs.androidx.security.crypto)
     implementation(libs.androidx.lifecycle.service)
+    implementation(libs.androidx.lifecycle.viewmodel)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     kapt(libs.androidx.room.compiler)
