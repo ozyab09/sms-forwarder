@@ -1,10 +1,8 @@
 package com.ozyab.smsforwarder
 
 import com.ozyab.smsforwarder.update.UpdateChecker
-import com.ozyab.smsforwarder.util.SmsFilter
 import com.ozyab.smsforwarder.util.formatTimestamp
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -17,77 +15,6 @@ class UtilTest {
         val s = formatTimestamp(ts)
         // формат: YYYY-MM-DD HH:MM (локальное время)
         assertTrue("формат должен быть YYYY-MM-DD HH:MM, было: $s", s.matches(Regex("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}")))
-    }
-
-    // ===== Белый список (чистая логика без Prefs) =====
-
-    @Test
-    fun `whitelist empty does not match`() {
-        assertFalse(SmsFilter.whitelistMatches("+79161234567", emptyList()))
-    }
-
-    @Test
-    fun `whitelist exact number matches`() {
-        assertTrue(SmsFilter.whitelistMatches("+79161234567", listOf("+79161234567")))
-    }
-
-    @Test
-    fun `whitelist exact digits match regardless of formatting`() {
-        assertTrue(SmsFilter.whitelistMatches("+7 (916) 123-45-67", listOf("79161234567")))
-    }
-
-    @Test
-    fun `whitelist wildcard prefix matches`() {
-        assertTrue(SmsFilter.whitelistMatches("+79161234567", listOf("+79*")))
-    }
-
-    @Test
-    fun `whitelist wildcard contains matches`() {
-        assertTrue(SmsFilter.whitelistMatches("+79161234567", listOf("*123*")))
-    }
-
-    @Test
-    fun `whitelist wildcard does not match wrong prefix`() {
-        assertFalse(SmsFilter.whitelistMatches("+79161234567", listOf("*888*")))
-    }
-
-    @Test
-    fun `whitelist multiple patterns any matches`() {
-        val list = listOf("+7900*", "+7916*")
-        assertTrue(SmsFilter.whitelistMatches("+79161234567", list))
-        assertFalse(SmsFilter.whitelistMatches("+79261234567", list))
-    }
-
-    @Test
-    fun `whitelist ignores empty entries`() {
-        val list = listOf("", "  ", "+79161234567")
-        assertTrue(SmsFilter.whitelistMatches("+79161234567", list))
-    }
-
-    // ===== Защита от ReDoS: опасные block-regex отклоняются =====
-
-    @Test
-    fun `dangerous nested quantifier regex is rejected`() {
-        assertTrue(SmsFilter.isDangerousRegex("(a+)+"))
-        assertTrue(SmsFilter.isDangerousRegex("([a-zA-Z]+)*"))
-        assertTrue(SmsFilter.isDangerousRegex("(a*)*"))
-        assertTrue(SmsFilter.isDangerousRegex("(a|aa)+"))
-        assertTrue(SmsFilter.isDangerousRegex("(\\d+)+"))
-    }
-
-    @Test
-    fun `safe regexes are allowed`() {
-        assertFalse(SmsFilter.isDangerousRegex("SPAM"))
-        assertFalse(SmsFilter.isDangerousRegex("\\d{4}"))
-        assertFalse(SmsFilter.isDangerousRegex("(ab)+"))
-        assertFalse(SmsFilter.isDangerousRegex("\\+79[0-9]{9}"))
-        assertFalse(SmsFilter.isDangerousRegex(""))
-    }
-
-    @Test
-    fun `malformed regex does not crash detector`() {
-        assertFalse(SmsFilter.isDangerousRegex("((("))
-        assertFalse(SmsFilter.isDangerousRegex("a+b*c?"))
     }
 
     // ===== Сравнение версий для автообновления =====

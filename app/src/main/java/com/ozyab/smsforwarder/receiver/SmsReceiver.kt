@@ -9,7 +9,6 @@ import com.ozyab.smsforwarder.util.ContactNames
 import com.ozyab.smsforwarder.util.Prefs
 import com.ozyab.smsforwarder.util.ReceiverExecutor
 import com.ozyab.smsforwarder.util.SimInfo
-import com.ozyab.smsforwarder.util.SmsFilter
 import com.ozyab.smsforwarder.util.TemplateFormatter
 
 /**
@@ -37,9 +36,6 @@ class SmsReceiver : BroadcastReceiver() {
 
             val sender = messages.firstOrNull()?.originatingAddress ?: "Неизвестный"
             val ts = messages.firstOrNull()?.timestampMillis ?: System.currentTimeMillis()
-
-            // Детальные фильтры (короткие номера, block-regex, режим contacts/whitelist)
-            if (!SmsFilter.shouldForward(context, sender, body)) return@goAsync
 
             val name = ContactNames.lookup(context, sender)
             // SIM-слот и оператор: берём subscriptionId из интента (на какую SIM пришло)

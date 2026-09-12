@@ -56,7 +56,6 @@ object Prefs {
     const val KEY_CHAT_ID = "chat_id"
     const val KEY_SMS_ENABLED = "sms_enabled"
     const val KEY_CALLS_ENABLED = "calls_enabled"
-    const val KEY_SHORT_CODES_FILTER = "short_codes_filter"
     const val KEY_PROXY_ENABLED = "proxy_enabled"
     const val KEY_PROXY_TYPE = "proxy_type" // "http" | "socks5"
     const val KEY_PROXY_HOST = "proxy_host"
@@ -65,11 +64,6 @@ object Prefs {
     const val KEY_SENT_COUNT = "sent_count"
     const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     const val KEY_LAST_UPDATE_CHECK = "last_update_check"
-
-    // Детальные фильтры SMS
-    const val KEY_FILTER_MODE = "filter_mode" // "all" | "contacts" | "whitelist"
-    const val KEY_SMS_WHITELIST = "sms_whitelist" // число через запятую
-    const val KEY_SMS_BLOCK_REGEX = "sms_block_regex" // regex (однострочный)
 
     // Тема оформления: "system" | "light" | "dark"
     const val KEY_THEME_MODE = "theme_mode"
@@ -239,10 +233,6 @@ object Prefs {
         get() = getBoolean(KEY_CALLS_ENABLED, true)
         set(v) = setBoolean(KEY_CALLS_ENABLED, v)
 
-    var shortCodesFilter: Boolean
-        get() = getBoolean(KEY_SHORT_CODES_FILTER, true)
-        set(v) = setBoolean(KEY_SHORT_CODES_FILTER, v)
-
     var proxyEnabled: Boolean
         get() = getBoolean(KEY_PROXY_ENABLED, false)
         set(v) = setBoolean(KEY_PROXY_ENABLED, v)
@@ -271,21 +261,6 @@ object Prefs {
     var onboardingComplete: Boolean
         get() = getBoolean(KEY_ONBOARDING_COMPLETE, false)
         set(v) = setBoolean(KEY_ONBOARDING_COMPLETE, v)
-
-    // --- Детальные фильтры SMS ---
-    var filterMode: String
-        get() = getString(KEY_FILTER_MODE, "all")
-        set(v) = setString(KEY_FILTER_MODE, v)
-
-    /** Белый список номеров (через запятую, допускаются шаблоны с *). */
-    var smsWhitelist: String
-        get() = getString(KEY_SMS_WHITELIST, "")
-        set(v) = setString(KEY_SMS_WHITELIST, v)
-
-    /** Regex: если совпал — SMS не пересылаем. */
-    var smsBlockRegex: String
-        get() = getString(KEY_SMS_BLOCK_REGEX, "")
-        set(v) = setString(KEY_SMS_BLOCK_REGEX, v)
 
     /** Тема оформления: "system" (по системе) | "light" | "dark". */
     var themeMode: String
