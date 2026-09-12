@@ -151,22 +151,6 @@ object ChannelStore {
         setAll(next)
         return true
     }
-}
-
-/**
- * Чистая функция promote-on-success (без хранилища, тестируется отдельно):
- * возвращает новый порядок каналов с каналом [id] на первом месте среди прокси
- * (сразу после direct) или null, если порядок менять не надо.
- */
-internal fun promoteOrder(cur: List<Channel>, id: String): List<Channel>? {
-    if (cur.isEmpty()) return null
-    val direct = cur.first()
-    val proxies = cur.drop(1)
-    if (proxies.size < 2) return null
-    val idx = proxies.indexOfFirst { it.id == id }
-    if (idx <= 0) return null // не найден или уже первый
-    return listOf(direct) + listOf(proxies[idx]) + proxies.filterIndexed { i, _ -> i != idx }
-}
 
     /** Первое чтение: миграция старых одиночных прокси-настроек (v0.4.x) в канал. */
     private fun cachedOrLoad(): List<Channel>? {
@@ -204,4 +188,19 @@ internal fun promoteOrder(cur: List<Channel>, id: String): List<Channel>? {
     fun invalidate() {
         cache = null
     }
+}
+
+/**
+ * Чистая функция promote-on-success (без хранилища, тестируется отдельно):
+ * возвращает новый порядок каналов с каналом [id] на первом месте среди прокси
+ * (сразу после direct) или null, если порядок менять не надо.
+ */
+internal fun promoteOrder(cur: List<Channel>, id: String): List<Channel>? {
+    if (cur.isEmpty()) return null
+    val direct = cur.first()
+    val proxies = cur.drop(1)
+    if (proxies.size < 2) return null
+    val idx = proxies.indexOfFirst { it.id == id }
+    if (idx <= 0) return null // не найден или уже первый
+    return listOf(direct) + listOf(proxies[idx]) + proxies.filterIndexed { i, _ -> i != idx }
 }
