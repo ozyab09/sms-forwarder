@@ -60,15 +60,6 @@
     <!-- Toggles -->
     <string name="pref_sms_enabled">Forward SMS</string>
     <string name="pref_calls_enabled">Forward missed calls</string>
-    <string name="pref_short_codes_filter">Ignore short numbers (banks/ads)</string>
-
-    <!-- SMS filters -->
-    <string name="pref_filters_section">SMS filters</string>
-    <string name="pref_filter_mode">Which SMS to forward</string>
-    <string name="pref_whitelist">Number whitelist</string>
-    <string name="pref_whitelist_hint">Comma-separated numbers; * — wildcard (e.g. +79*, *123*)</string>
-    <string name="pref_block_regex">Block by regex</string>
-    <string name="pref_block_regex_hint">If matched in number or text — don\'t forward</string>
 
     <!-- Message templates -->
     <string name="pref_templates_section">Message templates</string>

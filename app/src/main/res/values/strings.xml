@@ -60,15 +60,6 @@
     <!-- Переключатели -->
     <string name="pref_sms_enabled">Пересылать SMS</string>
     <string name="pref_calls_enabled">Пересылать пропущенные</string>
-    <string name="pref_short_codes_filter">Игнорировать короткие номера (банки/реклама)</string>
-
-    <!-- Детальные фильтры SMS -->
-    <string name="pref_filters_section">Фильтры SMS</string>
-    <string name="pref_filter_mode">Какие SMS пересылать</string>
-    <string name="pref_whitelist">Белый список номеров</string>
-    <string name="pref_whitelist_hint">Номера через запятую; * — шаблон (напр. +79*, *123*)</string>
-    <string name="pref_block_regex">Блокировать по regex</string>
-    <string name="pref_block_regex_hint">Если совпало в номере или тексте — не пересылать</string>
 
     <!-- Шаблоны сообщений -->
     <string name="pref_templates_section">Шаблоны сообщений</string>
