@@ -201,7 +201,16 @@ class ForwardService : Service() {
         val channels = ChannelStore.enabled()
         LogStore.info("Отправка: каналов ${channels.size} (${channels.joinToString { it.name }})")
 
-        when (val result = ChannelSender.send(ev.text, token, chatId, channels)) {
+        when (val result = ChannelSender.send(
+            ev.text, token, chatId, channels,
+            onSuccess = { ch ->
+                // promote-on-success: канал, через который удалось отправить,
+                // становится первым среди прокси (после direct) для следующих сообщений
+                if (!ch.isDirect && ChannelStore.promote(ch.id)) {
+                    LogStore.info("Канал «${ch.name}» теперь приоритетный")
+                }
+            },
+        )) {
             is ChannelSender.Result.Ok -> {
                 Prefs.sentCount = Prefs.sentCount + 1
                 LogStore.ok("Отправлено через «${result.channelName}» (id ${result.messageId})")
