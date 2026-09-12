@@ -52,8 +52,8 @@ object ChannelSender {
         token: String,
         chatId: String,
         channels: List<Channel>,
-        sender: suspend (Channel) -> ChannelOutcome = { realSender(text, token, chatId, it) },
         onSuccess: (Channel) -> Unit = {},
+        sender: suspend (Channel) -> ChannelOutcome = { realSender(text, token, chatId, it) },
     ): Result = withContext(Dispatchers.IO) {
         if (channels.isEmpty()) return@withContext Result.Err(listOf("Нет включённых каналов"))
         val failures = mutableListOf<String>()
