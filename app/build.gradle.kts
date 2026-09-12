@@ -69,6 +69,15 @@ android {
         }
     }
 
+    testOptions {
+        unitTests {
+            // Robolectric: читаем настоящий AndroidManifest и ресурсы приложения,
+            // иначе тесты видят дефолтный манифест (org.robolectric.default)
+            // и Activity не резолвится в ActivityScenario.
+            isIncludeAndroidResources = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
