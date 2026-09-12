@@ -25,7 +25,13 @@ import org.robolectric.shadows.ShadowLooper
  * и content view построен (не чёрный экран).
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [30])
+@Config(
+    sdk = [30],
+    qualifiers = "port",
+    manifest = Config.NONE,
+    resourceDir = "../main/res",
+    assetsDir = "../main/assets"
+)
 class MainActivityLaunchTest {
 
     @Before
