@@ -15,7 +15,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.AutoCompleteTextView
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -70,20 +69,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnCheckUpdate: MaterialButton
     private lateinit var swSms: SwitchMaterial
     private lateinit var swCalls: SwitchMaterial
-    private lateinit var swShortCodes: SwitchMaterial
     private lateinit var btnStart: MaterialButton
     private lateinit var btnStop: MaterialButton
 
     // Каналы отправки
     private lateinit var channelsContainer: LinearLayout
 
-    // Фильтры SMS
-    private lateinit var actFilterMode: AutoCompleteTextView
-    private lateinit var etWhitelist: TextInputEditText
-    private lateinit var etBlockRegex: TextInputEditText
+    // Шаблоны сообщений
     private lateinit var etTemplateSms: TextInputEditText
     private lateinit var etTemplateCall: TextInputEditText
-    private lateinit var filterModeValues: Array<String>
 
     // Логи
     private lateinit var panelSettings: ScrollView
@@ -166,16 +160,12 @@ class MainActivity : AppCompatActivity() {
         btnTest = findViewById(R.id.btn_test)
         swSms = findViewById(R.id.sw_sms)
         swCalls = findViewById(R.id.sw_calls)
-        swShortCodes = findViewById(R.id.sw_short_codes)
         btnStart = findViewById(R.id.btn_start)
         btnStop = findViewById(R.id.btn_stop)
 
         channelsContainer = findViewById(R.id.channels_container)
         findViewById<MaterialButton>(R.id.btn_add_proxy).setOnClickListener { showProxyDialog(null) }
 
-        actFilterMode = findViewById(R.id.act_filter_mode)
-        etWhitelist = findViewById(R.id.et_whitelist)
-        etBlockRegex = findViewById(R.id.et_block_regex)
         etTemplateSms = findViewById(R.id.et_template_sms)
         etTemplateCall = findViewById(R.id.et_template_call)
         findViewById<MaterialButton>(R.id.btn_reset_templates).setOnClickListener {
@@ -184,12 +174,6 @@ class MainActivity : AppCompatActivity() {
             savePrefs()
             Toast.makeText(this, R.string.btn_reset_templates, Toast.LENGTH_SHORT).show()
         }
-
-        filterModeValues = resources.getStringArray(R.array.filter_mode_values)
-        val filterLabels = resources.getStringArray(R.array.filter_mode_labels)
-        actFilterMode.setAdapter(
-            ArrayAdapter(this, android.R.layout.simple_list_item_1, filterLabels)
-        )
 
         panelSettings = findViewById(R.id.panel_settings)
         panelLogs = findViewById(R.id.panel_logs)
@@ -224,12 +208,6 @@ class MainActivity : AppCompatActivity() {
         etChatId.setText(Prefs.chatId)
         swSms.isChecked = Prefs.smsEnabled
         swCalls.isChecked = Prefs.callsEnabled
-        swShortCodes.isChecked = Prefs.shortCodesFilter
-
-        val modeIdx = filterModeValues.indexOf(Prefs.filterMode).coerceAtLeast(0)
-        actFilterMode.setText(resources.getStringArray(R.array.filter_mode_labels)[modeIdx], false)
-        etWhitelist.setText(Prefs.smsWhitelist)
-        etBlockRegex.setText(Prefs.smsBlockRegex)
 
         etTemplateSms.setText(Prefs.messageTemplateSms)
         etTemplateCall.setText(Prefs.messageTemplateCall)
@@ -286,7 +264,6 @@ class MainActivity : AppCompatActivity() {
         }
         swSms.setOnCheckedChangeListener { _, v -> Prefs.smsEnabled = v }
         swCalls.setOnCheckedChangeListener { _, v -> Prefs.callsEnabled = v }
-        swShortCodes.setOnCheckedChangeListener { _, v -> Prefs.shortCodesFilter = v }
         btnStart.setOnClickListener {
             savePrefs()
             if (!Prefs.isConfigured()) {
@@ -553,20 +530,9 @@ class MainActivity : AppCompatActivity() {
         Prefs.chatId = etChatId.text?.toString()?.trim().orEmpty()
         Prefs.smsEnabled = swSms.isChecked
         Prefs.callsEnabled = swCalls.isChecked
-        Prefs.shortCodesFilter = swShortCodes.isChecked
-
-        Prefs.filterMode = filterModeValues[filterLabelsIndexOf(actFilterMode)]
-        Prefs.smsWhitelist = etWhitelist.text?.toString()?.trim().orEmpty()
-        Prefs.smsBlockRegex = etBlockRegex.text?.toString()?.trim().orEmpty()
 
         Prefs.messageTemplateSms = etTemplateSms.text?.toString() ?: ""
         Prefs.messageTemplateCall = etTemplateCall.text?.toString() ?: ""
-    }
-
-    private fun filterLabelsIndexOf(act: AutoCompleteTextView): Int {
-        val label = act.text?.toString()?.trim().orEmpty()
-        val labels = resources.getStringArray(R.array.filter_mode_labels)
-        return labels.indexOf(label).coerceAtLeast(0)
     }
 
     private fun testConnection() {

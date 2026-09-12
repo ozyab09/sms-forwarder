@@ -122,65 +122,6 @@
                     android:text="@string/pref_calls_enabled"
                     android:checked="true" />
 
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/sw_short_codes"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/pref_short_codes_filter"
-                    android:checked="true" />
-
-                <!-- ===== Детальные фильтры SMS ===== -->
-                <TextView
-                    style="@style/TextAppearance.Material3.TitleMedium"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
-                    android:text="@string/pref_filters_section"
-                    android:textStyle="bold" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/til_filter_mode"
-                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:hint="@string/pref_filter_mode">
-
-                    <AutoCompleteTextView
-                        android:id="@+id/act_filter_mode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="none" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:hint="@string/pref_whitelist_hint">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_whitelist"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="text"
-                        android:maxLines="2" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:hint="@string/pref_block_regex_hint">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_block_regex"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="text"
-                        android:maxLines="1" />
-                </com.google.android.material.textfield.TextInputLayout>
-
                 <!-- ===== Шаблоны сообщений ===== -->
                 <TextView
                     style="@style/TextAppearance.Material3.TitleMedium"
@@ -202,8 +143,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:inputType="textMultiLine"
-                        android:maxLines="5"
-                        android:minLines="3" />
+                        android:maxLines="2"
+                        android:minLines="1" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
@@ -218,8 +159,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:inputType="textMultiLine"
-                        android:maxLines="5"
-                        android:minLines="3" />
+                        android:maxLines="2"
+                        android:minLines="1" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.button.MaterialButton
