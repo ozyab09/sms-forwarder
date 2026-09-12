@@ -11,7 +11,6 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowLooper
 
 /**
@@ -24,8 +23,7 @@ import org.robolectric.shadows.ShadowLooper
  * жива, видима и content view построен.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
-@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [30])
 class MainActivityLaunchTest {
 
     @Before
