@@ -78,6 +78,13 @@
     <string name="pref_template_placeholders">Доступно: {sender} {name} {text} {time} {date} {type} {sim} {number}. Пусто — стандартный формат.</string>
     <string name="btn_reset_templates">Сбросить шаблоны</string>
 
+    <!-- Тихие часы -->
+    <string name="pref_quiet_hours_section">Тихие часы</string>
+    <string name="pref_quiet_hours_enabled">Не пересылать в тихие часы</string>
+    <string name="pref_quiet_start">Начало</string>
+    <string name="pref_quiet_end">Конец</string>
+    <string name="pref_quiet_hint">В этот период SMS и вызовы не пересылаются. Интервал может пересекать полночь (например, 23:00–07:00).</string>
+
     <!-- Статус -->
     <string name="status_service">Статус сервиса</string>
     <string name="status_running">Работает</string>

@@ -8,6 +8,7 @@ import android.provider.CallLog
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import com.ozyab.smsforwarder.util.ContactNames
+import com.ozyab.smsforwarder.util.QuietHours
 import com.ozyab.smsforwarder.util.ReceiverExecutor
 import com.ozyab.smsforwarder.util.Prefs
 import com.ozyab.smsforwarder.util.SimInfo
@@ -158,6 +159,9 @@ class CallReceiver : android.content.BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != TelephonyManager.ACTION_PHONE_STATE_CHANGED) return
         if (!Prefs.callsEnabled) return
+
+        // Тихие часы: не пересылаем в указанный период
+        if (QuietHours.isActiveNow()) return
 
         val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
         @Suppress("DEPRECATION")

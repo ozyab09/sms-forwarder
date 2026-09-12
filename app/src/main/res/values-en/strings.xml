@@ -78,6 +78,13 @@
     <string name="pref_template_placeholders">Available: {sender} {name} {text} {time} {date} {type} {sim} {number}. Empty = default format.</string>
     <string name="btn_reset_templates">Reset templates</string>
 
+    <!-- Quiet hours -->
+    <string name="pref_quiet_hours_section">Quiet hours</string>
+    <string name="pref_quiet_hours_enabled">Don\'t forward during quiet hours</string>
+    <string name="pref_quiet_start">Start</string>
+    <string name="pref_quiet_end">End</string>
+    <string name="pref_quiet_hint">SMS and calls are not forwarded during this period. The interval may cross midnight (e.g. 23:00–07:00).</string>
+
     <!-- Status -->
     <string name="status_service">Service status</string>
     <string name="status_running">Running</string>

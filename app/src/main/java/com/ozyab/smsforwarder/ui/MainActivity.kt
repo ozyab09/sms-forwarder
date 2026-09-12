@@ -1,5 +1,6 @@
 package com.ozyab.smsforwarder.ui
 
+import android.app.TimePickerDialog
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -45,6 +46,7 @@ import com.ozyab.smsforwarder.update.UpdateChecker
 import com.ozyab.smsforwarder.update.UpdateManager
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
+import com.ozyab.smsforwarder.util.QuietHours
 import com.ozyab.smsforwarder.util.SettingsBackup
 import com.ozyab.smsforwarder.util.ThemeManager
 import kotlinx.coroutines.CoroutineScope
@@ -80,6 +82,10 @@ class MainActivity : AppCompatActivity() {
     // Шаблоны сообщений
     private lateinit var etTemplateSms: TextInputEditText
     private lateinit var etTemplateCall: TextInputEditText
+    private lateinit var swQuietHours: SwitchMaterial
+    private lateinit var layoutQuietTimes: View
+    private lateinit var btnQuietStart: MaterialButton
+    private lateinit var btnQuietEnd: MaterialButton
 
     // Логи
     private lateinit var panelSettings: ScrollView
@@ -204,6 +210,11 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.btn_reset_templates, Toast.LENGTH_SHORT).show()
         }
 
+        swQuietHours = findViewById(R.id.sw_quiet_hours)
+        layoutQuietTimes = findViewById(R.id.layout_quiet_hours_times)
+        btnQuietStart = findViewById(R.id.btn_quiet_start)
+        btnQuietEnd = findViewById(R.id.btn_quiet_end)
+
         panelSettings = findViewById(R.id.panel_settings)
         panelLogs = findViewById(R.id.panel_logs)
         logsText = findViewById(R.id.logs_text)
@@ -242,6 +253,12 @@ class MainActivity : AppCompatActivity() {
 
         etTemplateSms.setText(Prefs.messageTemplateSms)
         etTemplateCall.setText(Prefs.messageTemplateCall)
+
+        // Тихие часы
+        swQuietHours.isChecked = Prefs.quietHoursEnabled
+        layoutQuietTimes.visibility = if (Prefs.quietHoursEnabled) View.VISIBLE else View.GONE
+        btnQuietStart.text = formatTime(Prefs.quietHoursStart)
+        btnQuietEnd.text = formatTime(Prefs.quietHoursEnd)
     }
 
     private fun setupActions() {
@@ -270,6 +287,12 @@ class MainActivity : AppCompatActivity() {
             ThemeManager.setAndApply(this, mode)
             LogStore.info("Тема: $mode")
         }
+        swQuietHours.setOnCheckedChangeListener { _, checked ->
+            layoutQuietTimes.visibility = if (checked) View.VISIBLE else View.GONE
+            Prefs.quietHoursEnabled = checked
+        }
+        btnQuietStart.setOnClickListener { showTimePicker(isStart = true) }
+        btnQuietEnd.setOnClickListener { showTimePicker(isStart = false) }
         btnGetMyId.setOnClickListener {
             savePrefs()
             val token = etToken.text?.toString()?.trim().orEmpty()
@@ -572,6 +595,9 @@ class MainActivity : AppCompatActivity() {
 
         Prefs.messageTemplateSms = etTemplateSms.text?.toString() ?: ""
         Prefs.messageTemplateCall = etTemplateCall.text?.toString() ?: ""
+
+        // Тихие часы
+        Prefs.quietHoursEnabled = swQuietHours.isChecked
     }
 
     private fun testConnection() {
@@ -877,6 +903,34 @@ class MainActivity : AppCompatActivity() {
             // Тема могла измениться — применяем глобально (Activity пересоздаётся автоматически)
             ThemeManager.apply(this@MainActivity)
         }
+    }
+
+    /** Пикер времени для начала/конца тихих часов. */
+    private fun showTimePicker(isStart: Boolean) {
+        val current = if (isStart) Prefs.quietHoursStart else Prefs.quietHoursEnd
+        val hour = current / 60
+        val minute = current % 60
+        TimePickerDialog(
+            this,
+            { _, h, m ->
+                val mins = QuietHours.toMinutes(h, m)
+                if (isStart) {
+                    Prefs.quietHoursStart = mins
+                    btnQuietStart.text = formatTime(mins)
+                } else {
+                    Prefs.quietHoursEnd = mins
+                    btnQuietEnd.text = formatTime(mins)
+                }
+            },
+            hour, minute, true
+        ).show()
+    }
+
+    /** Минуты от полуночи → «ЧЧ:ММ». */
+    private fun formatTime(minutes: Int): String {
+        val h = minutes / 60
+        val m = minutes % 60
+        return String.format(java.util.Locale.US, "%02d:%02d", h, m)
     }
 
     override fun onDestroy() {
