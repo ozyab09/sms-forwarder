@@ -1,6 +1,9 @@
 package com.ozyab.smsforwarder.ui
 
+import android.view.View
 import androidx.test.core.app.ApplicationProvider
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.ozyab.smsforwarder.R
 import com.ozyab.smsforwarder.util.Prefs
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -15,13 +18,21 @@ import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowLooper
 
 /**
- * Регрессионный тест главного экрана.
+ * Регрессионные тесты главного экрана — защита от бага #44 (чёрный экран
+ * при старте: MainActivity навсегда вешала главный поток, ожидая готовности
+ * Prefs через бесконечный awaitReady()).
  *
- * Страховка от бага #44 (чёрный экран при старте): MainActivity должна
- * открываться без краша и без зависания главного потока. Создаём активность
- * через [Robolectric.buildActivity] (не требует exported/intent-filter),
- * прогоняем Looper (разрешаем init-колбэки), затем проверяем, что активность
- * жива, видима и content view построен.
+ * Ключевые сценарии:
+ * - Activity открывается без краша и без зависания главного потока;
+ * - «холодный» старт: Activity создаётся сразу после [Prefs.init] и БЕЗ
+ *   предварительного прогрева Looper — та самая гонка инициализации из #44.
+ *   Если awaitReady() снова начнёт висеть — тест упадёт по таймауту, а не
+ *   заблокирует CI;
+ * - Activity переживает пересоздание (поворот экрана);
+ * - переключение всех вкладок нижней навигации не падает.
+ *
+ * Все тесты с явным [Test.timeout]: зависание главного потока превращается
+ * в быстрое падение теста вместо висящего навсегда CI.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30])
@@ -30,41 +41,111 @@ class MainActivityLaunchTest {
 
     @Before
     fun setUp() {
+        // Application (SmsForwarderApp) Robolectric создаёт и init вызывает сам —
+        // здесь повторный вызов просто идемпотентен.
         Prefs.init(ApplicationProvider.getApplicationContext())
-        // Даём асинхронному init (secure + DataStore) записаться в кэш до старта
+        // ВАЖНО: Looper здесь не прогреваем. «Холодный» сценарий — часть
+        // регрессионной проверки #44. Тестам, которым прогрев нужен
+        // (стабильный порядок), вызываем warmUp() явно.
+    }
+
+    /** Прогоняет отложенные задачи главного потока (дают корутинам завершиться). */
+    private fun warmUp() {
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
         ShadowLooper.idleMainLooper()
     }
 
-    @Test
+    private fun assertMainScreenVisible(activity: MainActivity) {
+        assertFalse("Activity не должна быть finishing", activity.isFinishing)
+        assertFalse("Activity не должна быть destroyed", activity.isDestroyed)
+        val panel = activity.findViewById<View>(R.id.panel_settings)
+        assertNotNull("content view должен быть установлен (не чёрный экран)", panel)
+        assertTrue(
+            "панель настроек должна быть видима",
+            panel.visibility == View.VISIBLE,
+        )
+    }
+
+    @Test(timeout = 20_000)
     fun `main activity opens without crash`() {
+        warmUp()
         val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
         val activity = controller.get()
 
-        assertNotNull("MainActivity должна быть создана", activity)
-        assertFalse("Activity не должна быть finishing", activity.isFinishing)
-        assertFalse("Activity не должна быть destroyed", activity.isDestroyed)
-        // Главный экран видим: content view реально построен (не чёрный экран)
-        assertNotNull(
-            "content view должен быть установлен (не чёрный экран)",
-            activity.findViewById(com.ozyab.smsforwarder.R.id.panel_settings)
-        )
-        // Экран настроек активен по умолчанию
-        assertTrue(
-            "панель настроек должна быть видима",
-            activity.findViewById<android.view.View>(com.ozyab.smsforwarder.R.id.panel_settings).visibility ==
-                android.view.View.VISIBLE
-        )
+        assertMainScreenVisible(activity)
 
         controller.pause().stop().destroy()
     }
 
-    @Test
+    @Test(timeout = 20_000)
     fun `prefs init completes and defaults are usable`() {
-        // Если init зависнет (баг #44), awaitReady() повиснет на 5с — тест упадёт по таймауту
+        // Если init зависнет (баг #44), awaitReady() вернётся по таймауту 5с,
+        // а при регрессии без таймаута — тест упадёт по @Test(timeout).
         val token = Prefs.botToken
         val chatId = Prefs.chatId
         assertNotNull(token)
         assertNotNull(chatId)
+    }
+
+    @Test(timeout = 20_000)
+    fun `main activity opens on cold start without pre-warmed looper`() {
+        // Без warmUp(): Activity стартует сразу после Prefs.init — гонка,
+        // которая в баге #44 вешала главный поток навсегда. С фиксом
+        // awaitReady() имеет таймаут 5с, поэтому тест проходит быстро
+        // и не блокирует CI.
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val activity = controller.get()
+
+        assertMainScreenVisible(activity)
+
+        // После успешного старта даём корутинам (ViewModel, UpdateManager)
+        // отработать и убеждаемся, что экран жив.
+        warmUp()
+        assertFalse("Activity не должна завершиться после обработки корутин", activity.isFinishing)
+        assertMainScreenVisible(activity)
+
+        controller.pause().stop().destroy()
+    }
+
+    @Test(timeout = 20_000)
+    fun `main activity survives recreation like screen rotation`() {
+        warmUp()
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+
+        // Пересоздание (поворот экрана): ViewModel переживает, Prefs.init
+        // идемпотентен, экран не должен упасть/почернеть.
+        val activity = controller.recreate().get()
+
+        assertMainScreenVisible(activity)
+
+        controller.pause().stop().destroy()
+    }
+
+    @Test(timeout = 20_000)
+    fun `bottom nav switches all tabs without crash`() {
+        warmUp()
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val activity = controller.get()
+        val nav = activity.findViewById<BottomNavigationView>(R.id.bottom_nav)
+        assertNotNull("bottom nav должна существовать", nav)
+
+        val tabs = listOf(
+            R.id.nav_settings to R.id.panel_settings,
+            R.id.nav_history to R.id.panel_history,
+            R.id.nav_logs to R.id.panel_logs,
+            R.id.nav_about to R.id.panel_about,
+        )
+        for ((navId, panelId) in tabs) {
+            nav.selectedItemId = navId
+            ShadowLooper.idleMainLooper()
+            val panel = activity.findViewById<View>(panelId)
+            assertNotNull("панель $panelId должна существовать", panel)
+            assertTrue(
+                "панель $panelId должна стать видимой после таба $navId",
+                panel.visibility == View.VISIBLE,
+            )
+        }
+
+        controller.pause().stop().destroy()
     }
 }
