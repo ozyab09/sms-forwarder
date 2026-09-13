@@ -157,8 +157,9 @@ jobs:
           BODY=$(awk "/^## \\[${VER_NUM}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
           if [ -z "$BODY" ]; then
             # Нет записи в CHANGELOG — генерируем из git log с предыдущего тега
-            PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^${VER}$" | tail -1)
-            if [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$VER" ]; then
+            # Получаем предыдущий тег (исключая текущий)
+            PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${VER}$" | head -1)
+            if [ -n "$PREV_TAG" ]; then
               BODY="### Изменено"$'\n\n'
               BODY+=$(git log --oneline "${PREV_TAG}..${VER}" --no-merges | sed 's/^/- /')
             else
