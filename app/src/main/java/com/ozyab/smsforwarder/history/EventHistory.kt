@@ -30,7 +30,12 @@ object EventHistory {
         EventDatabase.get(context).eventDao()
     }
 
-    /** Записать событие. Возвращает id записи. */
+    /**
+     * Записать событие. Возвращает id записи.
+     *
+     * @param chatId кому ушло (Telegram chat id) — показывается в деталях события.
+     * @param botUsername через какого бота ушло (@username).
+     */
     suspend fun record(
         context: Context,
         sender: String,
@@ -41,6 +46,8 @@ object EventHistory {
         channelName: String?,
         attempts: Int,
         formattedText: String,
+        chatId: String? = null,
+        botUsername: String? = null,
     ): Long = withContext(Dispatchers.IO) {
         val d = EventDatabase.get(context).eventDao()
         d.insert(
@@ -53,6 +60,8 @@ object EventHistory {
                 channelName = channelName,
                 attempts = attempts,
                 formattedText = formattedText,
+                chatId = chatId,
+                botUsername = botUsername,
             )
         ).also {
             // Держим историю ограниченной: удаляем старые записи при переполнении

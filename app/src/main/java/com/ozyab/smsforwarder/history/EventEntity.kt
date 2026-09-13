@@ -29,4 +29,6 @@ data class EventEntity(
     val channelName: String?,  // через какой канал ушло (для sent)
     val attempts: Int,
     val formattedText: String, // итоговый текст (что ушло в Telegram)
+    val chatId: String? = null,      // кому ушло (Telegram chat id)
+    val botUsername: String? = null, // через какого бота (@username)
 )

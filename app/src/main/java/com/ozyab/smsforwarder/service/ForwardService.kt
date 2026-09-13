@@ -13,6 +13,7 @@ import com.ozyab.smsforwarder.R
 import com.ozyab.smsforwarder.history.EventHistory
 import com.ozyab.smsforwarder.telegram.ChannelSender
 import com.ozyab.smsforwarder.telegram.ChannelStore
+import com.ozyab.smsforwarder.telegram.TelegramClient
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
 import kotlinx.coroutines.CoroutineScope
@@ -183,16 +184,12 @@ class ForwardService : Service() {
             LogStore.warn("Не задан токен/chatId — событие отложено")
             if (queue.fail(ev)) {
                 LogStore.error("Событие отброшено после ${SendQueue.MAX_ATTEMPTS} попыток (не задан токен/chatId)")
-                EventHistory.record(
-                    context = this,
-                    sender = ev.sender,
-                    body = ev.text,
-                    timestamp = ev.eventTime,
-                    type = ev.type,
+                recordHistory(
+                    ev = ev,
                     status = EventHistory.STATUS_DROPPED,
                     channelName = null,
                     attempts = ev.attempts,
-                    formattedText = ev.text,
+                    chatId = chatId,
                 )
             }
             return
@@ -214,16 +211,13 @@ class ForwardService : Service() {
             is ChannelSender.Result.Ok -> {
                 Prefs.sentCount = Prefs.sentCount + 1
                 LogStore.ok("Отправлено через «${result.channelName}» (id ${result.messageId})")
-                EventHistory.record(
-                    context = this,
-                    sender = ev.sender,
-                    body = ev.text,
-                    timestamp = ev.eventTime,
-                    type = ev.type,
+                recordHistory(
+                    ev = ev,
                     status = EventHistory.STATUS_SENT,
                     channelName = result.channelName,
                     attempts = ev.attempts + 1,
-                    formattedText = ev.text,
+                    chatId = chatId,
+                    botUsername = resolveBotUsername(),
                 )
             }
             is ChannelSender.Result.Err -> {
@@ -232,21 +226,58 @@ class ForwardService : Service() {
                 val isDropped = queue.fail(ev)
                 if (isDropped) {
                     LogStore.error("Событие отброшено после ${SendQueue.MAX_ATTEMPTS} попыток")
-                    EventHistory.record(
-                        context = this,
-                        sender = ev.sender,
-                        body = ev.text,
-                        timestamp = ev.eventTime,
-                        type = ev.type,
+                    recordHistory(
+                        ev = ev,
                         status = EventHistory.STATUS_DROPPED,
                         channelName = null,
                         attempts = ev.attempts,
-                        formattedText = ev.text,
+                        chatId = chatId,
                     )
                 }
                 // Если не отброшено — событие вернётся в ретрай, история не пишется
             }
         }
+    }
+
+    /**
+     * Запись события в историю (текст = то, что реально ушло в Telegram).
+     *
+     * @param chatId кому ушло (или должен был уйти) — для деталей события.
+     * @param botUsername известен только для успешной отправки; иначе берём кэш.
+     */
+    private suspend fun recordHistory(
+        ev: QueuedEvent,
+        status: String,
+        channelName: String?,
+        attempts: Int,
+        chatId: String?,
+        botUsername: String? = null,
+    ) {
+        EventHistory.record(
+            context = this,
+            sender = ev.sender,
+            body = ev.text,
+            timestamp = ev.eventTime,
+            type = ev.type,
+            status = status,
+            channelName = channelName,
+            attempts = attempts,
+            formattedText = ev.text,
+            chatId = chatId?.takeIf { it.isNotBlank() },
+            botUsername = botUsername?.takeIf { it.isNotBlank() }
+                ?: Prefs.botUsername.takeIf { it.isNotBlank() },
+        )
+    }
+
+    /**
+     * Username бота для истории: из кэша [Prefs], иначе один запрос getMe
+     * (результат кэшируется). Ошибка сети не критична — вернётся null.
+     */
+    private suspend fun resolveBotUsername(): String? {
+        Prefs.botUsername.takeIf { it.isNotBlank() }?.let { return it }
+        val username = TelegramClient.getBotUsername() ?: return null
+        Prefs.botUsername = username
+        return username
     }
 
     private fun persist() {
