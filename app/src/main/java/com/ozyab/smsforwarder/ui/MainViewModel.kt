@@ -3,11 +3,13 @@ package com.ozyab.smsforwarder.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ozyab.smsforwarder.telegram.Channel
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.telegram.ChannelSender
 import com.ozyab.smsforwarder.telegram.TelegramClient
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,6 +71,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _events = MutableSharedFlow<UiEvent>(extraBufferCapacity = 8)
     val events: SharedFlow<UiEvent> = _events.asSharedFlow()
 
+    // Инжектируемые точки для тестов (internal — виден из test-сетовета через friend module).
+    // В проде — реальные реализации (сеть, каналы); в тестах подменяются фейками.
+    internal var testAllImpl: suspend (String, List<Channel>) -> List<ChannelSender.ChannelTestResult> =
+        { token, channels -> ChannelSender.testAll(token, channels) }
+    internal var resolveChatIdImpl: suspend () -> TelegramClient.Result = {
+        TelegramClient.resolveChatId()
+    }
+    internal var getBotUsernameImpl: suspend () -> String? = { TelegramClient.getBotUsername() }
+
+    /** Диспетчер для сетевых вызовов — в тестах подменяется тестовым (один планировщик). */
+    internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
     /** Загружает текущие настройки из [Prefs] в состояние. */
     fun load() {
         _state.value = SettingsUiState(
@@ -116,7 +130,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun testConnection() {
         save()
-        val token = Prefs.botToken
+        // Токен берём из state (актуальный ввод пользователя), а не из Prefs:
+        // save() уже синхронизировал state → Prefs, а state не зависит от
+        // secure-хранилища (в тестах Robolectric EncryptedSharedPreferences не пишет).
+        val token = _state.value.botToken.trim()
         if (token.isBlank()) {
             emit(UiEvent.ToastRes(com.ozyab.smsforwarder.R.string.toast_enter_token))
             return
@@ -129,7 +146,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = _state.value.copy(testing = true)
         LogStore.info("Проверка связи через каналы: ${channels.joinToString { it.name }}")
         viewModelScope.launch {
-            val results = withContext(Dispatchers.IO) { ChannelSender.testAll(token, channels) }
+            val results = withContext(ioDispatcher) { testAllImpl(token, channels) }
             _state.value = _state.value.copy(testing = false)
             val mapped = results.map {
                 TestChannel(it.channel.name, it.ok, it.botUsername, it.error)
@@ -145,14 +162,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Определяет Chat ID через getMe; при ошибке — предлагает открыть бота. */
     fun resolveChatId() {
         save()
-        val token = Prefs.botToken
+        // Токен из state (см. комментарий в testConnection).
+        val token = _state.value.botToken.trim()
         if (token.isBlank()) {
             emit(UiEvent.ToastRes(com.ozyab.smsforwarder.R.string.pref_bot_token_hint))
             return
         }
         _state.value = _state.value.copy(resolvingChatId = true)
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) { TelegramClient.resolveChatId() }
+            val result = withContext(ioDispatcher) { resolveChatIdImpl() }
             _state.value = _state.value.copy(resolvingChatId = false)
             when (result) {
                 is TelegramClient.Result.Ok -> {
@@ -163,7 +181,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 is TelegramClient.Result.Err -> {
                     LogStore.error("Chat ID не определён: ${result.reason}")
-                    val username = withContext(Dispatchers.IO) { TelegramClient.getBotUsername() }
+                    val username = withContext(ioDispatcher) { getBotUsernameImpl() }
                     emit(UiEvent.ChatIdFailed(result.reason, username))
                 }
             }
