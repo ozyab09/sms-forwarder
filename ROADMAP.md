@@ -24,6 +24,7 @@
 - [x] **Автообновления** — проверка GitHub Releases при запуске (throttle 24ч), ручная кнопка, DownloadManager.
 - [x] **Темы** — светлая / тёмная / по системе.
 - [x] **MVVM** — `MainViewModel` (StateFlow+SharedFlow), MainActivity — тонкий вид (PR #56/#57), поворот экрана безопасен (#59). Issue #55 закрыт.
+- [x] [2026-09-13] **Фикс гонки `Prefs`** — коллектор DataStore больше не откатывает оптимистичный кэш (флейки теста `save`).
 - [x] **Тесты** — 10 файлов: TemplateFormatter, QuietHours, ChannelStore (promote), UpdateChecker (версии/links), SendQueue, ChannelSender, ChannelClientFactory, EventDao, MainActivityLaunch (6 UI), UtilTest. + [2026-09-13] LogStoreTest, SettingsBackupTest, UI-тест версии в «О приложении».
 - [x] **CI/CD** — GitHub Actions: PR → debug+тесты+lint; тег vX.Y.Z → подписанный release APK + GitHub Release.
 - [x] **README** — приведён к актуальному состоянию (2026-09-13): тихие часы, история, экспорт/импорт, шаблоны, MVVM-структура, статусы идей.
