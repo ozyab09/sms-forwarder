@@ -25,6 +25,8 @@ jobs:
 
       - name: Read + bump version
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           FILE="gradle/libs.versions.toml"
           MAJOR=$(grep -oP 'versionMajor = "\K[0-9]+' "$FILE")
