@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import com.ozyab.smsforwarder.telegram.Channel
+import com.ozyab.smsforwarder.telegram.ChannelClientFactory
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
@@ -38,10 +39,12 @@ class ForwardServiceTest {
         EventQueueStore.clear(context)
         mockServer = MockWebServer()
         mockServer.start()
+        ChannelClientFactory.apiBase = mockServer.url("/").toString().trimEnd('/')
     }
 
     @After
     fun tearDown() {
+        ChannelClientFactory.apiBase = ChannelClientFactory.API_BASE
         mockServer.shutdown()
         ChannelStore.invalidate()
         LogStore.clear()
@@ -77,7 +80,7 @@ class ForwardServiceTest {
         Thread.sleep(2000)
 
         val request = mockServer.takeRequest()
-        assertEquals("/bot/test-token-123/sendMessage", request.path)
+        assertEquals("/bottest-token-123/sendMessage", request.path)
         assertTrue(request.body.readUtf8().contains("Test message"))
         assertTrue("sentCount > 0", Prefs.sentCount > 0)
         assertTrue(LogStore.all().any { it.text.contains("Отправлено") })
