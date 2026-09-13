@@ -4,6 +4,15 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версионирование — [SemVer](https://semver.org/lang/ru/).
 
+## [0.4.34] - 2026-09-13
+
+### Добавлено
+- **Тесты `EventQueueStore`** (`EventQueueStoreTest`): round-trip save/load с
+  метаданными, дозапись через `persistSingle`, лимит MAX_EVENTS (остаются самые
+  свежие), битый файл → пустая очередь, пустые тексты пропускаются, `clear`,
+  сброс `nextRetryAt` при восстановлении, атомарная запись без `.tmp` —
+  пункт T3 дорожной карты закрыт
+
 ## [0.4.33] - 2026-09-13
 
 ### Изменено (документация)

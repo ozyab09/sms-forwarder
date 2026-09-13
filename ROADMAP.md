@@ -3,7 +3,7 @@
 > Живой документ: дорожная карта приложения. Обновляется по мере выполнения.
 > Соглашения: каждый пункт — feature-ветка + PR → зелёный CI → авто-мерж (squash) → bump версии (patch) + changelog + release.
 
-**Текущая версия:** 0.4.33 · **Дата:** 2026-09-13
+**Текущая версия:** 0.4.34 · **Дата:** 2026-09-13
 
 ---
 
@@ -43,7 +43,7 @@
 
 ### P1 — тесты инфраструктуры
 
-- [ ] **T3. EventQueueStoreTest** — load/save/clear/persistSingle, атомарная запись (tmp+rename), битый файл → пустая очередь, лимит MAX_EVENTS.
+- [x] **T3. EventQueueStoreTest** — load/save/clear/persistSingle, атомарная запись (tmp+rename без остатков), битый файл → пустая очередь, лимит MAX_EVENTS, пустые тексты пропускаются, сброс nextRetryAt. ✅ 2026-09-13 (`EventQueueStoreTest`, 9 тестов).
 - [ ] **T4. ForwardService интеграционный** — Robolectric ServiceTestRule: enqueue → pollReady → retry → promote; не теряет очередь при рестарте.
 - [ ] **T5. SmsReceiver / CallReceiver** — событие → формат → очередь; тихие часы уважаются; короткие номера/пустые тексты.
 
@@ -99,6 +99,6 @@
 | SettingsBackup | SettingsBackupTest (8) | ✅ (2026-09-13) |
 | MainViewModel | MainViewModelTest (10) | ✅ (2026-09-13) |
 | TelegramClient | TelegramClientTest (10, MockWebServer) | ✅ (2026-09-13) |
-| EventQueueStore | — | ❌ T3 |
+| EventQueueStore | EventQueueStoreTest (9) | ✅ (2026-09-13) |
 | ForwardService | — | ❌ T4 |
 | SmsReceiver/CallReceiver | — | ❌ T5 |
