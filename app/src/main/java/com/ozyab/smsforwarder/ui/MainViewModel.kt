@@ -3,6 +3,7 @@ package com.ozyab.smsforwarder.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ozyab.smsforwarder.telegram.Channel
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.telegram.ChannelSender
 import com.ozyab.smsforwarder.telegram.TelegramClient
