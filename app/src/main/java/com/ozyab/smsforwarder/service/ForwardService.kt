@@ -43,6 +43,7 @@ class ForwardService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val queue = SendQueue()
+    private lateinit var outgoingSmsObserver: OutgoingSmsObserver
 
     /** Пробуждение воркера при появлении нового события. */
     private val wake = Channel<Unit>(Channel.CONFLATED)
@@ -104,6 +105,9 @@ class ForwardService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 // «Стоп» — пользователь хочет остановить пересылку: очередь не держим
+                if (::outgoingSmsObserver.isInitialized) {
+                    outgoingSmsObserver.stop()
+                }
                 val dropped = queue.size
                 EventQueueStore.clear(this)
                 LogStore.info("Сервис остановлен${if (dropped > 0) " (отброшено неотправленных событий: $dropped)" else ""}")
@@ -113,6 +117,12 @@ class ForwardService : Service() {
         }
 
         startAsForeground()
+
+        // Запускаем наблюдатель за исходящими SMS
+        if (!::outgoingSmsObserver.isInitialized) {
+            outgoingSmsObserver = OutgoingSmsObserver(this)
+        }
+        outgoingSmsObserver.start()
 
         // Логируем первый старт (не каждое событие)
         if (!workerStarted) {
@@ -331,6 +341,9 @@ class ForwardService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        if (::outgoingSmsObserver.isInitialized) {
+            outgoingSmsObserver.stop()
+        }
         scope.cancel()
     }
 }

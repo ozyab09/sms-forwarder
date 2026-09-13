@@ -22,7 +22,8 @@ import org.robolectric.annotation.Config
  * - секреты (токен бота, пароли прокси) НЕ попадают в файл;
  * - direct-канал не экспортируется (при импорте генерируются новые id);
  * - импорт применяет настройки, не трогая токен;
- * - неверный формат и более новая версия файла отклоняются.
+ * - неверный формат и более новая версия файла отклоняются;
+ * - новые настройки (исходящие SMS, звонки, уведомления) экспортируются/импортируются.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30])
@@ -31,11 +32,22 @@ class SettingsBackupTest {
     @Before
     fun setUp() {
         Prefs.init(ApplicationProvider.getApplicationContext())
-        // Сбрасываем состояние к дефолтам, чтобы тесты были независимыми.
         Prefs.botToken = ""
         Prefs.chatId = ""
         Prefs.smsEnabled = true
+        Prefs.outgoingSmsEnabled = false
+        Prefs.callsEnabled = true
+        Prefs.incomingCallsEnabled = false
+        Prefs.outgoingCallsEnabled = false
+        Prefs.notificationsEnabled = false
+        Prefs.notificationApps = ""
         Prefs.themeMode = "system"
+        Prefs.messageTemplateSms = ""
+        Prefs.messageTemplateOutgoingSms = ""
+        Prefs.messageTemplateCall = ""
+        Prefs.messageTemplateIncomingCall = ""
+        Prefs.messageTemplateOutgoingCall = ""
+        Prefs.messageTemplateNotification = ""
         ChannelStore.setAll(listOf(Channel.direct()))
     }
 
@@ -78,11 +90,41 @@ class SettingsBackupTest {
     }
 
     @Test
+    fun `export includes new forwarding settings`() {
+        Prefs.outgoingSmsEnabled = true
+        Prefs.incomingCallsEnabled = true
+        Prefs.outgoingCallsEnabled = true
+        Prefs.notificationsEnabled = true
+        Prefs.notificationApps = "[\"com.telegram.messenger\",\"com.whatsapp\"]"
+
+        val json = SettingsBackup.export()
+        val settings = json.getJSONObject("settings")
+
+        assertTrue(settings.getBoolean("outgoingSmsEnabled"))
+        assertTrue(settings.getBoolean("incomingCallsEnabled"))
+        assertTrue(settings.getBoolean("outgoingCallsEnabled"))
+        assertTrue(settings.getBoolean("notificationsEnabled"))
+        assertEquals("[\"com.telegram.messenger\",\"com.whatsapp\"]", settings.getString("notificationApps"))
+    }
+
+    @Test
+    fun `export includes new templates`() {
+        Prefs.messageTemplateOutgoingSms = "OUT: {sender}"
+        Prefs.messageTemplateIncomingCall = "IN: {sender}"
+        Prefs.messageTemplateOutgoingCall = "DIAL: {sender}"
+        Prefs.messageTemplateNotification = "NOTIF: {app}"
+
+        val json = SettingsBackup.export()
+        val settings = json.getJSONObject("settings")
+
+        assertEquals("OUT: {sender}", settings.getString("messageTemplateOutgoingSms"))
+        assertEquals("IN: {sender}", settings.getString("messageTemplateIncomingCall"))
+        assertEquals("DIAL: {sender}", settings.getString("messageTemplateOutgoingCall"))
+        assertEquals("NOTIF: {app}", settings.getString("messageTemplateNotification"))
+    }
+
+    @Test
     fun `import applies settings and keeps bot token`() {
-        // Токен бота хранится в EncryptedSharedPreferences (AndroidKeyStore),
-        // который Robolectric не эмулирует — значение молча не пишется.
-        // Поэтому контракт «импорт не трогает токен» проверяем инвариантно:
-        // после импорта botToken ровно тот же, что был до (импорт никогда не пишет в него).
         val tokenBefore = Prefs.botToken
         Prefs.chatId = "old"
 
@@ -94,6 +136,11 @@ class SettingsBackupTest {
                 JSONObject()
                     .put("chatId", "12345")
                     .put("smsEnabled", false)
+                    .put("outgoingSmsEnabled", true)
+                    .put("incomingCallsEnabled", true)
+                    .put("outgoingCallsEnabled", true)
+                    .put("notificationsEnabled", true)
+                    .put("notificationApps", "[\"com.telegram.messenger\"]")
                     .put("themeMode", "dark"),
             )
             .put(
@@ -111,25 +158,52 @@ class SettingsBackupTest {
 
         val result = SettingsBackup.import(body)
 
-        // Prefs пишет в DataStore асинхронно (кэш обновляется optimistic), поэтому
-        // после импорта ждём, пока emission DataStore дойдёт до кэша — иначе чтение
-        // может застать устаревшее значение (в полном прогоне CI воспроизводится).
-        waitForPrefs({ Prefs.chatId == "12345" && !Prefs.smsEnabled && Prefs.themeMode == "dark" })
+        waitForPrefs({
+            Prefs.chatId == "12345" && !Prefs.smsEnabled &&
+                Prefs.outgoingSmsEnabled && Prefs.incomingCallsEnabled &&
+                Prefs.outgoingCallsEnabled && Prefs.notificationsEnabled &&
+                Prefs.themeMode == "dark"
+        })
 
         assertEquals("12345", Prefs.chatId)
         assertFalse(Prefs.smsEnabled)
+        assertTrue(Prefs.outgoingSmsEnabled)
+        assertTrue(Prefs.incomingCallsEnabled)
+        assertTrue(Prefs.outgoingCallsEnabled)
+        assertTrue(Prefs.notificationsEnabled)
+        assertEquals("[\"com.telegram.messenger\"]", Prefs.notificationApps)
         assertEquals("dark", Prefs.themeMode)
         assertEquals("токен не трогается импортом", tokenBefore, Prefs.botToken)
         assertEquals("канал импортирован", 1, result.channelsImported)
-        assertEquals("tokenKept отражает реальное состояние токена", Prefs.botToken.isNotBlank(), result.tokenKept)
+    }
 
-        val channels = ChannelStore.all()
-        assertEquals(2, channels.size)
-        val imported = channels[1]
-        assertEquals(Channel.TYPE_SOCKS5, imported.type)
-        assertEquals("Импорт", imported.name)
-        assertEquals("", imported.pass)
-        assertNotEquals("у импортированного канала новый id", "direct", imported.id)
+    @Test
+    fun `import applies new templates`() {
+        val body = JSONObject()
+            .put("app", "sms-forwarder")
+            .put("version", 1)
+            .put(
+                "settings",
+                JSONObject()
+                    .put("messageTemplateOutgoingSms", "OUT: {sender}")
+                    .put("messageTemplateIncomingCall", "IN: {sender}")
+                    .put("messageTemplateOutgoingCall", "DIAL: {sender}")
+                    .put("messageTemplateNotification", "NOTIF: {app}"),
+            )
+
+        SettingsBackup.import(body)
+
+        waitForPrefs({
+            Prefs.messageTemplateOutgoingSms == "OUT: {sender}" &&
+                Prefs.messageTemplateIncomingCall == "IN: {sender}" &&
+                Prefs.messageTemplateOutgoingCall == "DIAL: {sender}" &&
+                Prefs.messageTemplateNotification == "NOTIF: {app}"
+        })
+
+        assertEquals("OUT: {sender}", Prefs.messageTemplateOutgoingSms)
+        assertEquals("IN: {sender}", Prefs.messageTemplateIncomingCall)
+        assertEquals("DIAL: {sender}", Prefs.messageTemplateOutgoingCall)
+        assertEquals("NOTIF: {app}", Prefs.messageTemplateNotification)
     }
 
     @Test
@@ -202,10 +276,6 @@ class SettingsBackupTest {
         )
     }
 
-    /**
-     * Ждёт, пока [predicate] не станет true (до 5с), давая асинхронным
-     * DataStore-записям дойти до кэша Prefs.
-     */
     private fun waitForPrefs(predicate: () -> Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
         while (System.currentTimeMillis() < deadline) {

@@ -29,11 +29,19 @@ data class SettingsUiState(
     val botToken: String = "",
     val chatId: String = "",
     val smsEnabled: Boolean = true,
+    val outgoingSmsEnabled: Boolean = false,
     val callsEnabled: Boolean = true,
+    val incomingCallsEnabled: Boolean = false,
+    val outgoingCallsEnabled: Boolean = false,
+    val notificationsEnabled: Boolean = false,
     val localNotificationsEnabled: Boolean = false,
     val duplicateChannels: Boolean = false,
     val templateSms: String = "",
+    val templateOutgoingSms: String = "",
     val templateCall: String = "",
+    val templateIncomingCall: String = "",
+    val templateOutgoingCall: String = "",
+    val templateNotification: String = "",
     val quietHoursEnabled: Boolean = false,
     val quietHoursStart: Int = 23 * 60,
     val quietHoursEnd: Int = 8 * 60,
@@ -91,11 +99,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             botToken = Prefs.botToken,
             chatId = Prefs.chatId,
             smsEnabled = Prefs.smsEnabled,
+            outgoingSmsEnabled = Prefs.outgoingSmsEnabled,
             callsEnabled = Prefs.callsEnabled,
+            incomingCallsEnabled = Prefs.incomingCallsEnabled,
+            outgoingCallsEnabled = Prefs.outgoingCallsEnabled,
+            notificationsEnabled = Prefs.notificationsEnabled,
             localNotificationsEnabled = Prefs.localNotificationsEnabled,
             duplicateChannels = Prefs.duplicateChannels,
             templateSms = Prefs.messageTemplateSms,
+            templateOutgoingSms = Prefs.messageTemplateOutgoingSms,
             templateCall = Prefs.messageTemplateCall,
+            templateIncomingCall = Prefs.messageTemplateIncomingCall,
+            templateOutgoingCall = Prefs.messageTemplateOutgoingCall,
+            templateNotification = Prefs.messageTemplateNotification,
             quietHoursEnabled = Prefs.quietHoursEnabled,
             quietHoursStart = Prefs.quietHoursStart,
             quietHoursEnd = Prefs.quietHoursEnd,
@@ -107,11 +123,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setBotToken(v: String) { _state.value = _state.value.copy(botToken = v) }
     fun setChatId(v: String) { _state.value = _state.value.copy(chatId = v) }
     fun setSmsEnabled(v: Boolean) { _state.value = _state.value.copy(smsEnabled = v) }
+    fun setOutgoingSmsEnabled(v: Boolean) { _state.value = _state.value.copy(outgoingSmsEnabled = v) }
     fun setCallsEnabled(v: Boolean) { _state.value = _state.value.copy(callsEnabled = v) }
+    fun setIncomingCallsEnabled(v: Boolean) { _state.value = _state.value.copy(incomingCallsEnabled = v) }
+    fun setOutgoingCallsEnabled(v: Boolean) { _state.value = _state.value.copy(outgoingCallsEnabled = v) }
+    fun setNotificationsEnabled(v: Boolean) { _state.value = _state.value.copy(notificationsEnabled = v) }
     fun setLocalNotificationsEnabled(v: Boolean) { _state.value = _state.value.copy(localNotificationsEnabled = v) }
     fun setDuplicateChannels(v: Boolean) { _state.value = _state.value.copy(duplicateChannels = v) }
     fun setTemplateSms(v: String) { _state.value = _state.value.copy(templateSms = v) }
+    fun setTemplateOutgoingSms(v: String) { _state.value = _state.value.copy(templateOutgoingSms = v) }
     fun setTemplateCall(v: String) { _state.value = _state.value.copy(templateCall = v) }
+    fun setTemplateIncomingCall(v: String) { _state.value = _state.value.copy(templateIncomingCall = v) }
+    fun setTemplateOutgoingCall(v: String) { _state.value = _state.value.copy(templateOutgoingCall = v) }
+    fun setTemplateNotification(v: String) { _state.value = _state.value.copy(templateNotification = v) }
     fun setQuietHoursEnabled(v: Boolean) { _state.value = _state.value.copy(quietHoursEnabled = v) }
     fun setQuietHoursStart(v: Int) { _state.value = _state.value.copy(quietHoursStart = v) }
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
@@ -122,11 +146,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.botToken = s.botToken.trim()
         Prefs.chatId = s.chatId.trim()
         Prefs.smsEnabled = s.smsEnabled
+        Prefs.outgoingSmsEnabled = s.outgoingSmsEnabled
         Prefs.callsEnabled = s.callsEnabled
+        Prefs.incomingCallsEnabled = s.incomingCallsEnabled
+        Prefs.outgoingCallsEnabled = s.outgoingCallsEnabled
+        Prefs.notificationsEnabled = s.notificationsEnabled
         Prefs.localNotificationsEnabled = s.localNotificationsEnabled
         Prefs.duplicateChannels = s.duplicateChannels
         Prefs.messageTemplateSms = s.templateSms
+        Prefs.messageTemplateOutgoingSms = s.templateOutgoingSms
         Prefs.messageTemplateCall = s.templateCall
+        Prefs.messageTemplateIncomingCall = s.templateIncomingCall
+        Prefs.messageTemplateOutgoingCall = s.templateOutgoingCall
+        Prefs.messageTemplateNotification = s.templateNotification
         Prefs.quietHoursEnabled = s.quietHoursEnabled
         Prefs.quietHoursStart = s.quietHoursStart
         Prefs.quietHoursEnd = s.quietHoursEnd

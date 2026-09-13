@@ -9,6 +9,7 @@ import com.ozyab.smsforwarder.util.Prefs
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -17,18 +18,12 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Тесты SmsReceiver и CallReceiverLogic (ROADMAP T5).
+ * Тесты CallReceiverLogic (расширенная state machine) и SmsReceiver.
  *
- * SmsReceiver:
- *  - неверное действие → выход
- *  - Prefs.smsEnabled = false → выход
- *  - тихие часы → выход
- *  - валидное SMS → логируется
- *
- * CallReceiverLogic (state machine):
+ * CallReceiverLogic:
  *  - RINGING → IDLE без OFFHOOK = пропущенный
- *  - RINGING → OFFHOOK → IDLE = принятый (не пропущенный)
- *  - IDLE без RINGING = ничего (ищет в CallLog, но без разрешения → null)
+ *  - RINGING → OFFHOOK → IDLE = принятый входящий
+ *  - OFFHOOK без RINGING → IDLE = исходящий
  *  - сброс состояния между вызовами
  */
 @RunWith(RobolectricTestRunner::class)
@@ -40,9 +35,11 @@ class ReceiverTest {
     @Before
     fun setUp() {
         Prefs.init(context)
-        Prefs.chatId // ждём готовности
+        Prefs.chatId
         Prefs.smsEnabled = true
         Prefs.callsEnabled = true
+        Prefs.incomingCallsEnabled = true
+        Prefs.outgoingCallsEnabled = true
         Prefs.quietHoursEnabled = false
         LogStore.clear()
         CallReceiverLogic.reset()
@@ -54,69 +51,116 @@ class ReceiverTest {
     }
 
     // ──────────────────────────────────────────────
-    //  CallReceiverLogic — state machine
+    //  CallReceiverLogic — missed calls
     // ──────────────────────────────────────────────
 
     @Test
     fun `RINGING then IDLE without OFFHOOK is missed`() {
-        val result = CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79001112233")
-        assertEquals(null, result)
-
-        val missed = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
-        assertNotNull("пропущенный вызов обнаружен", missed)
-        assertTrue("содержит номер звонящего", missed!!.contains("+79001112233"))
+        CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79001112233")
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
+        assertNotNull("пропущенный вызов обнаружен", result)
+        assertEquals("missed", result!!.second)
+        assertTrue("содержит номер звонящего", result.first.contains("+79001112233"))
     }
 
+    // ──────────────────────────────────────────────
+    //  CallReceiverLogic — incoming (answered)
+    // ──────────────────────────────────────────────
+
     @Test
-    fun `RINGING then OFFHOOK then IDLE is not missed`() {
+    fun `RINGING then OFFHOOK then IDLE is incoming`() {
         CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79001112233")
         CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79001112233")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
-        assertEquals("принятый вызов не считается пропущенным", null, result)
+        assertNotNull("принятый входящий обнаружен", result)
+        assertEquals("incoming", result!!.second)
+        assertEquals("+79001112233", result.first)
     }
 
     @Test
-    fun `IDLE without prior RINGING returns null`() {
-        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
-        // Без RINGING → findRecentMissed ищет в CallLog, но без разрешения → null
-        assertEquals(null, result)
+    fun `incoming call text contains phone number`() {
+        CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79009876543")
+        CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79009876543")
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79009876543")
+        assertNotNull(result)
+        assertTrue("текст содержит номер", result!!.first.contains("+79009876543"))
     }
+
+    // ──────────────────────────────────────────────
+    //  CallReceiverLogic — outgoing
+    // ──────────────────────────────────────────────
+
+    @Test
+    fun `OFFHOOK without RINGING then IDLE is outgoing`() {
+        CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79005556677")
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79005556677")
+        assertNotNull("исходящий звонок обнаружен", result)
+        assertEquals("outgoing", result!!.second)
+        assertEquals("+79005556677", result.first)
+    }
+
+    @Test
+    fun `outgoing call text contains phone number`() {
+        CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79001231234")
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001231234")
+        assertNotNull(result)
+        assertTrue("текст содержит номер", result!!.first.contains("+79001231234"))
+    }
+
+    // ──────────────────────────────────────────────
+    //  CallReceiverLogic — state machine edge cases
+    // ──────────────────────────────────────────────
 
     @Test
     fun `consecutive RINGING events reset state`() {
-        // Первый звонок
         CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79001112233")
-        // Второй звонок сбросил первый
         CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79004445566")
-        val missed = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79004445566")
-        assertNotNull("пропущенный второй вызов", missed)
-        assertTrue("содержит номер второго звонящего", missed!!.contains("+79004445566"))
-    }
-
-    @Test
-    fun `missed event text contains formatted phone number`() {
-        CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79001234567")
-        val text = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001234567")
-        assertNotNull(text)
-        assertTrue("текст содержит номер", text!!.contains("+79001234567"))
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79004445566")
+        assertNotNull("пропущенный второй вызов", result)
+        assertEquals("missed", result!!.second)
+        assertTrue("содержит номер второго звонящего", result.first.contains("+79004445566"))
     }
 
     @Test
     fun `missed event text uses call template`() {
         CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79009998877")
-        val text = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79009998877")
-        assertNotNull(text)
-        // Дефолтный шаблон для missed начинается с "📵 Пропущенный"
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79009998877")
+        assertNotNull(result)
         assertTrue("текст начинается с иконки пропущенного",
-            text!!.startsWith("\uD83D\uDCD5") || text.contains("Пропущенный"))
+            result!!.first.contains("\uD83D\uDCD5") || result.first.contains("Пропущенный"))
+    }
+
+    @Test
+    fun `incoming event text uses incoming call template`() {
+        CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79001112233")
+        CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79001112233")
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
+        assertNotNull(result)
+        assertTrue("текст содержит 'Входящий'",
+            result!!.first.contains("Входящий") || result.first.contains("\uD83D\uDCDE"))
+    }
+
+    @Test
+    fun `outgoing event text uses outgoing call template`() {
+        CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79005556677")
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79005556677")
+        assertNotNull(result)
+        assertTrue("текст содержит 'Исходящий'",
+            result!!.first.contains("Исходящий") || result.first.contains("\uD83D\uDCDE"))
     }
 
     @Test
     fun `null number is handled gracefully`() {
         CallReceiverLogic.onPhoneStateChanged(context, "RINGING", null)
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", null)
-        // RINGING с null номером → IDLE: candidate = null (numberAtRinging is null)
-        // findRecentMissed без разрешения → null
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun `reset clears state machine`() {
+        CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79001112233")
+        CallReceiverLogic.reset()
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
         assertEquals(null, result)
     }
 
@@ -129,7 +173,6 @@ class ReceiverTest {
         val receiver = CallReceiver()
         val intent = Intent("com.example.WRONG_ACTION")
         receiver.onReceive(context, intent)
-        // Не крашимся — главное
     }
 
     @Test
@@ -141,14 +184,13 @@ class ReceiverTest {
             putExtra(android.telephony.TelephonyManager.EXTRA_INCOMING_NUMBER, "+79001112233")
         }
         receiver.onReceive(context, intent)
-        // Не крашимся
     }
 
     @Test
     fun `CallReceiver ignores during quiet hours`() {
         Prefs.quietHoursEnabled = true
         Prefs.quietHoursStart = 0
-        Prefs.quietHoursEnd = 1440 // весь день тихо
+        Prefs.quietHoursEnd = 1440
 
         val receiver = CallReceiver()
         val intent = Intent(android.telephony.TelephonyManager.ACTION_PHONE_STATE_CHANGED).apply {
@@ -156,7 +198,6 @@ class ReceiverTest {
             putExtra(android.telephony.TelephonyManager.EXTRA_INCOMING_NUMBER, "+79001112233")
         }
         receiver.onReceive(context, intent)
-        // Не крашимся
     }
 
     // ──────────────────────────────────────────────
@@ -168,7 +209,6 @@ class ReceiverTest {
         val receiver = SmsReceiver()
         val intent = Intent("com.example.WRONG_ACTION")
         receiver.onReceive(context, intent)
-        // Не крашимся
     }
 
     @Test
@@ -177,7 +217,6 @@ class ReceiverTest {
         val receiver = SmsReceiver()
         val intent = Intent(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
         receiver.onReceive(context, intent)
-        // Не крашимся
     }
 
     @Test
@@ -189,28 +228,12 @@ class ReceiverTest {
         val receiver = SmsReceiver()
         val intent = Intent(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
         receiver.onReceive(context, intent)
-        // Не крашимся
     }
 
     @Test
     fun `SmsReceiver handles null messages gracefully`() {
         val receiver = SmsReceiver()
-        // Intent без PDU — getMessagesFromIntent вернёт null/пустой список
         val intent = Intent(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
         receiver.onReceive(context, intent)
-        // Не крашимся
-    }
-
-    // ──────────────────────────────────────────────
-    //  CallReceiverLogic — reset
-    // ──────────────────────────────────────────────
-
-    @Test
-    fun `reset clears state machine`() {
-        CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79001112233")
-        CallReceiverLogic.reset()
-        // После сброса RINGING forgotten → IDLE без кандидата
-        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
-        assertEquals(null, result)
     }
 }

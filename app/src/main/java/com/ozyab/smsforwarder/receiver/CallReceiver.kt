@@ -15,21 +15,20 @@ import com.ozyab.smsforwarder.util.SimInfo
 import com.ozyab.smsforwarder.util.TemplateFormatter
 
 /**
- * Отслеживание пропущенных вызовов.
+ * Отслеживание вызовов: пропущенные, принятые входящие, исходящие.
  *
  * Логика (state machine по PHONE_STATE):
  *  - RINGING  → запоминаем номер, сбрасываем флаг «трубка поднята»
- *  - OFFHOOK  → вызов принят (трубка поднята)
- *  - IDLE     → вызов завершён: если был RINGING и не было OFFHOOK — пропущенный.
- *    Если RINGING не видели (бродкаст потерян) — ищем свежий пропущенный в CallLog.
- *
- * Когда есть READ_CALL_LOG, решение подтверждается CallLog'ом (точное сравнение
- * по цифрам), чтобы принятые вызовы не пересылались как пропущенные (например,
- * при потерянном OFFHOOK-бродкасте). Без разрешения полагаемся на state machine.
+ *  - OFFHOOK  → вызов принят (трубка поднята); если RINGING не было — исходящий
+ *  - IDLE     → вызов завершён:
+ *    * RINGING + не OFFHOOK → пропущенный
+ *    * RINGING + OFFHOOK   → принятый входящий
+ *    * OFFHOOK без RINGING → исходящий
  */
 object CallReceiverLogic {
 
     private var ringingNumber: String? = null
+    private var outgoingNumber: String? = null
     private var callAnswered = false
 
     /** Окно «свежести» для fallback-поиска пропущенного в CallLog. */
@@ -39,55 +38,72 @@ object CallReceiverLogic {
     @Synchronized
     fun reset() {
         ringingNumber = null
+        outgoingNumber = null
         callAnswered = false
     }
 
     /**
      * Обрабатывает смену состояния телефона. Вызывается из CallReceiver.
-     * Возвращает текст события пропущенного вызова или null.
+     * Возвращает Triple(text, type, label) или null.
      */
     @Synchronized
-    fun onPhoneStateChanged(context: Context, state: String?, number: String?): String? {
+    fun onPhoneStateChanged(
+        context: Context,
+        state: String?,
+        number: String?
+    ): Triple<String, String, String>? {
         when (state) {
             TelephonyManager.EXTRA_STATE_RINGING -> {
                 ringingNumber = number
                 callAnswered = false
+                outgoingNumber = null
                 return null
             }
             TelephonyManager.EXTRA_STATE_OFFHOOK -> {
-                // Трубка поднята — вызов принят
                 callAnswered = true
+                if (ringingNumber == null) {
+                    outgoingNumber = number
+                }
                 return null
             }
             TelephonyManager.EXTRA_STATE_IDLE -> {
                 val numberAtRinging = ringingNumber
+                val numberOutgoing = outgoingNumber
                 val wasAnswered = callAnswered
                 ringingNumber = null
+                outgoingNumber = null
                 callAnswered = false
 
-                val candidate: String? = when {
-                    // Видели RINGING: пропущенный, если трубку не подняли
-                    numberAtRinging != null && !wasAnswered -> numberAtRinging
+                return when {
+                    // Входящий вызов был (RINGING) и принят
+                    numberAtRinging != null && wasAnswered -> {
+                        Triple(numberAtRinging, "incoming", "Входящий")
+                    }
+                    // Входящий вызов был, но не принят — пропущенный
+                    numberAtRinging != null && !wasAnswered -> {
+                        val candidate = if (hasCallLogPermission(context)) {
+                            if (looksMissed(context, numberAtRinging)) numberAtRinging else null
+                        } else {
+                            numberAtRinging
+                        }
+                        candidate?.let { Triple(it, "missed", "Пропущенный") }
+                    }
+                    // Исходящий вызов (OFFHOOK без RINGING)
+                    numberOutgoing != null -> {
+                        Triple(numberOutgoing, "outgoing", "Исходящий")
+                    }
                     // RINGING потерян — ищем свежий пропущенный в CallLog
-                    numberAtRinging == null -> findRecentMissed(context)
-                    // RINGING был и вызов принят — не пропущенный
-                    else -> null
+                    else -> {
+                        val recent = findRecentMissed(context)
+                        recent?.let { Triple(it, "missed", "Пропущенный") }
+                    }
                 }
-
-                // С READ_CALL_LOG подтверждаем по CallLog (защита от потерянного OFFHOOK)
-                val missed = if (candidate != null && hasCallLogPermission(context)) {
-                    if (looksMissed(context, candidate)) candidate else null
-                } else {
-                    candidate
-                }
-
-                return missed?.let { buildEvent(context, it) }
             }
         }
         return null
     }
 
-    /** Проверка по CallLog: последний вызов с этого номера — MISSED. Точное сравнение по цифрам. */
+    /** Проверка по CallLog: последний вызов с этого номера — MISSED. */
     private fun looksMissed(context: Context, number: String): Boolean {
         val digits = number.filter { it.isDigit() }
         if (digits.isEmpty()) return false
@@ -108,10 +124,8 @@ object CallReceiverLogic {
                 false
             } ?: false
         } catch (e: SecurityException) {
-            // Разрешение отозвано между проверкой и запросом — полагаемся на state machine
             true
         } catch (e: Exception) {
-            // Любая другая ошибка — решение state machine остаётся в силе
             true
         }
     }
@@ -129,7 +143,7 @@ object CallReceiverLogic {
                 val numCol = c.getColumnIndex(CallLog.Calls.NUMBER)
                 val dateCol = c.getColumnIndex(CallLog.Calls.DATE)
                 while (c.moveToNext()) {
-                    if (now - c.getLong(dateCol) > RECENT_WINDOW_MS) return null // дальше только старые
+                    if (now - c.getLong(dateCol) > RECENT_WINDOW_MS) return null
                     if (c.getInt(typeCol) == CallLog.Calls.MISSED_TYPE) {
                         return c.getString(numCol)
                     }
@@ -137,7 +151,7 @@ object CallReceiverLogic {
                 null
             } ?: null
         } catch (e: Exception) {
-            null // нет разрешения / ошибка — не пересылаем ничего
+            null
         }
     }
 
@@ -145,45 +159,70 @@ object CallReceiverLogic {
         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) ==
             PackageManager.PERMISSION_GRANTED
 
-    private fun buildEvent(context: Context, number: String): String {
+    private fun buildEvent(
+        context: Context,
+        number: String,
+        type: String,
+        label: String
+    ): String {
         val name = ContactNames.lookup(context, number)
         val now = System.currentTimeMillis()
-        // SIM: из PHONE_STATE нет subscriptionId — берём первую активную SIM
         val sim = SimInfo.describe(context, null)
+        val template = when (type) {
+            "incoming" -> Prefs.messageTemplateIncomingCall
+            "outgoing" -> Prefs.messageTemplateOutgoingCall
+            else -> Prefs.messageTemplateCall
+        }
         return TemplateFormatter.format(
-            template = Prefs.messageTemplateCall,
+            template = template,
             sender = number,
             name = name,
             text = "",
             timestamp = now,
-            type = "missed",
+            type = type,
             sim = sim
         )
     }
 }
 
 class CallReceiver : android.content.BroadcastReceiver() {
+
+    /** Результат обработки: текст, тип, уведомление. */
+    private data class CallResult(val text: String, val type: String, val notifyTitle: String)
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != TelephonyManager.ACTION_PHONE_STATE_CHANGED) return
         if (!Prefs.callsEnabled) return
-
-        // Тихие часы: не пересылаем в указанный период
         if (QuietHours.isActiveNow()) return
 
         val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
         @Suppress("DEPRECATION")
         val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
 
-        // Тяжёлая часть (CallLog, контакты) — не на главном потоке
         ReceiverExecutor.goAsync(this) {
-            val text = CallReceiverLogic.onPhoneStateChanged(context, state, number) ?: return@goAsync
-            // Локальное уведомление на телефоне (если включено)
+            val result = CallReceiverLogic.onPhoneStateChanged(context, state, number)
+                ?: return@goAsync
+
+            val (text, type, label) = result
+
+            // Проверяем, включена ли пересылка для данного типа
+            val enabled = when (type) {
+                "incoming" -> Prefs.incomingCallsEnabled
+                "outgoing" -> Prefs.outgoingCallsEnabled
+                else -> Prefs.callsEnabled // missed
+            }
+            if (!enabled) return@goAsync
+
+            // Локальное уведомление
             com.ozyab.smsforwarder.util.LocalNotifier.notify(
                 context,
-                title = "📵 Пропущенный: $number",
-                text = "Пропущенный вызов",
+                title = "📵 $label: $number",
+                text = label,
             )
-            com.ozyab.smsforwarder.service.ForwardService.start(context, text, type = "missed", sender = number ?: "")
+
+            com.ozyab.smsforwarder.service.ForwardService.start(
+                context, text, type = type, sender = number
+            )
         }
     }
 }
