@@ -122,6 +122,20 @@
                     android:text="@string/pref_calls_enabled"
                     android:checked="true" />
 
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/sw_local_notifications"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_local_notifications"
+                    android:checked="false" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/sw_duplicate_channels"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_duplicate_channels"
+                    android:checked="false" />
+
                 <!-- ===== Шаблоны сообщений ===== -->
                 <TextView
                     style="@style/TextAppearance.Material3.TitleMedium"
@@ -282,7 +296,6 @@
 
             </LinearLayout>
         </ScrollView>
-
         <!-- ===== Панель «Логи» ===== -->
         <LinearLayout
             android:id="@+id/panel_logs"
@@ -307,12 +320,78 @@
                     android:textStyle="bold" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_export_logs"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/btn_export_logs" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_clear_logs"
                     style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/logs_clear" />
             </LinearLayout>
+
+            <!-- Поиск по тексту -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/logs_search_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_logs_search"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Фильтр по уровню -->
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chip_group_logs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                app:singleSelection="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_logs_all"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="@string/logs_filter_all" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_logs_ok"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/logs_filter_ok" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_logs_warn"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/logs_filter_warn" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_logs_error"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/logs_filter_error" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_logs_info"
+                    style="@style/Widget.Material3.Chip.Filter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/logs_filter_info" />
+            </com.google.android.material.chip.ChipGroup>
 
             <ScrollView
                 android:layout_width="match_parent"
@@ -328,7 +407,8 @@
                     android:textIsSelectable="true"
                     android:textSize="12sp"
                     android:lineSpacingExtra="2dp" />
-            </ScrollView>        </LinearLayout>
+            </ScrollView>
+        </LinearLayout>
 
         <!-- ===== Панель «История» ===== -->
         <LinearLayout

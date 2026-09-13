@@ -56,6 +56,8 @@ object Prefs {
     const val KEY_CHAT_ID = "chat_id"
     const val KEY_SMS_ENABLED = "sms_enabled"
     const val KEY_CALLS_ENABLED = "calls_enabled"
+    const val KEY_LOCAL_NOTIFICATIONS = "local_notifications"
+    const val KEY_DUPLICATE_CHANNELS = "duplicate_channels"
     const val KEY_PROXY_ENABLED = "proxy_enabled"
     const val KEY_PROXY_TYPE = "proxy_type" // "http" | "socks5"
     const val KEY_PROXY_HOST = "proxy_host"
@@ -252,6 +254,16 @@ object Prefs {
     var callsEnabled: Boolean
         get() = getBoolean(KEY_CALLS_ENABLED, true)
         set(v) = setBoolean(KEY_CALLS_ENABLED, v)
+
+    /** Локальные уведомления на телефоне (при входящем SMS/звонке). */
+    var localNotificationsEnabled: Boolean
+        get() = getBoolean(KEY_LOCAL_NOTIFICATIONS, false)
+        set(v) = setBoolean(KEY_LOCAL_NOTIFICATIONS, v)
+
+    /** Дублирование каналов: параллельная отправка во все вместо каскада. */
+    var duplicateChannels: Boolean
+        get() = getBoolean(KEY_DUPLICATE_CHANNELS, false)
+        set(v) = setBoolean(KEY_DUPLICATE_CHANNELS, v)
 
     var proxyEnabled: Boolean
         get() = getBoolean(KEY_PROXY_ENABLED, false)

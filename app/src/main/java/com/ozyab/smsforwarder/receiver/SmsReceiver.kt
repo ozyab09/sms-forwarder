@@ -6,6 +6,7 @@ import android.content.Intent
 import android.provider.Telephony
 import com.ozyab.smsforwarder.service.ForwardService
 import com.ozyab.smsforwarder.util.ContactNames
+import com.ozyab.smsforwarder.util.LocalNotifier
 import com.ozyab.smsforwarder.util.Prefs
 import com.ozyab.smsforwarder.util.QuietHours
 import com.ozyab.smsforwarder.util.ReceiverExecutor
@@ -58,6 +59,13 @@ class SmsReceiver : BroadcastReceiver() {
                 timestamp = ts,
                 type = "sms",
                 sim = sim
+            )
+
+            // Локальное уведомление на телефоне (если включено)
+            LocalNotifier.notify(
+                context,
+                title = "📩 SMS от $sender",
+                text = body.take(200),
             )
 
             ForwardService.start(context, text, type = "sms", sender = sender, eventTime = ts)
