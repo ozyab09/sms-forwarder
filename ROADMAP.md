@@ -3,7 +3,7 @@
 > Живой документ: дорожная карта приложения. Обновляется по мере выполнения.
 > Соглашения: каждый пункт — feature-ветка + PR → зелёный CI → авто-мерж (squash) → bump версии (patch) + changelog + release.
 
-**Текущая версия:** 0.4.26 · **Дата:** 2026-09-13
+**Текущая версия:** 0.4.33 · **Дата:** 2026-09-13
 
 ---
 
@@ -30,6 +30,7 @@
 - [x] **Тесты** — 10 файлов: TemplateFormatter, QuietHours, ChannelStore (promote), UpdateChecker (версии/links), SendQueue, ChannelSender, ChannelClientFactory, EventDao, MainActivityLaunch (6 UI), UtilTest. + [2026-09-13] LogStoreTest, SettingsBackupTest, UI-тест версии в «О приложении».
 - [x] **CI/CD** — GitHub Actions: PR → debug+тесты+lint; тег vX.Y.Z → подписанный release APK + GitHub Release.
 - [x] **README** — приведён к актуальному состоянию (2026-09-13): тихие часы, история, экспорт/импорт, шаблоны, MVVM-структура, статусы идей.
+- [x] **Документация** — [2026-09-13] TECH_TASK/AGENTS/BRAINSTORM/README/screenshots актуализированы, T6 закрыт (§ выше).
 
 ---
 
@@ -48,7 +49,7 @@
 
 ### P2 — мелкие дыры по ТЗ и UX
 
-- [ ] **T6. ТЗ: «Фильтр коротких номеров»** — фича удалена в #50; зафиксировать решение в ТЗ (§3.3) — пункт помечен «убрано, заменено шаблонами/тихими часами».
+- [x] **T6. ТЗ: «Фильтр коротких номеров»** — фича удалена в #50; решение зафиксировано в ТЗ (§3.1/§3.3 — помечено «убрано, заменено шаблонами/тихими часами»). ✅ 2026-09-13 (+ актуализация TECH_TASK: minSdk 29, каналы, GitHub Actions; BRAINSTORM/AGENTS/README приведены к факту).
 - [ ] **T7. UI-тест «нет heads-up уведомления»** — проверить, что сервис создаёт уведомление с низким приоритетом (не всплывает) и не создаёт обычных.
 
 ### P3 — новые функции (после закрытия тестовых дыр)
@@ -71,11 +72,13 @@
 
 ## 📌 Как выполняется пункт
 
-1. Ветка `feat/<краткое-имя>` от свежего main.
-2. Код/тесты → локальный прогон `./gradlew testDebugUnitTest` (JAVA_HOME=/opt/jdk/jdk-17.0.20.1+1).
-3. PR → CI (тесты+lint) зелёный → squash-мерж (правило: зелёный МР = авто-мерж без ожидания).
-4. Bump: patch в `gradle/libs.versions.toml` + CHANGELOG.md + ветка `release/vX.Y.Z` → PR → мерж → автотег → GitHub Release с APK.
-5. Обновить этот файл (отметить выполненное).
+1. Issue на GitHub + ветка `feat/<краткое-имя>` от свежего main.
+2. Код/тесты → локальный прогон `./gradlew testDebugUnitTest` (нужен Android SDK:
+   `ANDROID_HOME` или `local.properties`; без SDK проверка — CI).
+3. PR → CI (build + тесты + lint) зелёный → squash-мерж.
+4. В том же PR: patch-bump в `gradle/libs.versions.toml` + запись в `CHANGELOG.md`.
+   После мержа в main CI сам создаёт тег `vX.Y.Z` и GitHub Release с APK.
+5. Обновить документацию (этот файл, README, AGENTS, при необходимости TECH_TASK) — отметить выполненное.
 
 ---
 
@@ -83,7 +86,7 @@
 
 | Класс | Тест | Статус |
 |-------|------|--------|
-| TemplateFormatter | TemplateFormatterTest (9) | ✅ |
+| TemplateFormatter | TemplateFormatterTest (12: плейсхолдеры + превью) | ✅ |
 | QuietHours | QuietHoursTest (7) | ✅ |
 | ChannelStore (promote) | ChannelStoreTest (7) | ✅ |
 | SendQueue | SendQueueTest | ✅ |
