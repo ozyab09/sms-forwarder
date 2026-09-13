@@ -4,6 +4,22 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версионирование — [SemVer](https://semver.org/lang/ru/).
 
+## [0.5.0] - 2026-09-13
+
+### Добавлено
+- **Поиск и фильтрация логов** (F1): текстовый поиск + фильтр по уровню (D/I/W/E) вкладки «Логи»; логи экспортируются в `.txt` через SAF
+- **Экспорт логов в файл** (F2): кнопка «Экспорт» сохраняет кольцевой буфер в текстовый файл через SAF
+- **Локальные уведомления** (F3): `LocalNotifier` — push при входящем SMS/пропущенном вызове; тоггл в настройках; интеграция в `SmsReceiver` и `CallReceiver`
+- **Дублирование каналов** (F5): `ChannelSender.send()` — после успешной отправки через основной канал, каскад дублирует сообщение в остальные активные каналы; тоггл в настройках
+- **Тесты CallReceiver** (T5): `ReceiverTest` — 14 тестов (state machine пропущенных вызовов, граничные условия)
+- **Тесты ForwardService** (T4): `ForwardServiceTest` — 8 тестов (FOREGROUND_SERVICE_TYPE, START_STICKY, keep awake, нотификация); помечены `@Ignore` (Robolectric + Dispatchers.IO)
+
+### Изменено
+- `ChannelSender.send()` рефакторинг: каскадная отправка + дублирование
+- `CallReceiver` + `SmsReceiver`: интеграция `LocalNotifier`
+- `Prefs`: новые настройки `localNotificationsEnabled`, `duplicateChannels`
+- `ROADMAP.md`: F3/F7 удалены из планов, F1–F5 перенумерованы
+
 ## [0.4.35] - 2026-09-13
 
 ### Добавлено
