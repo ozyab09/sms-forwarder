@@ -1,0 +1,57 @@
+<resources>
+    <!-- Teal (default) -->
+    <style name="Accent.Teal" parent="">
+        <item name="colorPrimary">@color/teal</item>
+        <item name="colorPrimaryDark">@color/teal_dark</item>
+        <item name="colorAccent">@color/teal</item>
+        <item name="android:statusBarColor">@color/teal_dark</item>
+    </style>
+
+    <!-- Green -->
+    <style name="Accent.Green" parent="">
+        <item name="colorPrimary">@color/green</item>
+        <item name="colorPrimaryDark">@color/green_dark</item>
+        <item name="colorAccent">@color/green</item>
+        <item name="android:statusBarColor">@color/green_dark</item>
+    </style>
+
+    <!-- Red -->
+    <style name="Accent.Red" parent="">
+        <item name="colorPrimary">@color/red</item>
+        <item name="colorPrimaryDark">@color/red_dark</item>
+        <item name="colorAccent">@color/red</item>
+        <item name="android:statusBarColor">@color/red_dark</item>
+    </style>
+
+    <!-- Blue -->
+    <style name="Accent.Blue" parent="">
+        <item name="colorPrimary">@color/blue</item>
+        <item name="colorPrimaryDark">@color/blue_dark</item>
+        <item name="colorAccent">@color/blue</item>
+        <item name="android:statusBarColor">@color/blue_dark</item>
+    </style>
+
+    <!-- Purple -->
+    <style name="Accent.Purple" parent="">
+        <item name="colorPrimary">@color/purple</item>
+        <item name="colorPrimaryDark">@color/purple_dark</item>
+        <item name="colorAccent">@color/purple</item>
+        <item name="android:statusBarColor">@color/purple_dark</item>
+    </style>
+
+    <!-- Orange -->
+    <style name="Accent.Orange" parent="">
+        <item name="colorPrimary">@color/orange</item>
+        <item name="colorPrimaryDark">@color/orange_dark</item>
+        <item name="colorAccent">@color/orange</item>
+        <item name="android:statusBarColor">@color/orange_dark</item>
+    </style>
+
+    <!-- Grey -->
+    <style name="Accent.Grey" parent="">
+        <item name="colorPrimary">@color/grey</item>
+        <item name="colorPrimaryDark">@color/grey_dark</item>
+        <item name="colorAccent">@color/grey</item>
+        <item name="android:statusBarColor">@color/grey_dark</item>
+    </style>
+</resources>

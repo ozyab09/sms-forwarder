@@ -70,6 +70,9 @@ object Prefs {
     // Тема оформления: "system" | "light" | "dark"
     const val KEY_THEME_MODE = "theme_mode"
 
+    // Акцентный цвет: "teal" | "green" | "red" | "blue" | "purple" | "orange" | "grey"
+    const val KEY_ACCENT_COLOR = "accent_color"
+
     // Каналы отправки (JSON в secure prefs)
     const val KEY_CHANNELS_JSON = "channels_json"
 
@@ -298,6 +301,11 @@ object Prefs {
     var themeMode: String
         get() = getString(KEY_THEME_MODE, "system")
         set(v) = setString(KEY_THEME_MODE, v)
+
+    /** Акцентный цвет: "teal" | "green" | "red" | "blue" | "purple" | "orange" | "grey". */
+    var accentColor: String
+        get() = getString(KEY_ACCENT_COLOR, "teal")
+        set(v) = setString(KEY_ACCENT_COLOR, v)
 
     /** Время последней проверки обновлений (throttle сетевых запросов). */
     var lastUpdateCheck: Long

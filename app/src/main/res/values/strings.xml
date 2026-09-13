@@ -66,6 +66,14 @@
     <string name="about_theme_light">Светлая</string>
     <string name="about_theme_dark">Тёмная</string>
     <string name="about_theme_system">По системе</string>
+    <string name="about_accent">Акцентный цвет</string>
+    <string name="accent_teal">Бирюзовый</string>
+    <string name="accent_green">Зелёный</string>
+    <string name="accent_red">Красный</string>
+    <string name="accent_blue">Синий</string>
+    <string name="accent_purple">Фиолетовый</string>
+    <string name="accent_orange">Оранжевый</string>
+    <string name="accent_grey">Серый</string>
     <string name="about_project_link">Проект на GitHub</string>
     <string name="about_privacy">Privacy-first: токен и пароли прокси хранятся в шифрованном хранилище, логи не покидают устройство, аналитики нет.</string>
 

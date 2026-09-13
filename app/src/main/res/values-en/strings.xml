@@ -66,6 +66,14 @@
     <string name="about_theme_light">Light</string>
     <string name="about_theme_dark">Dark</string>
     <string name="about_theme_system">System</string>
+    <string name="about_accent">Accent color</string>
+    <string name="accent_teal">Teal</string>
+    <string name="accent_green">Green</string>
+    <string name="accent_red">Red</string>
+    <string name="accent_blue">Blue</string>
+    <string name="accent_purple">Purple</string>
+    <string name="accent_orange">Orange</string>
+    <string name="accent_grey">Grey</string>
     <string name="about_project_link">Project on GitHub</string>
     <string name="about_privacy">Privacy-first: bot token and proxy passwords are stored encrypted, logs never leave the device, no analytics.</string>
 
