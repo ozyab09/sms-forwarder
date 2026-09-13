@@ -71,6 +71,9 @@ object Prefs {
     // Каналы отправки (JSON в secure prefs)
     const val KEY_CHANNELS_JSON = "channels_json"
 
+    // Кэш username бота (для истории отправленных событий)
+    const val KEY_BOT_USERNAME = "bot_username"
+
     // Шаблоны сообщений (plain)
     const val KEY_MESSAGE_TEMPLATE_SMS = "message_template_sms"
     const val KEY_MESSAGE_TEMPLATE_CALL = "message_template_call"
@@ -288,6 +291,15 @@ object Prefs {
     var lastUpdateCheck: Long
         get() = getLong(KEY_LAST_UPDATE_CHECK, 0L)
         set(v) = setLong(KEY_LAST_UPDATE_CHECK, v)
+
+    /**
+     * @username бота без «@» — кэш последнего успешного getMe.
+     * Нужен истории: показать, через какого бота ушло сообщение, без лишних
+     * сетевых запросов при каждом событии.
+     */
+    var botUsername: String
+        get() = getString(KEY_BOT_USERNAME, "")
+        set(v) = setString(KEY_BOT_USERNAME, v)
 
     /** Шаблон для SMS (plain). Пусто = дефолтный формат. */
     var messageTemplateSms: String
