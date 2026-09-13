@@ -30,6 +30,8 @@ data class SettingsUiState(
     val chatId: String = "",
     val smsEnabled: Boolean = true,
     val callsEnabled: Boolean = true,
+    val localNotificationsEnabled: Boolean = false,
+    val duplicateChannels: Boolean = false,
     val templateSms: String = "",
     val templateCall: String = "",
     val quietHoursEnabled: Boolean = false,
@@ -90,6 +92,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             chatId = Prefs.chatId,
             smsEnabled = Prefs.smsEnabled,
             callsEnabled = Prefs.callsEnabled,
+            localNotificationsEnabled = Prefs.localNotificationsEnabled,
+            duplicateChannels = Prefs.duplicateChannels,
             templateSms = Prefs.messageTemplateSms,
             templateCall = Prefs.messageTemplateCall,
             quietHoursEnabled = Prefs.quietHoursEnabled,
@@ -104,6 +108,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setChatId(v: String) { _state.value = _state.value.copy(chatId = v) }
     fun setSmsEnabled(v: Boolean) { _state.value = _state.value.copy(smsEnabled = v) }
     fun setCallsEnabled(v: Boolean) { _state.value = _state.value.copy(callsEnabled = v) }
+    fun setLocalNotificationsEnabled(v: Boolean) { _state.value = _state.value.copy(localNotificationsEnabled = v) }
+    fun setDuplicateChannels(v: Boolean) { _state.value = _state.value.copy(duplicateChannels = v) }
     fun setTemplateSms(v: String) { _state.value = _state.value.copy(templateSms = v) }
     fun setTemplateCall(v: String) { _state.value = _state.value.copy(templateCall = v) }
     fun setQuietHoursEnabled(v: Boolean) { _state.value = _state.value.copy(quietHoursEnabled = v) }
@@ -117,6 +123,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.chatId = s.chatId.trim()
         Prefs.smsEnabled = s.smsEnabled
         Prefs.callsEnabled = s.callsEnabled
+        Prefs.localNotificationsEnabled = s.localNotificationsEnabled
+        Prefs.duplicateChannels = s.duplicateChannels
         Prefs.messageTemplateSms = s.templateSms
         Prefs.messageTemplateCall = s.templateCall
         Prefs.quietHoursEnabled = s.quietHoursEnabled

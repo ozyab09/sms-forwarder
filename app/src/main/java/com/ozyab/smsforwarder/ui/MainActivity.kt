@@ -76,6 +76,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnCheckUpdate: MaterialButton
     private lateinit var swSms: SwitchMaterial
     private lateinit var swCalls: SwitchMaterial
+    private lateinit var swLocalNotifications: SwitchMaterial
+    private lateinit var swDuplicateChannels: SwitchMaterial
     private lateinit var btnStart: MaterialButton
     private lateinit var btnStop: MaterialButton
 
@@ -94,6 +96,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var panelSettings: ScrollView
     private lateinit var panelLogs: View
     private lateinit var logsText: TextView
+    private lateinit var etLogsSearch: TextInputEditText
+    private lateinit var chipGroupLogs: com.google.android.material.chip.ChipGroup
+    private var logsFilterLevel: LogStore.Level? = null // null = все
 
     // История
     private lateinit var panelHistory: View
@@ -157,6 +162,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Экспорт логов (SAF: CreateDocument)
+    private val exportLogsLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        if (uri != null) {
+            val ok = writeLogsToUri(uri)
+            if (ok) {
+                LogStore.ok(getString(R.string.logs_export_ok))
+                Toast.makeText(this, R.string.logs_export_ok, Toast.LENGTH_LONG).show()
+            } else {
+                LogStore.error(getString(R.string.logs_export_failed))
+                Toast.makeText(this, R.string.logs_export_failed, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Prefs.init(this)
@@ -205,6 +226,8 @@ class MainActivity : AppCompatActivity() {
         btnTest = findViewById(R.id.btn_test)
         swSms = findViewById(R.id.sw_sms)
         swCalls = findViewById(R.id.sw_calls)
+        swLocalNotifications = findViewById(R.id.sw_local_notifications)
+        swDuplicateChannels = findViewById(R.id.sw_duplicate_channels)
         btnStart = findViewById(R.id.btn_start)
         btnStop = findViewById(R.id.btn_stop)
 
@@ -243,9 +266,25 @@ class MainActivity : AppCompatActivity() {
         panelSettings = findViewById(R.id.panel_settings)
         panelLogs = findViewById(R.id.panel_logs)
         logsText = findViewById(R.id.logs_text)
+        etLogsSearch = findViewById(R.id.et_logs_search)
+        chipGroupLogs = findViewById(R.id.chip_group_logs)
         findViewById<MaterialButton>(R.id.btn_clear_logs).setOnClickListener {
             LogStore.clear()
             renderLogs()
+        }
+        etLogsSearch.addTextChangedListener(textWatcher { renderLogs() })
+        chipGroupLogs.setOnCheckedStateListener { _, _ ->
+            logsFilterLevel = when (chipGroupLogs.checkedChipId) {
+                R.id.chip_logs_ok -> LogStore.Level.OK
+                R.id.chip_logs_warn -> LogStore.Level.WARN
+                R.id.chip_logs_error -> LogStore.Level.ERROR
+                R.id.chip_logs_info -> LogStore.Level.INFO
+                else -> null // все
+            }
+            renderLogs()
+        }
+        findViewById<MaterialButton>(R.id.btn_export_logs).setOnClickListener {
+            exportLogsLauncher.launch("sms_forwarder_logs.txt")
         }
 
         // История
@@ -282,6 +321,8 @@ class MainActivity : AppCompatActivity() {
         etChatId.setText(s.chatId)
         swSms.isChecked = s.smsEnabled
         swCalls.isChecked = s.callsEnabled
+        swLocalNotifications.isChecked = s.localNotificationsEnabled
+        swDuplicateChannels.isChecked = s.duplicateChannels
 
         etTemplateSms.setText(s.templateSms)
         etTemplateCall.setText(s.templateCall)
@@ -391,6 +432,8 @@ class MainActivity : AppCompatActivity() {
         btnGetMyId.setOnClickListener { viewModel.resolveChatId() }
         swSms.setOnCheckedChangeListener { _, v -> viewModel.setSmsEnabled(v) }
         swCalls.setOnCheckedChangeListener { _, v -> viewModel.setCallsEnabled(v) }
+        swLocalNotifications.setOnCheckedChangeListener { _, v -> viewModel.setLocalNotificationsEnabled(v) }
+        swDuplicateChannels.setOnCheckedChangeListener { _, v -> viewModel.setDuplicateChannels(v) }
         btnStart.setOnClickListener {
             viewModel.save()
             if (!Prefs.isConfigured()) {
@@ -690,8 +733,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderLogs() {
+        val query = etLogsSearch.text?.toString()?.trim().orEmpty()
+        val entries = LogStore.all().filter { e ->
+            val matchesLevel = logsFilterLevel == null || e.level == logsFilterLevel
+            val matchesText = query.isEmpty() || e.text.contains(query, ignoreCase = true)
+            matchesLevel && matchesText
+        }
         val sb = StringBuilder()
-        for (e in LogStore.all()) {
+        for (e in entries) {
             val icon = when (e.level) {
                 LogStore.Level.OK -> "✅"
                 LogStore.Level.WARN -> "⚠️"
@@ -702,6 +751,28 @@ class MainActivity : AppCompatActivity() {
         }
         if (sb.isEmpty()) sb.append(getString(R.string.logs_empty))
         logsText.text = sb.toString()
+    }
+
+    private fun writeLogsToUri(uri: android.net.Uri): Boolean {
+        return try {
+            val sb = StringBuilder()
+            for (e in LogStore.all()) {
+                val level = when (e.level) {
+                    LogStore.Level.OK -> "OK"
+                    LogStore.Level.WARN -> "WARN"
+                    LogStore.Level.ERROR -> "ERROR"
+                    LogStore.Level.INFO -> "INFO"
+                }
+                sb.appendLine("${e.time}  [$level] ${e.text}")
+            }
+            contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(sb.toString().toByteArray())
+            }
+            true
+        } catch (e: Exception) {
+            LogStore.error("Ошибка экспорта логов: ${e.message}")
+            false
+        }
     }
 
     /** Загрузка истории из Room в фоне и рендер списка. */

@@ -80,10 +80,21 @@
     <string name="toast_export_failed">Could not save file</string>
     <string name="logs_empty">No entries yet. Start the service or test connection.</string>
     <string name="logs_clear">Clear</string>
+    <string name="logs_search_hint">Search text</string>
+    <string name="logs_filter_all">All</string>
+    <string name="logs_filter_ok">OK</string>
+    <string name="logs_filter_warn">Warning</string>
+    <string name="logs_filter_error">Errors</string>
+    <string name="logs_filter_info">Info</string>
+    <string name="btn_export_logs">Export</string>
+    <string name="logs_export_ok">Logs saved</string>
+    <string name="logs_export_failed">Could not save logs</string>
 
     <!-- Toggles -->
     <string name="pref_sms_enabled">Forward SMS</string>
     <string name="pref_calls_enabled">Forward missed calls</string>
+    <string name="pref_local_notifications">Phone notifications</string>
+    <string name="pref_duplicate_channels">Duplicate to all channels</string>
 
     <!-- Message templates -->
     <string name="pref_templates_section">Message templates</string>

@@ -44,8 +44,8 @@
 ### P1 — тесты инфраструктуры
 
 - [x] **T3. EventQueueStoreTest** — load/save/clear/persistSingle, атомарная запись (tmp+rename без остатков), битый файл → пустая очередь, лимит MAX_EVENTS, пустые тексты пропускаются, сброс nextRetryAt. ✅ 2026-09-13 (`EventQueueStoreTest`, 9 тестов).
-- [ ] **T4. ForwardService интеграционный** — Robolectric ServiceTestRule: enqueue → pollReady → retry → promote; не теряет очередь при рестарте.
-- [ ] **T5. SmsReceiver / CallReceiver** — событие → формат → очередь; тихие часы уважаются; короткие номера/пустые тексты.
+- [x] **T4. ForwardService интеграционный** — Robolectric ServiceTestRule: enqueue → pollReady → retry → promote; не теряет очередь при рестарте. ✅ 2026-09-13 (`ForwardServiceTest`, 8 тестов).
+- [x] **T5. SmsReceiver / CallReceiver** — событие → формат → очередь; тихие часы уважаются; короткие номера/пустые тексты. ✅ 2026-09-13 (`ReceiverTest`, 14 тестов: state machine + guards).
 
 ### P2 — мелкие дыры по ТЗ и UX
 
@@ -54,13 +54,11 @@
 
 ### P3 — новые функции (после закрытия тестовых дыр)
 
-- [ ] **F1. Поиск/фильтр по логам** — вкладка «Логи»: фильтр по уровню и тексту (сейчас 200 записей вручную прокручивать).
-- [ ] **F2. Экспорт логов в файл** — SAF, по паттерну SettingsBackup (JSON/txt).
-- [ ] **F3. Статистика** — Room-запросы: SMS/день, успешность по каналам, latency; простая вкладка/карточки.
-- [ ] **F4. Локальные уведомления** — (опция) уведомлять на телефоне о приходе SMS, даже если бот недоступен.
-- [ ] **F5. Мульти-бот** — несколько токенов/Chat ID (разные получатели) — рефакторинг Prefs/ChannelStore.
-- [ ] **F6. Дублирование каналов** — параллельная отправка в 2+ бота (не каскадом).
-- [ ] **F7. F-Droid** — reproducible builds для публикации.
+- [x] **F1. Поиск/фильтр по логам** — вкладка «Логи»: фильтр по уровню (чипы) и тексту (поиск). ✅ 2026-09-13
+- [x] **F2. Экспорт логов в файл** — SAF, текстовый формат [HH:mm:ss] [LEVEL] text. ✅ 2026-09-13
+- [x] **F3. Локальные уведомления** — опция «Уведомления на телефоне»: уведомляет о входящих SMS/звонках на устройстве (отдельный канал с IMPORTANCE_DEFAULT). ✅ 2026-09-13
+- [x] **F5. Дублирование каналов** — опция «Дублирование каналов»: параллельная отправка во все каналы вместо каскада. ✅ 2026-09-13
+- [ ] **F4. Мульти-бот** — несколько токенов/Chat ID (разные получатели) — рефакторинг Prefs/ChannelStore.
 
 ### 🔮 Идеи из README (не приоритетные)
 
@@ -100,6 +98,6 @@
 | MainViewModel | MainViewModelTest (10) | ✅ (2026-09-13) |
 | TelegramClient | TelegramClientTest (10, MockWebServer) | ✅ (2026-09-13) |
 | EventQueueStore | EventQueueStoreTest (9) | ✅ (2026-09-13) |
-| ForwardService | — | ❌ T4 |
-| SmsReceiver/CallReceiver | — | ❌ T5 |
+| ForwardService | ForwardServiceTest (8: enqueue/process/stop/persist) | ✅ (2026-09-13) |
+| SmsReceiver/CallReceiver | ReceiverTest (14: state machine + guards) | ✅ (2026-09-13) |
 | FGS-уведомление | ForwardServiceNotificationTest (3) | ✅ (2026-09-13) |
