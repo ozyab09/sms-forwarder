@@ -124,6 +124,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -161,7 +163,7 @@ jobs:
             PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${VER}$" | head -1)
             if [ -n "$PREV_TAG" ]; then
               BODY="### Изменено"$'\n\n'
-              BODY+=$(git log --oneline "${PREV_TAG}..${VER}" --no-merges | sed 's/^/- /')
+              BODY+=$(git log --oneline "${PREV_TAG}..${VER}" --no-merges --grep="^chore: auto-bump" --invert-grep | sed 's/^/- /')
             else
               BODY="**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/${VER}~1...${VER}"
             fi
