@@ -152,12 +152,19 @@ jobs:
         id: changelog
         run: |
           VER="${{ github.ref_name }}"
+          VER_NUM="${VER#v}"
           # Извлекаем секцию из CHANGELOG.md между заголовком версии и следующим заголовком
-          BODY=$(awk "/^## \\[${VER#v}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
+          BODY=$(awk "/^## \\[${VER_NUM}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
           if [ -z "$BODY" ]; then
-            BODY="**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/${{ github.ref_name }}~1...${{ github.ref_name }}"
+            # Нет записи в CHANGELOG — генерируем из git log с предыдущего тега
+            PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^${VER}$" | tail -1)
+            if [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$VER" ]; then
+              BODY="### Изменено"$'\n\n'
+              BODY+=$(git log --oneline "${PREV_TAG}..${VER}" --no-merges | sed 's/^/- /')
+            else
+              BODY="**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/${VER}~1...${VER}"
+            fi
           fi
-          # Сохраняем в файл (многострочное значение)
           echo "$BODY" > /tmp/release_body.md
 
       - name: Create GitHub Release
