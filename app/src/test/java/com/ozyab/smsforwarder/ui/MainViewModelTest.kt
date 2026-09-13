@@ -62,6 +62,15 @@ class MainViewModelTest {
         Dispatchers.resetMain()
     }
 
+    /** Ждёт применения асинхронной записи в DataStore (до 3 с). */
+    private fun awaitPrefs(expected: String, actual: () -> String) {
+        val deadline = System.currentTimeMillis() + 3_000
+        while (actual() != expected && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10)
+        }
+        assertEquals(expected, actual())
+    }
+
     private fun TestScope.buildVm(): MainViewModel {
         // Main и IO должны шарить планировщик runTest, иначе advanceUntilIdle
         // не прокрутит задачи viewModelScope (они на Main).
@@ -139,10 +148,12 @@ class MainViewModelTest {
 
         vm.save()
 
-        assertEquals("4242", Prefs.chatId) // trim
-        assertFalse(Prefs.smsEnabled)
-        assertTrue(Prefs.quietHoursEnabled)
-        assertEquals(21 * 60, Prefs.quietHoursStart)
+        // Prefs пишет в DataStore асинхронно и читает из кэша — ждём, пока
+        // значение реально применится, иначе тест ловит промежуточное состояние.
+        awaitPrefs("4242") { Prefs.chatId } // trim
+        awaitPrefs("false") { Prefs.smsEnabled.toString() }
+        awaitPrefs("true") { Prefs.quietHoursEnabled.toString() }
+        awaitPrefs("1260") { Prefs.quietHoursStart.toString() }
     }
 
     // ===== testConnection =====
