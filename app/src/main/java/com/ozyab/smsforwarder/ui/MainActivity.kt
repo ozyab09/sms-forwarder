@@ -701,6 +701,9 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(4, 10, 4, 10)
         }
+        // Клик по событию — полные детали: кому/через какого бота, полный текст
+        row.isClickable = true
+        row.setOnClickListener { showEventDetails(e) }
         val icon = when (e.type) {
             EventHistory.TYPE_SMS -> "📨"
             else -> "📵"
@@ -756,6 +759,64 @@ class MainActivity : AppCompatActivity() {
             }
         )
         return row
+    }
+
+    /**
+     * Диалог с полной информацией о событии: получатель (Chat ID), бот, канал,
+     * статус, попытки, исходный текст и полный текст отправленного сообщения.
+     * Текст скроллируется — длинные SMS видны целиком.
+     */
+    private fun showEventDetails(e: EventEntity) {
+        val statusText = when (e.status) {
+            EventHistory.STATUS_SENT -> getString(R.string.history_status_sent)
+            EventHistory.STATUS_FAILED -> getString(R.string.history_status_failed)
+            EventHistory.STATUS_DROPPED -> getString(R.string.history_status_dropped)
+            else -> getString(R.string.history_status_queued)
+        }
+        val typeText = when (e.type) {
+            EventHistory.TYPE_SMS -> getString(R.string.history_detail_type_sms)
+            else -> getString(R.string.history_detail_type_call)
+        }
+        val dash = getString(R.string.history_detail_none)
+        val sb = StringBuilder()
+        sb.append(getString(R.string.history_detail_type)).append(": ").append(typeText).append('\n')
+        sb.append(getString(R.string.history_detail_time)).append(": ")
+            .append(dateTimeFull(e.timestamp)).append('\n')
+        sb.append(getString(R.string.history_detail_sender)).append(": ")
+            .append(e.sender.ifBlank { dash }).append('\n')
+        sb.append(getString(R.string.history_detail_status)).append(": ").append(statusText).append('\n')
+        sb.append(getString(R.string.history_detail_chat)).append(": ")
+            .append(e.chatId ?: dash).append('\n')
+        sb.append(getString(R.string.history_detail_bot)).append(": ")
+            .append(e.botUsername?.let { "@$it" } ?: dash).append('\n')
+        sb.append(getString(R.string.history_detail_channel)).append(": ")
+            .append(e.channelName ?: dash).append('\n')
+        sb.append(getString(R.string.history_detail_attempts)).append(": ").append(e.attempts).append('\n')
+        if (e.body.isNotBlank() && e.body != e.formattedText) {
+            sb.append('\n').append(getString(R.string.history_detail_original)).append(":\n")
+                .append(e.body).append('\n')
+        }
+        sb.append('\n').append(getString(R.string.history_detail_message)).append(":\n")
+            .append(e.formattedText.ifBlank { dash })
+
+        val tv = TextView(this).apply {
+            text = sb.toString()
+            setTextIsSelectable(true)
+            textSize = 13f
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+        val scroll = ScrollView(this).apply { addView(tv) }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.history_detail_title)
+            .setView(scroll)
+            .setPositiveButton(R.string.ok, null)
+            .show()
+    }
+
+    private fun dateTimeFull(ts: Long): String {
+        val sdf = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.getDefault())
+        return sdf.format(java.util.Date(ts))
     }
 
     private fun dateTime(ts: Long): String {

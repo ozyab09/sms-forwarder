@@ -138,6 +138,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (r.ok) LogStore.ok("Тест «${r.name}» — бот @${r.botUsername ?: "?"} доступен")
                 else LogStore.error("Тест «${r.name}» — ${r.error ?: "ошибка"}")
             }
+            // Кэшируем username бота — история показывает, через какого бота ушло
+            mapped.firstOrNull { it.ok }?.botUsername?.let { name ->
+                if (name.isNotBlank() && name != Prefs.botUsername) Prefs.botUsername = name
+            }
             emit(UiEvent.TestFinished(mapped, mapped.count { it.ok }))
         }
     }

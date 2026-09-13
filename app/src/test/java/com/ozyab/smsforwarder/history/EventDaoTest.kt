@@ -84,6 +84,37 @@ class EventDaoTest {
     }
 
     @Test
+    fun `insert keeps chat id and bot username for details dialog`() = runBlocking {
+        dao.insert(
+            EventEntity(
+                sender = "+79161234567",
+                body = "hello",
+                timestamp = 100,
+                type = "sms",
+                status = "sent",
+                channelName = "direct",
+                attempts = 1,
+                formattedText = "📩 SMS hello",
+                chatId = "123456789",
+                botUsername = "my_forward_bot",
+            )
+        )
+
+        val e = dao.recent(1).first()
+        assertEquals("123456789", e.chatId)
+        assertEquals("my_forward_bot", e.botUsername)
+        assertEquals("📩 SMS hello", e.formattedText)
+    }
+
+    @Test
+    fun `chat id and bot username are null by default`() = runBlocking {
+        dao.insert(EventEntity(sender = "A", body = "a", timestamp = 100, type = "sms", status = "sent", channelName = null, attempts = 1, formattedText = "a"))
+        val e = dao.recent(1).first()
+        assertEquals(null, e.chatId)
+        assertEquals(null, e.botUsername)
+    }
+
+    @Test
     fun `clear removes everything`() = runBlocking {
         dao.insert(EventEntity(sender = "A", body = "a", timestamp = 100, type = "sms", status = "sent", channelName = null, attempts = 1, formattedText = ""))
         dao.clear()
