@@ -7,8 +7,10 @@
 ## [0.5.14] - 2026-09-13
 
 ### Исправлено
-- **Показ Settings после recreate**: `panel_settings` имел VISIBLE по умолчанию в XML; добавлен `visibility=gone` + `nav.selectedItemId = nav.selectedItemId` для триггера listener'а после recreate()
-- **Room EventDatabase_Impl**: ProGuard keep rules для Room Database/Entity/Dao (R8 stripping в release)
+- **Показ Settings после recreate**: панель показывается через `post {}` после `onRestoreInstanceState()` — BottomNav восстанавливает selectedItemId позже чем `onCreate()`
+- **Room EventDatabase_Impl**: KSP `2.2.10-2.0.2` + ProGuard keep rules (R8 stripping в release)
+- **CI Node.js 20**: `actions/checkout@v4` → `v5`
+- **CI changelog**: fallback git log + фильтр auto-bump коммитов
 
 ## [0.5.13] - 2026-09-13
 
