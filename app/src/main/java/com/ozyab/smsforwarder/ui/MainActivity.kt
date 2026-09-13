@@ -460,53 +460,23 @@ class MainActivity : AppCompatActivity() {
     private fun setupBottomNav() {
         val nav = findViewById<BottomNavigationView>(R.id.bottom_nav)
         nav.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_settings -> {
-                    panelSettings.visibility = View.VISIBLE
-                    panelLogs.visibility = View.GONE
-                    panelHistory.visibility = View.GONE
-                    panelAbout.visibility = View.GONE
-                    true
-                }
-                R.id.nav_history -> {
-                    savePrefs()
-                    panelSettings.visibility = View.GONE
-                    panelLogs.visibility = View.GONE
-                    panelHistory.visibility = View.VISIBLE
-                    panelAbout.visibility = View.GONE
-                    renderHistory()
-                    true
-                }
-                R.id.nav_logs -> {
-                    savePrefs()
-                    panelSettings.visibility = View.GONE
-                    panelLogs.visibility = View.GONE
-                    panelHistory.visibility = View.GONE
-                    panelAbout.visibility = View.GONE
-                    panelLogs.visibility = View.VISIBLE
-                    renderLogs()
-                    true
-                }
-                R.id.nav_about -> {
-                    savePrefs()
-                    panelSettings.visibility = View.GONE
-                    panelLogs.visibility = View.GONE
-                    panelHistory.visibility = View.GONE
-                    panelAbout.visibility = View.VISIBLE
-                    true
-                }
-                else -> false
-            }
+            showPanelFor(item.itemId)
+            true
         }
-        // Восстанавливаем панель после recreate(): listener не стреляет при
-        // восстановлении состояния BottomNav из savedInstanceState,
-        // поэтому показываем панель вручную по текущему selectedItemId.
-        when (nav.selectedItemId) {
-            R.id.nav_settings -> panelSettings.visibility = View.VISIBLE
-            R.id.nav_logs -> panelLogs.visibility = View.VISIBLE
-            R.id.nav_history -> panelHistory.visibility = View.VISIBLE
-            R.id.nav_about -> panelAbout.visibility = View.VISIBLE
-            else -> panelSettings.visibility = View.VISIBLE
+        // post {} — после onRestoreInstanceState(), когда BottomNav уже восстановил selectedItemId
+        nav.post {
+            showPanelFor(nav.selectedItemId)
+        }
+    }
+
+    private fun showPanelFor(itemId: Int) {
+        panelSettings.visibility = if (itemId == R.id.nav_settings) View.VISIBLE else View.GONE
+        panelLogs.visibility = if (itemId == R.id.nav_logs) View.VISIBLE else View.GONE
+        panelHistory.visibility = if (itemId == R.id.nav_history) View.VISIBLE else View.GONE
+        panelAbout.visibility = if (itemId == R.id.nav_about) View.VISIBLE else View.GONE
+        when (itemId) {
+            R.id.nav_logs -> renderLogs()
+            R.id.nav_history -> renderHistory()
         }
     }
 
