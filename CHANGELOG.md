@@ -4,6 +4,20 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версионирование — [SemVer](https://semver.org/lang/ru/).
 
+## [0.4.28] - 2026-09-13
+
+### Добавлено
+- **Unit-тесты `MainViewModel`** (`MainViewModelTest`): загрузка/сохранение настроек,
+  проверка связи по каналам (успех/ошибки/нет токена), определение Chat ID —
+  пункт T1 дорожной карты закрыт
+- **Инжектируемые зависимости во ViewModel** (`testAllImpl`, `resolveChatIdImpl`,
+  `getBotUsernameImpl`, `ioDispatcher`) — тесты без сети; в проде реальные реализации
+- Зависимость `kotlinx-coroutines-test`
+
+### Исправлено
+- **`MainViewModel`: отсутствующий импорт `Channel`** — сборка падала на
+  `Unresolved reference 'Channel'` в CI
+
 ## [0.4.27] - 2026-09-13
 
 ### Добавлено

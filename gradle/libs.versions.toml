@@ -2,7 +2,7 @@
 # Версия приложения — bump здесь, CI сам создаст тег vX.Y.Z и релиз при мерже в main
 versionMajor = "0"
 versionMinor = "4"
-versionPatch = "27"
+versionPatch = "28"
 agp = "8.9.2"
 kotlin = "2.2.10"
 coreKtx = "1.13.1"
@@ -37,6 +37,7 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-test-core = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTest" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
