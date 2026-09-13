@@ -2,6 +2,7 @@
 
 > Этот файл — полная техническая документация для разработчиков и ИИ-агентов.
 > README.md — для пользователей (дружелюбный, скриншоты, минимум технических деталей).
+> Актуальный план работ — ROADMAP.md; история изменений — CHANGELOG.md.
 
 ---
 
@@ -9,9 +10,9 @@
 
 **SMS Forwarder** — Android app forwarding incoming SMS & missed calls to Telegram via Bot API.
 - Min SDK: 29 (Android 10), Target: 34 (Android 14)
-- Language: Kotlin, Gradle Kotlin DSL
-- Architecture: Clean separation — UI, Receivers, Foreground Service, Telegram Client
-- Privacy-first: encrypted token storage, no logs, no analytics
+- Language: Kotlin 2.2, Gradle Kotlin DSL (Gradle 8.11, AGP 8.9)
+- Architecture: Clean separation — UI (MVVM), Receivers, Foreground Service, Telegram channels
+- Privacy-first: encrypted token storage, no logs leave device, no analytics
 
 ---
 
@@ -19,26 +20,25 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  UI Layer (MainActivity)                                            │
-│  - Settings: token, chatId, proxy, toggles                          │
-│  - Status: start/stop service, counters, event log (last 10)        │
-│  - Storage: EncryptedSharedPreferences (secure) + SharedPreferences │
+│  UI Layer (MainActivity — тонкий View)                              │
+│  └─ MainViewModel (StateFlow<SettingsUiState> + SharedFlow<UiEvent>)│
+│  - Вкладки: Настройки / История / Логи / О приложении               │
+│  - Storage: DataStore (plain) + EncryptedSharedPreferences (секреты)│
 └────────────────────────────┬────────────────────────────────────────┘
-                             │ Prefs (LiveData / direct reads)
+                             │ Prefs (cache) / EventHistory (Room)
 ┌────────────────────────────▼────────────────────────────────────────┐
 │  Broadcast Receivers (system-triggered)                             │
-│  ├─ SmsReceiver:     SMS_RECEIVED → extract sender/body/date        │
-│  ├─ CallReceiver:    PHONE_STATE + CallLog → detect missed only     │
+│  ├─ SmsReceiver:     SMS_RECEIVED → формат по шаблону               │
+│  ├─ CallReceiver:    PHONE_STATE + CallLog → только пропущенные     │
 │  └─ BootReceiver:    BOOT_COMPLETED → start ForwardService          │
 └────────────────────────────┬────────────────────────────────────────┘
-                             │ Intent extras (Event DTOs)
+                             │ Intent extras (QueuedEvent)
 ┌────────────────────────────▼────────────────────────────────────────┐
 │  ForwardService (Foreground, START_STICKY, type dataSync)           │
-│  ├─ EventQueue: SendQueue (FIFO + retry min-heap) + file persistence│
-│  ├─ RetryWorker: per-event backoff (15s → … → 10m cap, 8 attempts)  │
-│  ├─ NetworkMonitor: ConnectivityManager callback                    │
-│  └─ TelegramClient (interface)                                      │
-│       └─ BotApiClient (OkHttp + ProxyConfig)                        │
+│  ├─ SendQueue: FIFO + min-heap ретраев (per-event backoff)          │
+│  ├─ EventQueueStore: атомарная персистентность очереди на диск      │
+│  ├─ EventHistory: Room (статус, канал, chatId, бот, текст)          │
+│  └─ ChannelSender → ChannelClientFactory (кэш OkHttp) → Bot API     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -46,15 +46,28 @@
 
 | Package | Class | Responsibility |
 |---------|-------|----------------|
-| `ui` | `MainActivity` | Settings UI, service control, onboarding |
-| `receiver` | `SmsReceiver` | Catch incoming SMS, parse sender from contacts |
-| `receiver` | `CallReceiver` | Track call state, confirm missed via CallLog |
-| `receiver` | `BootReceiver` | Auto-start service on boot |
-| `service` | `ForwardService` | Foreground service, queue, retries, notifications |
-| `telegram` | `TelegramClient` | Bot API sendMessage / getUpdates / getMe |
-| `telegram` | `Channel` | ChannelStore: список каналов (direct + прокси), приоритет, `testAll` |
-| `util` | `Prefs` | Encrypted (token, proxyPass, channels) + plain prefs; **async init** (MasterKey создаётся в фоне, аксессоры ждут готовности) |
-| `util` | `ContactNames` | Resolve phone number → contact name (cached) |
+| `ui` | `MainActivity` | Тонкий View: вкладки, SAF, разрешения, рендер состояния |
+| `ui` | `MainViewModel` | Состояние экрана + операции (тест каналов, getMyId), MVVM |
+| `ui` | `OnboardingActivity` | Первый запуск: приветствие → токен → Chat ID → готово |
+| `receiver` | `SmsReceiver` | Входящие SMS, формат по шаблону |
+| `receiver` | `CallReceiver` | Состояние вызова, подтверждение «пропущен» через CallLog |
+| `receiver` | `BootReceiver` | Автозапуск сервиса после перезагрузки |
+| `service` | `ForwardService` | Foreground-сервис: очередь, per-event ретраи, история |
+| `service` | `SendQueue` | FIFO новых событий + min-heap ретраев, MAX_ATTEMPTS |
+| `service` | `EventQueueStore` | Персистентность очереди (tmp + rename) — события не теряются |
+| `telegram` | `Channel` | Канал отправки: direct / http / socks5 (+ `ChannelStore`) |
+| `telegram` | `ChannelSender` | Каскадная отправка + `testAll` (getMe, лимит 4) |
+| `telegram` | `ChannelClientFactory` | Кэш OkHttp-клиентов по конфигурации канала |
+| `telegram` | `TelegramClient` | Bot API: sendMessage / getUpdates / getMe |
+| `history` | `EventHistory` | Запись/чтение истории (Room) — вкладка «История» |
+| `update` | `UpdateChecker` / `UpdateManager` | Проверка GitHub Releases, диалог, загрузка APK |
+| `util` | `Prefs` | DataStore (plain) + EncryptedSharedPreferences; **async init** |
+| `util` | `LogStore` | Кольцевой буфер логов в памяти (200 записей) |
+| `util` | `TemplateFormatter` | Шаблоны сообщений + предпросмотр |
+| `util` | `QuietHours` | Тихие часы (интервалы, в т.ч. через полночь) |
+| `util` | `SettingsBackup` | Экспорт/импорт настроек (JSON, без секретов) |
+| `util` | `ThemeManager` | Светлая/тёмная/системная тема |
+| `util` | `ContactNames` / `SimInfo` / `ReceiverExecutor` | Имя контакта, SIM, фоновая работа ресиверов (`goAsync`) |
 
 ---
 
@@ -63,12 +76,15 @@
 | Data | Storage | Encryption |
 |------|---------|------------|
 | Bot token | `EncryptedSharedPreferences` | AES256-GCM (MasterKey) |
-| Proxy password | `EncryptedSharedPreferences` | AES256-GCM |
-| Chat ID, proxy host/port, toggles | Plain `SharedPreferences` | None (not secret) |
-| Event log (last 10) | In-memory only | Never persisted |
+| Proxy password, channels JSON | `EncryptedSharedPreferences` | AES256-GCM |
+| Chat ID, proxy host/port, toggles, templates | DataStore (plain) | None (not secret) |
+| Bot username (кэш для истории) | DataStore (plain) | None (не секрет) |
+| Event log | In-memory ring buffer (200) | Never persisted |
+| История событий | Room (`event_history.db`, локально) | SQLite, не шифруется — секретов нет |
 
 **No** data leaves device except via user's Telegram bot over HTTPS.
-**No** crash reporting, analytics, or network calls except Bot API.
+**No** crash reporting, analytics, or network calls except Bot API + GitHub Releases (проверка обновлений).
+При экспорте настроек секреты (токен, пароли прокси) в файл **не** попадают.
 
 ---
 
@@ -82,6 +98,8 @@
 - `ChannelSender.testAll` проверяет все каналы параллельно через `getMe`
   (лимит 4, сообщения не отправляются; результат — username бота по каждому
   каналу), каскадная отправка с общим таймаутом (callTimeout 30с, каскад ≤ 120с).
+- Promote-on-success: канал, через который успешно ушло сообщение, становится
+  первым среди прокси (`ChannelStore.promote`), direct — всегда первый.
 
 ---
 
@@ -95,8 +113,9 @@
 | Battery | Requests `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` |
 | Vendor quirks | Onboarding shows vendor-specific autostart instructions |
 | Queue | `SendQueue`: FIFO для новых событий + min-heap ретраев; персистентность в `filesDir/event_queue.json` (события не теряются при смерти процесса) |
-| Retry | per-event: 15с → 30с → … кап 10 мин; после 8 попыток событие отбрасывается с записью в лог |
+| Retry | per-event: 15с → 30с → … кап 10 мин; после 8 попыток событие отбрасывается с записью в лог и историю (`dropped`) |
 | Blocking | Новые события обрабатываются немедленно — бэк-офф упавших не блокирует очередь (нет head-of-line blocking) |
+| Stop | «Стоп» сервиса отбрасывает очередь (память + файл) — остановка означает остановку пересылки |
 
 ---
 
@@ -113,12 +132,22 @@
 ./gradlew connectedDebugAndroidTest
 ```
 
+> Для локального прогона нужен Android SDK (`ANDROID_HOME` или `local.properties`
+> с `sdk.dir`). Без SDK проверка — через CI (PR: build + test + lint).
+
 ### Test Coverage Areas
-- `SendQueue` ordering + retry logic (per-event backoff, отброс после попыток, переполнение)
-- `ChannelSender.testAll` parallel checks (независимость результатов, порядок)
-- `SmsFilter` whitelist matching + ReDoS-детектор
-- `ContactNames` phone normalization + cache
-- `UpdateChecker` version comparison
+- `MainViewModel` — load/save, testConnection (успех/ошибки/нет токена), resolveChatId
+- `SendQueue` — порядок FIFO/ретраев, per-event backoff, отброс после попыток
+- `ChannelStore` / `ChannelSender` / `ChannelClientFactory` — приоритет, promote, testAll, прокси-конфиг
+- `TemplateFormatter` — плейсхолдеры, дефолты, предпросмотр
+- `QuietHours` — интервалы, в т.ч. через полночь
+- `EventDao` (Room) — сортировка, поиск, лимиты, новые поля
+- `LogStore`, `SettingsBackup` — кольцевой буфер, privacy-first экспорт/импорт
+- `UtilTest` — сравнение версий, ссылки обновлений
+- `MainActivityLaunchTest` — регрессии главного экрана (холодный старт, поворот, вкладки)
+
+Не покрыто (см. ROADMAP T2–T5, T7): `TelegramClient` (MockWebServer), `EventQueueStore`,
+`ForwardService` (интеграционный), `SmsReceiver`/`CallReceiver`, уведомление FGS.
 
 ---
 
@@ -128,37 +157,34 @@
 | Event | Jobs Run |
 |-------|----------|
 | `pull_request` | `build` (debug APK + test + lint) |
-| `push` tags `v*` | `release` (signed APK + GitHub Release) |
+| `push` `main` | `release-tag` (auto tag из `libs.versions.toml`) |
+| tag `v*` / `workflow_dispatch` на теге | `release` (signed APK + GitHub Release) |
 
 ### Jobs
 ```yaml
 build:
-  runs-on: ubuntu-latest
-  steps:
-    - checkout@v7.0.1
-    - setup-java@v5.7.0 (temurin 17, gradle cache)
-    - setup-android@v4.0.1 (gradle cache)
-    - assembleDebug
-    - testDebugUnitTest + lintDebug
-    - upload-artifact@v7 (debug APK)
+  if: pull_request
+  steps: checkout → setup-java (temurin 17) → setup-android →
+         assembleDebug → testDebugUnitTest + lintDebug → upload-artifact (debug APK)
+
+release-tag:
+  if: push to main
+  steps: checkout → читает versionMajor/minor/patch из libs.versions.toml →
+         создаёт тег vX.Y.Z через API (если ещё нет) → workflow_dispatch на теге
 
 release:
-  runs-on: ubuntu-latest
   if: startsWith(github.ref, 'refs/tags/v')
-  steps:
-    - checkout@v7.0.1
-    - setup-java@v5.7.0
-    - setup-android@v4.0.1
-    - assembleRelease (signs with KEYSTORE_* secrets)
-    - upload-artifact@v7 (release APK)
-    - softprops/action-gh-release@v2.6.2 (create Release)
+  steps: checkout → setup-java → setup-android →
+         testReleaseUnitTest + assembleRelease (KEYSTORE_* secrets) →
+         upload-artifact → softprops/action-gh-release@v3.0.3
 ```
 
 ### Versioning (SemVer)
-- Tags: `v<major>.<minor>.<patch>` (e.g., `v1.2.0`)
+- Tags: `v<major>.<minor>.<patch>` (e.g. `v1.2.0`) — создаются **автоматически** при мерже в main
 - `versionName` = tag without `v`
 - `versionCode` = `major*10000 + minor*100 + patch`
-- Source: `gradle/libs.versions.toml` (versionMajor/minor/patch) + CI tag
+- Source: `gradle/libs.versions.toml` (versionMajor/minor/patch)
+- Bump версии делается **в том же PR**, что и фича/фикс (patch — фиксы, minor — фичи)
 
 ### Required Secrets (GitHub → Settings → Secrets → Actions)
 | Secret | Description |
@@ -173,18 +199,10 @@ release:
 ## 📦 Release Process
 
 ```bash
-# 1. Update version in libs.versions.toml
-versionMajor = "1"
-versionMinor = "2"
-versionPatch = "0"
+# 1. В ветке с фичей обновить версию + CHANGELOG.md
+#    gradle/libs.versions.toml: versionPatch += 1
 
-# 2. Commit + tag
-git add gradle/libs.versions.toml
-git commit -m "chore: bump version to 1.2.0"
-git tag v1.2.0
-git push origin main --tags
-
-# 3. GitHub Actions builds release APK + creates Release automatically
+# 2. Примержить PR в main — CI сам создаст тег и GitHub Release
 ```
 
 ---
@@ -199,36 +217,61 @@ sms-forwarder/
 │   │   ├── main/
 │   │   │   ├── AndroidManifest.xml
 │   │   │   ├── java/com/ozyab/smsforwarder/
-│   │   │   │   ├── ui/MainActivity.kt
+│   │   │   │   ├── SmsForwarderApp.kt      # Application: Prefs.init, Timber
+│   │   │   │   ├── ui/
+│   │   │   │   │   ├── MainActivity.kt     # 4 вкладки, тонкий View
+│   │   │   │   │   ├── MainViewModel.kt    # Состояние + операции
+│   │   │   │   │   └── OnboardingActivity.kt
 │   │   │   │   ├── receiver/
 │   │   │   │   │   ├── SmsReceiver.kt
 │   │   │   │   │   ├── CallReceiver.kt
 │   │   │   │   │   └── BootReceiver.kt
-│   │   │   │   ├── service/ForwardService.kt
+│   │   │   │   ├── service/
+│   │   │   │   │   ├── ForwardService.kt
+│   │   │   │   │   ├── SendQueue.kt
+│   │   │   │   │   └── EventQueueStore.kt
 │   │   │   │   ├── telegram/
-│   │   │   │   │   ├── TelegramClient.kt
-│   │   │   │   │   └── ProxyConfig.kt
+│   │   │   │   │   ├── Channel.kt          # Channel + ChannelStore
+│   │   │   │   │   ├── ChannelSender.kt
+│   │   │   │   │   ├── ChannelClientFactory.kt
+│   │   │   │   │   └── TelegramClient.kt
+│   │   │   │   ├── history/
+│   │   │   │   │   ├── EventEntity.kt / EventDao.kt / EventDatabase.kt
+│   │   │   │   │   └── EventHistory.kt
+│   │   │   │   ├── update/
+│   │   │   │   │   ├── UpdateChecker.kt / UpdateManager.kt
+│   │   │   │   │   └── DownloadReceiver.kt
 │   │   │   │   └── util/
-│   │   │   │       ├── Prefs.kt
-│   │   │   │       └── ContactNames.kt
+│   │   │   │       ├── Prefs.kt            # DataStore + EncryptedSharedPreferences
+│   │   │   │       ├── LogStore.kt
+│   │   │   │       ├── ThemeManager.kt
+│   │   │   │       ├── QuietHours.kt
+│   │   │   │       ├── SettingsBackup.kt
+│   │   │   │       ├── TemplateFormatter.kt
+│   │   │   │       ├── ContactNames.kt / SimInfo.kt
+│   │   │   │       └── ReceiverExecutor.kt
 │   │   │   └── res/
-│   │   │       ├── layout/activity_main.xml
+│   │   │       ├── layout/ (activity_main, activity_onboarding, onboarding_step_*, item_channel)
+│   │   │       ├── menu/bottom_nav.xml
 │   │   │       ├── values/strings.xml, colors.xml, themes.xml
+│   │   │       ├── values-en/strings.xml
 │   │   │       ├── mipmap-*/ic_launcher*.png  # adaptive icon
 │   │   │       └── xml/ (notification channels, backup rules)
-│   │   └── test/...               # Unit tests
+│   │   └── test/java/com/ozyab/smsforwarder/  # unit-тесты (JUnit + Robolectric)
 │   └── proguard-rules.pro
 ├── gradle/
 │   ├── libs.versions.toml         # Version catalog (AGP, Kotlin, deps, app version)
 │   └── wrapper/gradle-wrapper.properties
-├── .github/workflows/build.yml    # CI/CD
+├── .github/workflows/build.yml    # CI/CD (PR: debug+tests+lint; main: auto tag; tag: release)
 ├── docs/
-│   ├── TECH_TASK.md               # Full technical specification
-│   └── screenshots/               # Placeholder for README screenshots
+│   ├── TECH_TASK.md               # Техническое задание (актуализировано)
+│   ├── BRAINSTORM.md              # Архив идей (статусы — исторические)
+│   └── screenshots/               # app.png для README
 ├── build.gradle.kts               # Root build script
 ├── settings.gradle.kts
 ├── gradle.properties
 ├── gradlew / gradlew.bat
+├── ROADMAP.md                     # План работ + карта покрытия тестами
 ├── CHANGELOG.md
 ├── README.md                      # User-facing documentation
 └── AGENTS.md                      # This file
@@ -276,7 +319,6 @@ python3 generate_icons.py logo_transparent.png
 | FGS-старт из PHONE_STATE на Android 12+ | `ForwardService.start` обёрнут в try/catch; при запрете событие сохраняется в файл очереди и уйдёт при следующем старте сервиса |
 | Без `READ_CALL_LOG` номера пропущенных не приходят (Android 9+) | UI предупреждает: фича «пропущенные» требует разрешения «Журнал вызовов» |
 | «Стоп» сервиса | Очередь отбрасывается (включая файл на диске) — остановка означает остановку пересылки |
-| Пользовательский block-regex (ReDoS) | Паттерны с вложенными квантификаторами/альтернациями отклоняются (`SmsFilter.isDangerousRegex`); regex компилируется один раз |
 | Vendor autostart (MIUI, EMUI, OneUI) | Onboarding shows vendor-specific instructions; `START_STICKY` helps but not 100% |
 | Android 13+ notification permission | Not requested — channel is `IMPORTANCE_MIN`, user can disable in system settings |
 | CallLog permission revoked on some OEMs | OFFHOOK-трекинг: без READ_CALL_LOG пропущенным считается RINGING→IDLE без OFFHOOK; принятые вызовы не пересылаются |
@@ -284,6 +326,9 @@ python3 generate_icons.py logo_transparent.png
 | Проверка обновлений | Авто-проверка раз в сутки + ручная кнопка «Проверить обновления»; метка throttle ставится только при успешном ответе GitHub API (сбой сети не блокирует повторные проверки) |
 | Тёмная тема | Все тексты/иконки используют цвета темы (`textColorPrimary/Secondary`, `colorControlNormal`) — хардкод чёрного недопустим в новых layout. Выбор темы: `Prefs.themeMode` + `ThemeManager.apply()` в onCreate каждой Activity |
 | OkHttp-клиенты | Кэшируются в `ChannelClientFactory` по конфигурации канала, `invalidate()` при изменении каналов; НЕ закрывать клиенты после использования (в отличие от старого кода с shutdown) |
+| Room-история | `EventDatabase` версия 2 (`MIGRATION_1_2` — chatId/botUsername); `fallbackToDestructiveMigration` как страховка: история не критична, при сбое миграции она просто очищается |
+| Шаблоны сообщений | Сохраняются автоматически при уходе с экрана (`savePrefs`), плюс явные кнопки «Сохранить»/«Сбросить»; пустое значение = стандартный формат |
+| Username бота в истории | Кэш `Prefs.botUsername` (обновляется при успешной проверке связи); если пусто — один `getMe` при первой успешной отправке |
 
 ---
 
@@ -314,4 +359,4 @@ Update in same PR that bumps version.
 
 ---
 
-_Updated: 2026-09-09_
+_Updated: 2026-09-13_
