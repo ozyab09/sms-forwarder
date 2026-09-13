@@ -498,6 +498,10 @@ class MainActivity : AppCompatActivity() {
                 else -> false
             }
         }
+        // Принудительно триггерим listener для текущего выбранного элемента,
+        // чтобы показать нужную панель после recreate() (listener не стреляет
+        // при восстановлении состояния из savedInstanceState).
+        nav.selectedItemId = nav.selectedItemId
     }
 
     private fun renderChannels() {
