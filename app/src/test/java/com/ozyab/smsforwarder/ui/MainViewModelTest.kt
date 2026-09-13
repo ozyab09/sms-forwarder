@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -70,10 +71,21 @@ class MainViewModelTest {
         return v
     }
 
-    /** Собирает события VM в список (для проверки одноразовых UiEvent). */
-    private fun TestScope.collectEvents(v: MainViewModel): MutableList<UiEvent> {
+    /**
+     * Подписывается на события VM, выполняет [block], затем отписывается.
+     *
+     * Важно: сначала даём коллектору подписаться ([runCurrent]) — `UiEvent`
+     * отдаются через `tryEmit` без replay, поэтому события, отправленные до
+     * подписки, теряются. И обязательно отменяем коллектор ([Job.cancel]):
+     * `events` — бесконечный SharedFlow, иначе runTest ждёт его таймаутом.
+     */
+    private fun TestScope.withEvents(v: MainViewModel, block: () -> Unit): List<UiEvent> {
         val out = mutableListOf<UiEvent>()
-        launch { v.events.collect { out.add(it) } }
+        val job = launch { v.events.collect { out.add(it) } }
+        runCurrent()
+        block()
+        advanceUntilIdle()
+        job.cancel()
         return out
     }
 
@@ -138,10 +150,8 @@ class MainViewModelTest {
     @Test
     fun `test connection without token emits toast`() = runTest {
         vm = buildVm()
-        val events = collectEvents(vm)
 
-        vm.testConnection()
-        advanceUntilIdle()
+        val events = withEvents(vm) { vm.testConnection() }
 
         assertTrue(events.any { it is UiEvent.ToastRes && it.resId == R.string.toast_enter_token })
     }
@@ -160,12 +170,12 @@ class MainViewModelTest {
                 ),
             )
         }
-        val events = collectEvents(vm)
-
-        vm.testConnection()
-        // testing=true сразу после вызова (до ответа сети)
-        assertTrue(vm.state.value.testing)
-        advanceUntilIdle()
+        lateinit var events: List<UiEvent>
+        events = withEvents(vm) {
+            vm.testConnection()
+            // testing=true сразу после вызова (до ответа сети)
+            assertTrue(vm.state.value.testing)
+        }
 
         assertFalse(vm.state.value.testing)
         val finished = events.filterIsInstance<UiEvent.TestFinished>()
@@ -183,10 +193,8 @@ class MainViewModelTest {
         vm.testAllImpl = { _, channels ->
             channels.map { ChannelSender.ChannelTestResult(it, false, error = "down") }
         }
-        val events = collectEvents(vm)
 
-        vm.testConnection()
-        advanceUntilIdle()
+        val events = withEvents(vm) { vm.testConnection() }
 
         val finished = events.filterIsInstance<UiEvent.TestFinished>()
         assertEquals(1, finished.size)
@@ -198,10 +206,8 @@ class MainViewModelTest {
     @Test
     fun `resolve chat id without token emits hint toast`() = runTest {
         vm = buildVm()
-        val events = collectEvents(vm)
 
-        vm.resolveChatId()
-        advanceUntilIdle()
+        val events = withEvents(vm) { vm.resolveChatId() }
 
         assertTrue(events.any { it is UiEvent.ToastRes && it.resId == R.string.pref_bot_token_hint })
     }
@@ -211,11 +217,12 @@ class MainViewModelTest {
         vm = buildVm()
         vm.setBotToken("123:abc")
         vm.resolveChatIdImpl = { TelegramClient.Result.Ok(987654321L) }
-        val events = collectEvents(vm)
 
-        vm.resolveChatId()
-        assertTrue(vm.state.value.resolvingChatId)
-        advanceUntilIdle()
+        lateinit var events: List<UiEvent>
+        events = withEvents(vm) {
+            vm.resolveChatId()
+            assertTrue(vm.state.value.resolvingChatId)
+        }
 
         assertFalse(vm.state.value.resolvingChatId)
         assertEquals("987654321", vm.state.value.chatId)
@@ -229,10 +236,8 @@ class MainViewModelTest {
         vm.setBotToken("123:abc")
         vm.resolveChatIdImpl = { TelegramClient.Result.Err("нет сообщений") }
         vm.getBotUsernameImpl = { "my_bot" }
-        val events = collectEvents(vm)
 
-        vm.resolveChatId()
-        advanceUntilIdle()
+        val events = withEvents(vm) { vm.resolveChatId() }
 
         assertFalse(vm.state.value.resolvingChatId)
         val failed = events.filterIsInstance<UiEvent.ChatIdFailed>()
