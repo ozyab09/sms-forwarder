@@ -142,12 +142,13 @@
 - `TemplateFormatter` — плейсхолдеры, дефолты, предпросмотр
 - `QuietHours` — интервалы, в т.ч. через полночь
 - `EventDao` (Room) — сортировка, поиск, лимиты, новые поля
+- `EventQueueStore` — персистентность очереди (атомарная запись, битый файл, лимит)
 - `LogStore`, `SettingsBackup` — кольцевой буфер, privacy-first экспорт/импорт
 - `UtilTest` — сравнение версий, ссылки обновлений
 - `MainActivityLaunchTest` — регрессии главного экрана (холодный старт, поворот, вкладки)
 
-Не покрыто (см. ROADMAP T2–T5, T7): `TelegramClient` (MockWebServer), `EventQueueStore`,
-`ForwardService` (интеграционный), `SmsReceiver`/`CallReceiver`, уведомление FGS.
+Не покрыто (см. ROADMAP T4, T5): `ForwardService` (интеграционный),
+`SmsReceiver`/`CallReceiver`.
 
 ---
 
