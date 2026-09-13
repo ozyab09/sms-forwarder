@@ -125,7 +125,6 @@ object SettingsBackup {
                 }
             }
             ChannelStore.setAll(listOf(ChannelStore.all().first()) + proxies)
-            ChannelStore.invalidate()
         }
 
         return ImportResult(

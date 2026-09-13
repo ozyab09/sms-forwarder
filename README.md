@@ -24,11 +24,14 @@
 - 🌙 **Работает в фоне** — автозапуск после перезагрузки, защита от выгрузки (Doze/Exemption)
 - 🔒 **Токен в приложении** — вводите в UI, хранится в EncryptedSharedPreferences (AES-256)
 - 🌐 **Многоканальная отправка** — «Без прокси» + неограниченное число HTTP/SOCKS5 прокси
-- 🔄 **Каскадные ретраи** — пробует каналы по порядку, экспоненциальный бэкофф 15с→30с→60с (кап 10 мин), суммарно ~15 мин
+- 🔄 **Каскадные ретраи** — пробует каналы по порядку, экспоненциальный бэкофф 15с→30с→60с (кап 10 мин), суммарно ~15 мин; успешный канал автоматически становится приоритетным
+- ⏰ **Тихие часы** — расписание, когда события не отправляются (может пересекать полночь)
+- 📜 **История событий** — вкладка с сохранёнными SMS/вызовами (Room)
 - 📊 **Вкладка «Логи»** — INFO/OK/WARN/ERROR, in-memory кольцевой буфер 200 записей
-- ⬆️ **Автообновления** — проверка GitHub Releases, скачивание APK в фоне
+- 📦 **Экспорт/импорт настроек** — JSON backup через SAF, privacy-first (секреты не попадают в файл)
+- ⬆️ **Автообновления** — проверка GitHub Releases при запуске (не чаще раза в сутки), ручная кнопка
 - 🎨 **Темы** — светлая / тёмная / по системе
-- 🛡️ **Фильтры SMS** — белый список, чёрный regex, короткие номера
+- 🧩 **Шаблоны сообщений** — `{sender}`, `{text}`, `{time}`, `{name}`, `{sim}` и другие
 - 🔒 **Пароли прокси** — в EncryptedSharedPreferences, миграция из v0.4.x
 
 ---
@@ -62,11 +65,13 @@
 | **Chat ID** | Ваш числовой ID. Кнопка «Получить мой ID» заберёт его через getUpdates. |
 | **Каналы отправки** | «Без прокси» (всегда) + HTTP/SOCKS5 прокси. Порядок = приоритет каскада. |
 | **Прокси-канал** | Тип (HTTP/SOCKS5), хост, порт, логин/пароль (пароль — в EncryptedSharedPreferences). |
-| **Переключатели** | Вкл/выкл SMS, вызовы, фильтр коротких номеров. |
-| **Фильтры SMS** | Режим (все / белый список / черный список regex), белый список, regex. |
+| **Переключатели** | Вкл/выкл SMS, вызовы. |
+| **Шаблоны сообщений** | Кастомный формат SMS и вызовов с плейсхолдерами `{sender}`/`{text}`/`{time}` и т.д. |
+| **Тихие часы** | Интервал (в т.ч. через полночь), когда пересылка не выполняется. |
+| **История** | Вкладка с последними событиями (SMS/вызовы), хранятся локально в Room. |
 | **Статус** | Запуск/остановка сервиса, счётчик, последние события. |
 | **Темы** | Светлая / тёмная / по системе (во вкладке «О приложении»). |
-| **Автообновления** | Кнопка «Проверить обновления» — скачивает APK с GitHub Releases. |
+| **Автообновления** | Проверка при запуске (раз в сутки) + кнопка «Проверить обновления» в «О приложении». |
 
 ---
 
@@ -119,13 +124,16 @@
 ## 🏗️ Архитектура (кратко)
 
 ```
-UI (MainActivity) → EncryptedSharedPreferences
+UI (MainActivity — тонкий вид) → MainViewModel (StateFlow/SharedFlow)
+        │
+        ├── Prefs: DataStore (plain) + EncryptedSharedPreferences (секреты)
+        ├── ChannelStore / ChannelSender → TelegramClient → Bot API (HTTPS + proxy)
         │
 SmsReceiver / CallReceiver / BootReceiver
         │
 ForwardService (Foreground, START_STICKY)
-        ├── очередь + ретраи
-        └── TelegramClient → Bot API (HTTPS + proxy)
+        ├── EventHistory (Room) + вкладка «История»
+        └── SendQueue + каскадные ретраи
 ```
 
 ---
@@ -143,19 +151,21 @@ ForwardService (Foreground, START_STICKY)
 ```
 sms-forwarder/
 ├── app/src/main/java/com/ozyab/smsforwarder/
-│   ├── ui/          # MainActivity (настройки + статус)
+│   ├── ui/          # MainActivity (3 tabs), MainViewModel (MVVM), OnboardingActivity
 │   ├── receiver/    # SmsReceiver, CallReceiver, BootReceiver
-│   ├── service/     # ForwardService (фон + очередь)
-│   ├── telegram/    # TelegramClient, ProxyConfig
-│   └── util/        # Prefs, ContactNames
-├── app/src/main/res/           # layout, strings, темы, иконки
-├── app/src/test/               # юнит-тесты
-├── gradle/                     # wrapper, libs.versions.toml
-├── .github/workflows/build.yml # CI/CD + SemVer релизы
+│   ├── service/     # ForwardService (font, queue, retries), SendQueue, EventQueueStore
+│   ├── telegram/    # Channel, ChannelStore, ChannelClientFactory, ChannelSender, TelegramClient
+│   ├── history/     # Room: EventDao, EventDatabase, EventHistory (вкладка «История»)
+│   ├── update/      # UpdateChecker, UpdateManager (GitHub Releases)
+│   └── util/        # Prefs, LogStore, ThemeManager, QuietHours, SettingsBackup, TemplateFormatter
+├── app/src/main/res/           # layout, strings (ru/en), themes, icons
+├── app/src/test/               # unit-тесты (JUnit + Robolectric)
+├── gradle/                     # wrapper, libs.versions.toml (version)
+├── .github/workflows/build.yml # CI/CD (PR: debug+tests+lint; tag v*: release+GitHub Release)
 ├── docs/
 │   ├── TECH_TASK.md            # полное ТЗ
-│   └── screenshots/            # скриншоты (добавить позже)
-├── AGENTS.md                   # техническая документация для разработчиков
+│   └── screenshots/            # app.png
+├── AGENTS.md                   # документация для разработчиков
 ├── CHANGELOG.md
 └── README.md
 ```
@@ -164,43 +174,19 @@ sms-forwarder/
 
 ## 💡 Идеи для дальнейшего развития
 
-| Идея | Описание | Сложность |
-|------|----------|-----------|
-| **Мульти-бот** | Поддержка нескольких ботов с разными Chat ID (разные получатели) | Средняя |
-| **Групповые уведомления** | Отправка в Telegram-группы/супергруппы (topic_id для форумов) | Низкая |
-| **Экспорт/импорт настроек** | Backup JSON (EncryptedSharedPreferences → файл) для переноса на др. телефон | Низкая |
-| **Web UI для логов** | Встроенный веб-сервер (NanoHTTPD) для просмотра логов с ПК в локальной сети | Средняя |
-| **Расписание/тихие часы** | Не слать в определённое время, только накоплять и слать пачкой | Низкая |
-| **Шаблоны сообщений** | Переменные: `{sender}`, `{text}`, `{time}`, `{contact}` для кастомного формата | Низкая |
-| **Дублирование каналов** | Параллельная отправка в 2+ Telegram-бота одновременно (не каскадом) | Средняя |
-| **Push-уведомления на телефон** | Локальные уведомления (без сети) при получении SMS/вызова | Низкая |
-| **Поиск по логам** | Фильтр по уровню/тексту/времени во вкладке «Логи» | Низкая |
-| **Статистика** | Графики: SMS/день, успешность по каналам, latency | Средняя |
-| **MQTT / Webhook** | Альтернативные каналы доставки (Home Assistant, n8n, свои серверы) | Высокая |
-| **F-Droid публикация** | Автосборка и публикация в F-Droid (требует reproducible builds) | Высокая |
-| **Kotlin Multiplatform** | iOS версия (общий core: Channel, Sender, Queue, Retry) | Очень высокая |
-
----
-
-## 📁 Структура проекта
-
-```
-sms-forwarder/
-├── app/src/main/java/com/ozyab/smsforwarder/
-│   ├── ui/          # MainActivity (3 tabs), item_channel.xml
-│   ├── receiver/    # SmsReceiver, CallReceiver, BootReceiver
-│   ├── service/     # ForwardService (foreground, queue, retries)
-│   ├── telegram/    # Channel, ChannelStore, ChannelClientFactory, ChannelSender, TelegramClient
-│   ├── update/      # UpdateChecker, UpdateManager (GitHub Releases)
-│   └── util/        # Prefs, LogStore, ThemeManager, ContactNames
-├── app/src/main/res/           # layout, strings, values-en, themes, icons
-├── app/src/test/               # ChannelSenderTest (16 тестов)
-├── gradle/                     # wrapper, libs.versions.toml (version)
-├── .github/workflows/build.yml # CI/CD (tags v* + workflow_dispatch)
-├── docs/
-│   ├── TECH_TASK.md            # полное ТЗ
-│   └── screenshots/            # app.png
-├── AGENTS.md                   # документация для разработчиков
-├── CHANGELOG.md
-└── README.md
-```
+| Идея | Описание | Сложность | Статус |
+|------|----------|-----------|--------|
+| **Экспорт/импорт настроек** | Backup JSON (секреты не пишутся) — уже реализовано | Низкая | ✅ v0.4.22 |
+| **Расписание/тихие часы** | Не слать в заданные интервалы | Низкая | ✅ v0.4.23 |
+| **Шаблоны сообщений** | `{sender}`, `{text}`, `{time}`, `{contact}` | Низкая | ✅ реализовано |
+| **ViewModel + MVVM** | Логика вынесена из MainActivity, состояние переживает поворот | Средняя | ✅ v0.4.24 |
+| **Мульти-бот** | Несколько ботов с разными Chat ID (разные получатели) | Средняя | ⏳ |
+| **Групповые уведомления** | Telegram-группы/супергруппы (topic_id для форумов) | Низкая | ⏳ |
+| **Web UI для логов** | Встроенный веб-сервер (NanoHTTPD) для просмотра логов с ПК | Средняя | ⏳ |
+| **Дублирование каналов** | Параллельная отправка в 2+ ботов одновременно | Средняя | ⏳ |
+| **Push-уведомления на телефон** | Локальные уведомления при получении SMS/вызова | Низкая | ⏳ |
+| **Поиск по логам** | Фильтр по уровню/тексту/времени во вкладке «Логи» | Низкая | ⏳ |
+| **Статистика** | Графики: SMS/день, успешность по каналам, latency | Средняя | ⏳ |
+| **MQTT / Webhook** | Альтернативные каналы доставки (Home Assistant, n8n) | Высокая | ⏳ |
+| **F-Droid публикация** | Автосборка и публикация (требует reproducible builds) | Высокая | ⏳ |
+| **Kotlin Multiplatform** | iOS версия (общий core) | Очень высокая | ⏳ |
