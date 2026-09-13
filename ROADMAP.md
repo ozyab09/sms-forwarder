@@ -38,7 +38,7 @@
 ### P0 — критичные тестовые дыры (без них рискован рефакторинг)
 
 - [x] **T1. MainViewModelTest** — `load()` / `save()` / `testConnection()` / `resolveChatId()`, разбор событий SharedFlow, отсутствие токена → ToastRes, ошибки каналов. ✅ 2026-09-13 (`MainViewModelTest`, 10 сценариев; инжекция зависимостей + `ioDispatcher`).
-- [ ] **T2. TelegramClientTest** — OkHttp MockWebServer: getMe/sendMessage (успех/ошибка/таймаут), базовый auth, прокси-конфиг (IP/порт в URL).
+- [x] **T2. TelegramClientTest** — OkHttp MockWebServer: sendMessage/getUpdates/getMe (успех/ошибка), пустые токен и chat id, проверка пути и тела запроса. ✅ 2026-09-13 (`TelegramClientTest`, 10 тестов).
 
 ### P1 — тесты инфраструктуры
 
@@ -95,7 +95,7 @@
 | LogStore | LogStoreTest (6) | ✅ (2026-09-13) |
 | SettingsBackup | SettingsBackupTest (8) | ✅ (2026-09-13) |
 | MainViewModel | MainViewModelTest (10) | ✅ (2026-09-13) |
-| TelegramClient | — | ❌ T2 |
+| TelegramClient | TelegramClientTest (10, MockWebServer) | ✅ (2026-09-13) |
 | EventQueueStore | — | ❌ T3 |
 | ForwardService | — | ❌ T4 |
 | SmsReceiver/CallReceiver | — | ❌ T5 |

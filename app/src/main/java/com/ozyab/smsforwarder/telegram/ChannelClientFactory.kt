@@ -23,6 +23,9 @@ object ChannelClientFactory {
     /** Единая точка входа Bot API (используется и отправкой, и тестами). */
     const val API_BASE = "https://api.telegram.org"
 
+    /** Действующая база Bot API. В тестах подменяется на MockWebServer. */
+    internal var apiBase: String = API_BASE
+
     private val lock = Any()
     private var cache: Map<String, OkHttpClient> = emptyMap()
 

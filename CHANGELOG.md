@@ -16,6 +16,17 @@
 - **`Prefs.botUsername`** — кэш username бота (обновляется при успешной проверке
   связи и при первой отправке), чтобы история не делала лишний getMe
 
+## [0.4.31] - 2026-09-13
+
+### Добавлено
+- **Тесты `TelegramClient`** (`TelegramClientTest`, MockWebServer): sendMessage
+  (успех с проверкой пути/тела запроса, ошибка Telegram, пустые токен и chat id),
+  resolveChatId (chat id из getUpdates, «нет сообщений», пустой токен),
+  getBotUsername (username/ошибка/пустой токен) — пункт T2 дорожной карты закрыт
+- **Тестируемость Bot API**: internal-перегрузки `sendMessage`/`resolveChatId`/
+  `getBotUsername` с явными token/chatId/channels; `ChannelClientFactory.apiBase`
+  подменяется на MockWebServer; зависимость `mockwebserver`
+
 ## [0.4.30] - 2026-09-13
 
 ### Добавлено
