@@ -97,6 +97,16 @@ object Prefs {
     @Volatile private lateinit var cache: Preferences
 
     /**
+     * Незавершённые записи в DataStore.
+     *
+     * setter'ы сразу правят кэш (optimistic write) и асинхронно пишут в DataStore.
+     * Пока запись не завершена, эмиссии коллектора игнорируются — иначе
+     * «запоздалая» эмиссия со старым снимком откатила бы уже применённое
+     * значение (гонка: запись → чтение сразу после неё).
+     */
+    private val pendingWrites = java.util.concurrent.atomic.AtomicInteger(0)
+
+    /**
      * Запускает асинхронную инициализацию (идемпотентно, не блокирует поток).
      * Вызывается из Application.onCreate; далее любой компонент (Activity,
      * Receiver, Service) получает готовые Prefs через [awaitReady].
@@ -142,7 +152,9 @@ object Prefs {
                 plainStore.data
                     .catch { e -> LogStore.error("DataStore read failed: ${e.message}") }
                     .collect { prefs ->
-                        cache = prefs
+                        // См. pendingWrites: не перетираем оптимистичный кэш,
+                        // пока идёт наша запись.
+                        if (pendingWrites.get() == 0) cache = prefs
                         markReady()
                     }
             } catch (e: Throwable) {
@@ -327,16 +339,21 @@ object Prefs {
     /** Очистка старых полей одиночного прокси после миграции. */
     fun clearLegacyProxy() {
         awaitReady()
+        pendingWrites.incrementAndGet()
         scope.launch {
-            runCatching {
-                plainStore.edit { p ->
-                    p.remove(booleanPreferencesKey(KEY_PROXY_ENABLED))
-                    p.remove(stringPreferencesKey(KEY_PROXY_TYPE))
-                    p.remove(stringPreferencesKey(KEY_PROXY_HOST))
-                    p.remove(intPreferencesKey(KEY_PROXY_PORT))
-                    p.remove(stringPreferencesKey(KEY_PROXY_USER))
-                }
-            }.onFailure { e -> LogStore.error("clearLegacyProxy failed: ${e.message}") }
+            try {
+                runCatching {
+                    plainStore.edit { p ->
+                        p.remove(booleanPreferencesKey(KEY_PROXY_ENABLED))
+                        p.remove(stringPreferencesKey(KEY_PROXY_TYPE))
+                        p.remove(stringPreferencesKey(KEY_PROXY_HOST))
+                        p.remove(intPreferencesKey(KEY_PROXY_PORT))
+                        p.remove(stringPreferencesKey(KEY_PROXY_USER))
+                    }
+                }.onFailure { e -> LogStore.error("clearLegacyProxy failed: ${e.message}") }
+            } finally {
+                pendingWrites.decrementAndGet()
+            }
         }
         secure.edit().remove(KEY_PROXY_PASS).apply()
         // Сразу отражаем в кэше, чтобы чтения после вызова вернули дефолты.
@@ -377,39 +394,40 @@ object Prefs {
         awaitReady()
         val k = stringPreferencesKey(key)
         if (::cache.isInitialized) updateCache(k, value)
-        scope.launch {
-            runCatching { plainStore.edit { it[k] = value } }
-                .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
-        }
+        persist(k, value)
     }
 
     private fun setBoolean(key: String, value: Boolean) {
         awaitReady()
         val k = booleanPreferencesKey(key)
         if (::cache.isInitialized) updateCache(k, value)
-        scope.launch {
-            runCatching { plainStore.edit { it[k] = value } }
-                .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
-        }
+        persist(k, value)
     }
 
     private fun setInt(key: String, value: Int) {
         awaitReady()
         val k = intPreferencesKey(key)
         if (::cache.isInitialized) updateCache(k, value)
-        scope.launch {
-            runCatching { plainStore.edit { it[k] = value } }
-                .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
-        }
+        persist(k, value)
     }
 
     private fun setLong(key: String, value: Long) {
         awaitReady()
         val k = longPreferencesKey(key)
         if (::cache.isInitialized) updateCache(k, value)
+        persist(k, value)
+    }
+
+    /** Асинхронная запись в DataStore (см. [pendingWrites]). */
+    private fun <T> persist(key: Preferences.Key<T>, value: T) {
+        pendingWrites.incrementAndGet()
         scope.launch {
-            runCatching { plainStore.edit { it[k] = value } }
-                .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
+            try {
+                runCatching { plainStore.edit { it[key] = value } }
+                    .onFailure { e -> LogStore.error("DataStore write $key failed: ${e.message}") }
+            } finally {
+                pendingWrites.decrementAndGet()
+            }
         }
     }
 
