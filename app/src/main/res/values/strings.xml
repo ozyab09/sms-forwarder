@@ -80,10 +80,21 @@
     <string name="toast_export_failed">Не удалось сохранить файл</string>
     <string name="logs_empty">Пока нет записей. Запусти сервис или проверь связь.</string>
     <string name="logs_clear">Очистить</string>
+    <string name="logs_search_hint">Поиск по тексту</string>
+    <string name="logs_filter_all">Все</string>
+    <string name="logs_filter_ok">OK</string>
+    <string name="logs_filter_warn">Предупр.</string>
+    <string name="logs_filter_error">Ошибки</string>
+    <string name="logs_filter_info">Инфо</string>
+    <string name="btn_export_logs">Экспорт</string>
+    <string name="logs_export_ok">Логи сохранены</string>
+    <string name="logs_export_failed">Не удалось сохранить логи</string>
 
     <!-- Переключатели -->
     <string name="pref_sms_enabled">Пересылать SMS</string>
     <string name="pref_calls_enabled">Пересылать пропущенные</string>
+    <string name="pref_local_notifications">Уведомления на телефоне</string>
+    <string name="pref_duplicate_channels">Дублирование каналов</string>
 
     <!-- Шаблоны сообщений -->
     <string name="pref_templates_section">Шаблоны сообщений</string>

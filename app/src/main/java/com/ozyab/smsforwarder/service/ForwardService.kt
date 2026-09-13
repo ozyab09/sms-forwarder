@@ -200,6 +200,7 @@ class ForwardService : Service() {
 
         when (val result = ChannelSender.send(
             ev.text, token, chatId, channels,
+            duplicate = Prefs.duplicateChannels,
             onSuccess = { ch ->
                 // promote-on-success: канал, через который удалось отправить,
                 // становится первым среди прокси (после direct) для следующих сообщений

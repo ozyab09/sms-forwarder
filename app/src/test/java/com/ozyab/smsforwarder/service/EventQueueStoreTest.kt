@@ -107,7 +107,9 @@ class EventQueueStoreTest {
     fun `persistSingle keeps only the last MAX_EVENTS`() {
         repeat(105) { i -> EventQueueStore.persistSingle(context, "event-$i") }
 
-        await("в файле ровно 100 событий") { EventQueueStore.load(context).size == 100 }
+        await("самое старое событие — event-5") {
+            EventQueueStore.load(context).firstOrNull()?.text == "event-5"
+        }
 
         val restored = EventQueueStore.load(context)
         assertEquals(100, restored.size)

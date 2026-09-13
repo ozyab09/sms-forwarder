@@ -35,6 +35,13 @@ object CallReceiverLogic {
     /** Окно «свежести» для fallback-поиска пропущенного в CallLog. */
     private const val RECENT_WINDOW_MS = 2 * 60_000L
 
+    /** Сброс состояния (для тестов). */
+    @Synchronized
+    fun reset() {
+        ringingNumber = null
+        callAnswered = false
+    }
+
     /**
      * Обрабатывает смену состояния телефона. Вызывается из CallReceiver.
      * Возвращает текст события пропущенного вызова или null.
@@ -170,6 +177,12 @@ class CallReceiver : android.content.BroadcastReceiver() {
         // Тяжёлая часть (CallLog, контакты) — не на главном потоке
         ReceiverExecutor.goAsync(this) {
             val text = CallReceiverLogic.onPhoneStateChanged(context, state, number) ?: return@goAsync
+            // Локальное уведомление на телефоне (если включено)
+            com.ozyab.smsforwarder.util.LocalNotifier.notify(
+                context,
+                title = "📵 Пропущенный: $number",
+                text = "Пропущенный вызов",
+            )
             com.ozyab.smsforwarder.service.ForwardService.start(context, text, type = "missed", sender = number ?: "")
         }
     }
