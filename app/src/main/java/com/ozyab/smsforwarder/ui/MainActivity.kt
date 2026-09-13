@@ -52,9 +52,7 @@ import com.ozyab.smsforwarder.util.QuietHours
 import com.ozyab.smsforwarder.util.SettingsBackup
 import com.ozyab.smsforwarder.util.TemplateFormatter
 import com.ozyab.smsforwarder.util.ThemeManager
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -120,8 +118,6 @@ class MainActivity : AppCompatActivity() {
 
     /** true — тест запущен кнопкой «Запустить» (без отдельного тоста об успехе). */
     private var startServiceAfterTest = false
-
-    private val scope = CoroutineScope(Dispatchers.Main)
 
     // Логи пишутся из фоновых потоков (сервис/ресиверы) — рендер только на main
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -195,7 +191,7 @@ class MainActivity : AppCompatActivity() {
         collectViewModel()
 
         requestNeededPermissions()
-        UpdateManager.checkForUpdates(this, scope)
+        UpdateManager.checkForUpdates(this, lifecycleScope)
     }
 
     override fun onResume() {
@@ -401,7 +397,7 @@ class MainActivity : AppCompatActivity() {
             startServiceAfterTest = false
             viewModel.testConnection()
         }
-        btnCheckUpdate.setOnClickListener { UpdateManager.checkForUpdates(this, scope, force = true) }
+        btnCheckUpdate.setOnClickListener { UpdateManager.checkForUpdates(this, lifecycleScope, force = true) }
         btnGithub.setOnClickListener {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(UpdateChecker.PROJECT_URL)))
         }
@@ -791,10 +787,26 @@ class MainActivity : AppCompatActivity() {
             else -> null
         }
         val query = etHistorySearch.text?.toString()?.trim().orEmpty()
-        scope.launch {
-            val events = EventHistory.search(this@MainActivity, type, query)
-            historyList.removeAllViews()
-            if (events.isEmpty()) {
+        lifecycleScope.launch {
+            try {
+                val events = EventHistory.search(this@MainActivity, type, query)
+                historyList.removeAllViews()
+                if (events.isEmpty()) {
+                    val empty = TextView(this@MainActivity).apply {
+                        text = getString(R.string.history_empty)
+                        setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.darker_gray))
+                        textSize = 14f
+                        setPadding(4, 24, 4, 8)
+                    }
+                    historyList.addView(empty)
+                    return@launch
+                }
+                for (e in events) {
+                    historyList.addView(buildHistoryRow(e))
+                }
+            } catch (e: Exception) {
+                LogStore.error("Ошибка загрузки истории: ${e.message}")
+                historyList.removeAllViews()
                 val empty = TextView(this@MainActivity).apply {
                     text = getString(R.string.history_empty)
                     setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.darker_gray))
@@ -802,10 +814,6 @@ class MainActivity : AppCompatActivity() {
                     setPadding(4, 24, 4, 8)
                 }
                 historyList.addView(empty)
-                return@launch
-            }
-            for (e in events) {
-                historyList.addView(buildHistoryRow(e))
             }
         }
     }
@@ -942,8 +950,12 @@ class MainActivity : AppCompatActivity() {
         android.app.AlertDialog.Builder(this)
             .setMessage(R.string.history_clear_confirm)
             .setPositiveButton(R.string.ok) { _, _ ->
-                scope.launch {
-                    EventHistory.clear(this@MainActivity)
+                lifecycleScope.launch {
+                    try {
+                        EventHistory.clear(this@MainActivity)
+                    } catch (e: Exception) {
+                        LogStore.error("Ошибка очистки истории: ${e.message}")
+                    }
                     renderHistory()
                 }
             }
@@ -1015,7 +1027,7 @@ class MainActivity : AppCompatActivity() {
 
     /** Читает файл и применяет настройки; обновляет UI. */
     private fun importSettings(uri: android.net.Uri) {
-        scope.launch {
+        lifecycleScope.launch {
             val json = withContext(Dispatchers.IO) { SettingsBackup.read(this@MainActivity, uri) }
             if (json == null) {
                 LogStore.error(getString(R.string.toast_import_failed))
@@ -1075,6 +1087,5 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        scope.cancel()
     }
 }
