@@ -54,7 +54,6 @@ class MainViewModelTest {
         Prefs.chatId = ""
         Prefs.smsEnabled = true
         Prefs.callsEnabled = true
-        Prefs.themeMode = "system"
     }
 
     @After
@@ -85,7 +84,6 @@ class MainViewModelTest {
         Prefs.chatId = "12345"
         Prefs.smsEnabled = false
         Prefs.callsEnabled = true
-        Prefs.themeMode = "dark"
         Prefs.messageTemplateSms = "[{time}] {text}"
         Prefs.quietHoursEnabled = true
         Prefs.quietHoursStart = 23 * 60
@@ -98,7 +96,6 @@ class MainViewModelTest {
         assertEquals("12345", s.chatId)
         assertFalse(s.smsEnabled)
         assertTrue(s.callsEnabled)
-        assertEquals("dark", s.themeMode)
         assertEquals("[{time}] {text}", s.templateSms)
         assertTrue(s.quietHoursEnabled)
         assertEquals(23 * 60, s.quietHoursStart)
