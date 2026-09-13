@@ -148,10 +148,22 @@ jobs:
           name: app-release-${{ github.ref_name }}
           path: app/build/outputs/apk/release/*.apk
 
+      - name: Extract changelog
+        id: changelog
+        run: |
+          VER="${{ github.ref_name }}"
+          # Извлекаем секцию из CHANGELOG.md между заголовком версии и следующим заголовком
+          BODY=$(awk "/^## \\[${VER#v}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
+          if [ -z "$BODY" ]; then
+            BODY="**Full Changelog**: https://github.com/$GITHUB_REPOSITORY/compare/${{ github.ref_name }}~1...${{ github.ref_name }}"
+          fi
+          # Сохраняем в файл (многострочное значение)
+          echo "$BODY" > /tmp/release_body.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
-          generate_release_notes: true
+          body_path: /tmp/release_body.md
           files: app/build/outputs/apk/release/*.apk
