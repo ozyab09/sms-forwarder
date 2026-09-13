@@ -14,41 +14,54 @@ on:
 jobs:
   release-tag:
     name: Auto tag
-    # Только push в main: читает версию из gradle/libs.versions.toml,
-    # создаёт тег vX.Y.Z (если ещё нет) → тег триггерит release-джобу.
+    # Push в main: бампает patch, коммитит, создаёт тег → триггерит release.
+    # Коммит через GITHUB_TOKEN не триггерит новый workflow (защита от петли).
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Read version from libs.versions.toml
-        id: read-version
+      - name: Read + bump version
+        id: version
         run: |
-          MAJOR=$(grep -oP 'versionMajor = "\K[0-9]+' gradle/libs.versions.toml)
-          MINOR=$(grep -oP 'versionMinor = "\K[0-9]+' gradle/libs.versions.toml)
-          PATCH=$(grep -oP 'versionPatch = "\K[0-9]+' gradle/libs.versions.toml)
-          echo "version=v$MAJOR.$MINOR.$PATCH" >> "$GITHUB_OUTPUT"
-          echo "version=v$MAJOR.$MINOR.$PATCH"
+          FILE="gradle/libs.versions.toml"
+          MAJOR=$(grep -oP 'versionMajor = "\K[0-9]+' "$FILE")
+          MINOR=$(grep -oP 'versionMinor = "\K[0-9]+' "$FILE")
+          PATCH=$(grep -oP 'versionPatch = "\K[0-9]+' "$FILE")
+          CURRENT="v$MAJOR.$MINOR.$PATCH"
 
-      - name: Check if tag exists
-        id: check-tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VER="${{ steps.read-version.outputs.version }}"
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$VER" >/dev/null 2>&1; then
-            echo "Тег $VER уже существует — пропускаю"
-            echo "created=false" >> "$GITHUB_OUTPUT"
+          # Проверяем, существует ли уже тег для текущей версии
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$CURRENT" >/dev/null 2>&1; then
+            # Тег есть — бампаем patch
+            NEW_PATCH=$((PATCH + 1))
+            sed -i "s/versionPatch = \"$PATCH\"/versionPatch = \"$NEW_PATCH\"/" "$FILE"
+            NEW_VER="v$MAJOR.$MINOR.$NEW_PATCH"
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
           else
-            echo "created=true" >> "$GITHUB_OUTPUT"
+            # Тега нет — пользователь уже бампнул версию в PR
+            NEW_VER="$CURRENT"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create tag via API
-        if: steps.check-tag.outputs.created == 'true'
+          echo "tag=$NEW_VER" >> "$GITHUB_OUTPUT"
+          echo "version=$NEW_VER (bumped=$([[ $NEW_VER == $CURRENT ]] && echo no || echo yes))"
+
+      - name: Commit version bump
+        if: steps.version.outputs.bumped == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gradle/libs.versions.toml
+          git commit -m "chore: auto-bump version to ${{ steps.version.outputs.tag }}"
+          git push
+
+      - name: Create tag
         uses: actions/github-script@v8
         with:
           script: |
-            const ver = '${{ steps.read-version.outputs.version }}';
+            const ver = '${{ steps.version.outputs.tag }}';
             try {
               await github.rest.git.createRef({
                 owner: context.repo.owner,
@@ -65,19 +78,18 @@ jobs:
               }
             }
 
-      - name: Trigger release workflow by tag
-        if: steps.check-tag.outputs.created == 'true'
+      - name: Trigger release workflow
         uses: actions/github-script@v8
         with:
           script: |
-            const ver = '${{ steps.read-version.outputs.version }}';
+            const ver = '${{ steps.version.outputs.tag }}';
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'build.yml',
               ref: ver
             });
-            console.log(`Workflow запущен по тегу ${ver}`);
+            console.log(`Release workflow запущен для ${ver}`);
 
   build:
     name: Build debug APK
