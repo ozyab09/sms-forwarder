@@ -1,5 +1,7 @@
 package com.ozyab.smsforwarder.util
 
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.StyleRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -55,20 +57,33 @@ object ThemeManager {
         activity.theme.applyStyle(accentStyle, true)
     }
 
+    /**
+     * Безопасный recreate: откладывает пересоздание Activity на следующий
+     * кадр через Handler, чтобы выйти из текущего callback listener.
+     * Гарантирует, что recreate не вызовется изнутри listener'а и не
+     * вызовется на уже уничтоженной Activity.
+     */
+    private fun safeRecreate(activity: AppCompatActivity) {
+        Handler(Looper.getMainLooper()).post {
+            if (!activity.isFinishing && !activity.isDestroyed) {
+                activity.recreate()
+            }
+        }
+    }
+
     /** Сохраняет режим и применяет его (Activity пересоздаётся автоматически). */
     fun setAndApply(activity: AppCompatActivity, mode: String) {
         if (mode == Prefs.themeMode) return
         Prefs.themeMode = mode
         apply(activity)
-        activity.recreate()
+        safeRecreate(activity)
     }
 
-    /** Сохраняет акцент и применяет его (отложенное recreate для безопасности). */
+    /** Сохраняет акцент и применяет его. */
     fun setAccentAndApply(activity: AppCompatActivity, accent: String) {
         if (accent == Prefs.accentColor) return
         Prefs.accentColor = accent
         apply(activity)
-        // Откладываем recreate, чтобы выйти из текущего callback listener
-        activity.window.decorView.post { activity.recreate() }
+        safeRecreate(activity)
     }
 }
