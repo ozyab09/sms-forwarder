@@ -4,6 +4,50 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версионирование — [SemVer](https://semver.org/lang/ru/).
 
+## [0.5.14] - 2026-09-13
+
+### Исправлено
+- **Показ Settings после recreate**: `panel_settings` имел VISIBLE по умолчанию в XML; добавлен `visibility=gone` + `nav.selectedItemId = nav.selectedItemId` для триггера listener'а после recreate()
+- **Room EventDatabase_Impl**: ProGuard keep rules для Room Database/Entity/Dao (R8 stripping в release)
+
+## [0.5.13] - 2026-09-13
+
+### Изменено
+- CI: `fetch-depth: 0` для release checkout + фильтр auto-bump коммитов в release notes
+
+## [0.5.12] - 2026-09-13
+
+### Исправлено
+- **Краш при смене акцентного цвета / темы**: `safeRecreate()` — `Handler(Looper.getMainLooper()).post` + guard `isFinishing`/`isDestroyed` вместо прямого `recreate()` из listener
+- **Краш при переходе на вкладку «История»**: `lifecycleScope` + `try-catch` в `renderHistory()`, `confirmClearHistory()`, `importSettings()` — Room ошибки больше не роняют приложение
+- Удалён ручной `CoroutineScope` из `MainActivity` — всё через `lifecycleScope`
+
+### Изменено
+- `EventDaoTest`: `@Ignore` — Robolectric + Room `ClassNotFoundException` (ожидает миграции на androidTest)
+
+## [0.5.11] - 2026-09-13
+
+### Исправлено
+- Краш при смене акцентного цвета: early return guard + `post { recreate() }` (временно, заменён в v0.5.12)
+
+## [0.5.10] - 2026-09-13
+
+### Добавлено
+- CI: fallback git log для release notes при отсутствии записи в CHANGELOG.md
+
+## [0.5.9] - 2026-09-13
+
+### Изменено
+- Документация: AGP 9.1.1, Gradle 9.3.1, акцентные цвета, CI/CD auto-bump, roadmap v0.5.8
+
+## [0.5.8] - 2026-09-13
+
+### Исправлено
+- CI: changelog extraction — fallback to git log для auto-bump релизов
+
+### Добавлено
+- **Акцентные цвета**: 7 палитр (бирюзовый, зелёный, красный, синий, фиолетовый, оранжевый, серый); выбор во вкладке «О приложении»
+
 ## [0.5.0] - 2026-09-13
 
 ### Добавлено
