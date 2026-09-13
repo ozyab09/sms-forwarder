@@ -110,6 +110,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var panelAbout: View
     private lateinit var tvAboutVersion: TextView
     private lateinit var rgTheme: RadioGroup
+    private lateinit var chipGroupAccent: com.google.android.material.chip.ChipGroup
     private lateinit var btnGithub: MaterialButton
     private lateinit var btnExportSettings: MaterialButton
     private lateinit var btnImportSettings: MaterialButton
@@ -304,6 +305,7 @@ class MainActivity : AppCompatActivity() {
         panelAbout = findViewById(R.id.panel_about)
         tvAboutVersion = findViewById(R.id.tv_about_version)
         rgTheme = findViewById(R.id.rg_theme)
+        chipGroupAccent = findViewById(R.id.chipGroupAccent)
         btnGithub = findViewById(R.id.btn_github)
         btnExportSettings = findViewById(R.id.btn_export_settings)
         btnImportSettings = findViewById(R.id.btn_import_settings)
@@ -422,6 +424,12 @@ class MainActivity : AppCompatActivity() {
             }
             ThemeManager.setAndApply(this, mode)
             LogStore.info("Тема: $mode")
+        }
+        chipGroupAccent.setOnCheckedStateChangeListener { _, checkedIds ->
+            val chip = checkedIds.firstOrNull()?.let { findViewById<com.google.android.material.chip.Chip>(it) }
+            val accent = chip?.tag?.toString() ?: ThemeManager.ACCENT_TEAL
+            ThemeManager.setAccentAndApply(this, accent)
+            LogStore.info("Акцент: $accent")
         }
         swQuietHours.setOnCheckedChangeListener { _, checked ->
             layoutQuietTimes.visibility = if (checked) View.VISIBLE else View.GONE
@@ -992,6 +1000,17 @@ class MainActivity : AppCompatActivity() {
             else -> R.id.rb_theme_system
         }
         rgTheme.check(checked)
+        // Акцентный цвет
+        val accentChipId = when (Prefs.accentColor) {
+            ThemeManager.ACCENT_GREEN -> R.id.chip_accent_green
+            ThemeManager.ACCENT_RED -> R.id.chip_accent_red
+            ThemeManager.ACCENT_BLUE -> R.id.chip_accent_blue
+            ThemeManager.ACCENT_PURPLE -> R.id.chip_accent_purple
+            ThemeManager.ACCENT_ORANGE -> R.id.chip_accent_orange
+            ThemeManager.ACCENT_GREY -> R.id.chip_accent_grey
+            else -> R.id.chip_accent_teal
+        }
+        chipGroupAccent.check(accentChipId)
     }
 
     /** Читает файл и применяет настройки; обновляет UI. */

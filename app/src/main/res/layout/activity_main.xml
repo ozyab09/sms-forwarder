@@ -593,6 +593,80 @@
                         android:text="@string/about_theme_system" />
                 </RadioGroup>
 
+                <!-- Акцентный цвет -->
+                <TextView
+                    style="@style/TextAppearance.Material3.TitleSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/about_accent" />
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chipGroupAccent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    app:singleSelection="true"
+                    app:selectionRequired="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_accent_teal"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/accent_teal"
+                        android:tag="teal" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_accent_green"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/accent_green"
+                        android:tag="green" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_accent_red"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/accent_red"
+                        android:tag="red" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_accent_blue"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/accent_blue"
+                        android:tag="blue" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_accent_purple"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/accent_purple"
+                        android:tag="purple" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_accent_orange"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/accent_orange"
+                        android:tag="orange" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chip_accent_grey"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/accent_grey"
+                        android:tag="grey" />
+
+                </com.google.android.material.chip.ChipGroup>
+
                 <!-- Ссылка на проект -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_github"
