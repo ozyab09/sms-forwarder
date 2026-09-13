@@ -31,6 +31,12 @@ object TemplateFormatter {
 {sim}
 От: {number}{name}""".trimIndent()
 
+    /** Демонстрационные данные для предпросмотра (реальные SMS не используются). */
+    const val PREVIEW_SENDER = "+7 900 123-45-67"
+    const val PREVIEW_NAME = "Иван"
+    const val PREVIEW_TEXT = "Пример текста SMS-сообщения"
+    const val PREVIEW_SIM = "Sim1 beeline"
+
     private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     private val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
 
@@ -74,4 +80,22 @@ object TemplateFormatter {
 
         return result
     }
+
+    /**
+     * Предпросмотр сообщения по шаблону с демонстрационными данными
+     * (кнопка «Проверить» рядом с шаблонами). Пустой шаблон → дефолтный формат
+     * — то же поведение, что и при реальной отправке.
+     *
+     * @param type "sms" или "missed"
+     */
+    fun preview(template: String, type: String, timestamp: Long = System.currentTimeMillis()): String =
+        format(
+            template = template,
+            sender = PREVIEW_SENDER,
+            name = PREVIEW_NAME,
+            text = PREVIEW_TEXT,
+            timestamp = timestamp,
+            type = type,
+            sim = PREVIEW_SIM,
+        )
 }

@@ -97,6 +97,30 @@ class TemplateFormatterTest {
     }
 
     @Test
+    fun `preview uses sample data for SMS`() {
+        val result = TemplateFormatter.preview("", type = "sms", timestamp = ts)
+        assertTrue(result.contains("📩 SMS"))
+        assertTrue(result.contains(TemplateFormatter.PREVIEW_SENDER))
+        assertTrue(result.contains(TemplateFormatter.PREVIEW_NAME))
+        assertTrue(result.contains(TemplateFormatter.PREVIEW_TEXT))
+        assertTrue(result.contains(TemplateFormatter.PREVIEW_SIM))
+    }
+
+    @Test
+    fun `preview uses sample data for missed call`() {
+        val result = TemplateFormatter.preview("", type = "missed", timestamp = ts)
+        assertTrue(result.contains("📵 Пропущенный"))
+        // Для звонка {text} пуст — текст SMS в превью не подставляется
+        assertTrue(!result.contains(TemplateFormatter.PREVIEW_TEXT))
+    }
+
+    @Test
+    fun `preview respects custom template`() {
+        val result = TemplateFormatter.preview("CALL {type} {time}", type = "missed", timestamp = ts)
+        assertEquals("CALL missed $expectedTime", result)
+    }
+
+    @Test
     fun `user can build JSON template`() {
         val tpl = """{"sender":"{sender}","text":"{text}","time":"{time}"}"""
         val result = TemplateFormatter.format(
