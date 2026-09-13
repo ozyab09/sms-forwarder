@@ -28,13 +28,22 @@ object TelegramClient {
     }
 
     /** Отправка через Bot API каскадом по каналам. Returns Result. */
-    suspend fun sendMessage(text: String): Result = withContext(Dispatchers.IO) {
-        val token = Prefs.botToken
-        val chatId = Prefs.chatId
+    suspend fun sendMessage(text: String): Result =
+        sendMessage(text, Prefs.botToken, Prefs.chatId, ChannelStore.enabled())
+
+    /**
+     * Отправка с явными параметрами — тестируемо (токен/chatId/каналы снаружи,
+     * без обращения к Prefs). Продовая версия читает их из настроек.
+     */
+    internal suspend fun sendMessage(
+        text: String,
+        token: String,
+        chatId: String,
+        channels: List<Channel>,
+    ): Result = withContext(Dispatchers.IO) {
         if (token.isBlank()) return@withContext Result.Err("Токен бота не задан")
         if (chatId.isBlank()) return@withContext Result.Err("Chat ID не задан")
 
-        val channels = ChannelStore.enabled()
         when (val r = ChannelSender.send(text, token, chatId, channels)) {
             is ChannelSender.Result.Ok -> Result.Ok(r.messageId)
             is ChannelSender.Result.Err -> Result.Err("Все каналы не вышли: ${r.reasons.joinToString("; ")}")
@@ -45,11 +54,13 @@ object TelegramClient {
      * Определяет chat_id пользователя через getUpdates (каскадом по каналам).
      * Требование: пользователь уже написал боту /start.
      */
-    suspend fun resolveChatId(): Result = withContext(Dispatchers.IO) {
-        val token = Prefs.botToken
+    suspend fun resolveChatId(): Result =
+        resolveChatId(Prefs.botToken, ChannelStore.enabled())
+
+    /** Версия с явными параметрами (тестируемо, см. [sendMessage]). */
+    internal suspend fun resolveChatId(token: String, channels: List<Channel>): Result = withContext(Dispatchers.IO) {
         if (token.isBlank()) return@withContext Result.Err("Токен бота не задан")
 
-        val channels = ChannelStore.enabled()
         val failures = mutableListOf<String>()
         var foundChatId: Long? = null
         try {
@@ -59,7 +70,7 @@ object TelegramClient {
                     if (buildErr != null) { failures += buildErr; continue }
                     try {
                         val req = Request.Builder()
-                            .url("${ChannelClientFactory.API_BASE}/bot$token/getUpdates")
+                            .url("${ChannelClientFactory.apiBase}/bot$token/getUpdates")
                             .build()
                         client.newCall(req).execute().use { resp ->
                             val json = JSONObject(resp.body?.string().orEmpty())
@@ -96,10 +107,12 @@ object TelegramClient {
     }
 
     /** Возвращает username бота (getMe) через каскад каналов, или null. */
-    suspend fun getBotUsername(): String? = withContext(Dispatchers.IO) {
-        val token = Prefs.botToken
+    suspend fun getBotUsername(): String? =
+        getBotUsername(Prefs.botToken, ChannelStore.enabled())
+
+    /** Версия с явными параметрами (тестируемо, см. [sendMessage]). */
+    internal suspend fun getBotUsername(token: String, channels: List<Channel>): String? = withContext(Dispatchers.IO) {
         if (token.isBlank()) return@withContext null
-        val channels = ChannelStore.enabled()
         var found: String? = null
         try {
             withTimeout(CASCADE_TIMEOUT_MS) {
@@ -108,7 +121,7 @@ object TelegramClient {
                     if (buildErr != null) continue
                     try {
                         val req = Request.Builder()
-                            .url("${ChannelClientFactory.API_BASE}/bot$token/getMe")
+                            .url("${ChannelClientFactory.apiBase}/bot$token/getMe")
                             .build()
                         client.newCall(req).execute().use { resp ->
                             val json = JSONObject(resp.body?.string().orEmpty())

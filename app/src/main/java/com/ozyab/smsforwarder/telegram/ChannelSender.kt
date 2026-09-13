@@ -141,7 +141,7 @@ object ChannelSender {
         if (buildErr != null) return ChannelTestOutcome.Failed(buildErr)
         return try {
             val req = Request.Builder()
-                .url("${ChannelClientFactory.API_BASE}/bot$token/getMe")
+                .url("${ChannelClientFactory.apiBase}/bot$token/getMe")
                 .build()
             client.newCall(req).execute().use { resp ->
                 val json = JSONObject(resp.body?.string().orEmpty())
@@ -177,7 +177,7 @@ object ChannelSender {
                 .add("disable_notification", "true")
                 .build()
             val req = Request.Builder()
-                .url("${ChannelClientFactory.API_BASE}/bot$token/sendMessage")
+                .url("${ChannelClientFactory.apiBase}/bot$token/sendMessage")
                 .post(body)
                 .build()
             client.newCall(req).execute().use { resp ->
