@@ -1,10 +1,13 @@
 package com.ozyab.smsforwarder.ui
 
 import android.view.View
+import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.ozyab.smsforwarder.BuildConfig
 import com.ozyab.smsforwarder.R
 import com.ozyab.smsforwarder.util.Prefs
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -145,6 +148,28 @@ class MainActivityLaunchTest {
                 panel.visibility == View.VISIBLE,
             )
         }
+
+        controller.pause().stop().destroy()
+    }
+
+    @Test(timeout = 20_000)
+    fun `about tab shows current app version`() {
+        warmUp()
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val activity = controller.get()
+        val nav = activity.findViewById<BottomNavigationView>(R.id.bottom_nav)
+        assertNotNull("bottom nav должна существовать", nav)
+
+        nav.selectedItemId = R.id.nav_about
+        ShadowLooper.idleMainLooper()
+
+        val tvVersion = activity.findViewById<TextView>(R.id.tv_about_version)
+        assertNotNull("текст версии должен существовать", tvVersion)
+        assertEquals(
+            "в панели должна показываться текущая версия",
+            activity.getString(R.string.about_version, BuildConfig.VERSION_NAME),
+            tvVersion.text.toString(),
+        )
 
         controller.pause().stop().destroy()
     }
