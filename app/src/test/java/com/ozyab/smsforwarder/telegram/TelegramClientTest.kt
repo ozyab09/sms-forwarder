@@ -72,8 +72,8 @@ class TelegramClientTest {
         val r = TelegramClient.sendMessage("hello", token, chatId, listOf(direct))
 
         assertTrue(r is TelegramClient.Result.Err)
-        val reasons = (r as TelegramClient.Result.Err).reasons.joinToString("; ")
-        assertTrue("причина ошибки из ответа: $reasons", reasons.contains("chat not found"))
+        val reason = (r as TelegramClient.Result.Err).reason
+        assertTrue("причина ошибки из ответа: $reason", reason.contains("chat not found"))
     }
 
     @Test
@@ -81,7 +81,7 @@ class TelegramClientTest {
         val r = TelegramClient.sendMessage("hello", "", chatId, listOf(direct))
 
         assertTrue(r is TelegramClient.Result.Err)
-        assertTrue((r as TelegramClient.Result.Err).reasons.joinToString().contains("Токен"))
+        assertTrue((r as TelegramClient.Result.Err).reason.contains("Токен"))
         assertEquals(0, server.requestCount)
     }
 
