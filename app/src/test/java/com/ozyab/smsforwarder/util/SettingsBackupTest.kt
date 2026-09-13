@@ -111,6 +111,11 @@ class SettingsBackupTest {
 
         val result = SettingsBackup.import(body)
 
+        // Prefs пишет в DataStore асинхронно (кэш обновляется optimistic), поэтому
+        // после импорта ждём, пока emission DataStore дойдёт до кэша — иначе чтение
+        // может застать устаревшее значение (в полном прогоне CI воспроизводится).
+        waitForPrefs({ Prefs.chatId == "12345" && !Prefs.smsEnabled && Prefs.themeMode == "dark" })
+
         assertEquals("12345", Prefs.chatId)
         assertFalse(Prefs.smsEnabled)
         assertEquals("dark", Prefs.themeMode)
@@ -142,6 +147,7 @@ class SettingsBackupTest {
             .put("settings", JSONObject().put("chatId", "42"))
 
         SettingsBackup.import(body)
+        waitForPrefs({ Prefs.chatId == "42" })
         assertEquals(2, ChannelStore.all().size)
         assertEquals("42", Prefs.chatId)
     }
@@ -194,5 +200,18 @@ class SettingsBackupTest {
             "имя файла должно быть sms-forwarder-backup-YYYY-MM-DD.json, было: $name",
             name.matches(Regex("sms-forwarder-backup-\\d{4}-\\d{2}-\\d{2}\\.json")),
         )
+    }
+
+    /**
+     * Ждёт, пока [predicate] не станет true (до 5с), давая асинхронным
+     * DataStore-записям дойти до кэша Prefs.
+     */
+    private fun waitForPrefs(predicate: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + 5_000
+        while (System.currentTimeMillis() < deadline) {
+            if (predicate()) return
+            Thread.sleep(25)
+        }
+        assertTrue("Prefs не достигли ожидаемого состояния за 5с", predicate())
     }
 }
