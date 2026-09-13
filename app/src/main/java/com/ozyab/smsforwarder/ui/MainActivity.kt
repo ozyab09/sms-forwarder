@@ -498,10 +498,16 @@ class MainActivity : AppCompatActivity() {
                 else -> false
             }
         }
-        // Принудительно триггерим listener для текущего выбранного элемента,
-        // чтобы показать нужную панель после recreate() (listener не стреляет
-        // при восстановлении состояния из savedInstanceState).
-        nav.selectedItemId = nav.selectedItemId
+        // Восстанавливаем панель после recreate(): listener не стреляет при
+        // восстановлении состояния BottomNav из savedInstanceState,
+        // поэтому показываем панель вручную по текущему selectedItemId.
+        when (nav.selectedItemId) {
+            R.id.nav_settings -> panelSettings.visibility = View.VISIBLE
+            R.id.nav_logs -> panelLogs.visibility = View.VISIBLE
+            R.id.nav_history -> panelHistory.visibility = View.VISIBLE
+            R.id.nav_about -> panelAbout.visibility = View.VISIBLE
+            else -> panelSettings.visibility = View.VISIBLE
+        }
     }
 
     private fun renderChannels() {
