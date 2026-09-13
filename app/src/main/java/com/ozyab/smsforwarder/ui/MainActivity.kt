@@ -273,7 +273,7 @@ class MainActivity : AppCompatActivity() {
             renderLogs()
         }
         etLogsSearch.addTextChangedListener(textWatcher { renderLogs() })
-        chipGroupLogs.setOnCheckedStateListener { _, _ ->
+        chipGroupLogs.setOnCheckedChangeListener { _, _ ->
             logsFilterLevel = when (chipGroupLogs.checkedChipId) {
                 R.id.chip_logs_ok -> LogStore.Level.OK
                 R.id.chip_logs_warn -> LogStore.Level.WARN
