@@ -50,6 +50,7 @@ import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
 import com.ozyab.smsforwarder.util.QuietHours
 import com.ozyab.smsforwarder.util.SettingsBackup
+import com.ozyab.smsforwarder.util.TemplateFormatter
 import com.ozyab.smsforwarder.util.ThemeManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -218,13 +219,20 @@ class MainActivity : AppCompatActivity() {
         etTemplateCall.addTextChangedListener(textWatcher {
             viewModel.setTemplateCall(etTemplateCall.text?.toString() ?: "")
         })
+        findViewById<MaterialButton>(R.id.btn_preview_templates).setOnClickListener {
+            showTemplatePreview()
+        }
+        findViewById<MaterialButton>(R.id.btn_save_templates).setOnClickListener {
+            savePrefs()
+            Toast.makeText(this, R.string.toast_templates_saved, Toast.LENGTH_SHORT).show()
+        }
         findViewById<MaterialButton>(R.id.btn_reset_templates).setOnClickListener {
             etTemplateSms.setText("")
             etTemplateCall.setText("")
             viewModel.setTemplateSms("")
             viewModel.setTemplateCall("")
             viewModel.save()
-            Toast.makeText(this, R.string.btn_reset_templates, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.toast_templates_reset, Toast.LENGTH_SHORT).show()
         }
 
         swQuietHours = findViewById(R.id.sw_quiet_hours)
@@ -652,6 +660,33 @@ class MainActivity : AppCompatActivity() {
         viewModel.setTemplateSms(etTemplateSms.text?.toString() ?: "")
         viewModel.setTemplateCall(etTemplateCall.text?.toString() ?: "")
         viewModel.save()
+    }
+
+    /**
+     * Предпросмотр шаблонов: как будет выглядеть пересылаемое SMS и
+     * пропущенный вызов при текущих шаблонах (демо-данные, ничего не отправляется).
+     */
+    private fun showTemplatePreview() {
+        val sms = TemplateFormatter.preview(
+            etTemplateSms.text?.toString().orEmpty(),
+            EventHistory.TYPE_SMS,
+        )
+        val call = TemplateFormatter.preview(
+            etTemplateCall.text?.toString().orEmpty(),
+            EventHistory.TYPE_MISSED,
+        )
+        val message = buildString {
+            append(getString(R.string.preview_sms_label)).append(":\n").append(sms)
+            append("\n\n")
+            append(getString(R.string.preview_call_label)).append(":\n").append(call)
+            append("\n\n")
+            append(getString(R.string.preview_sample_note))
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.preview_dialog_title)
+            .setMessage(message)
+            .setPositiveButton(R.string.ok, null)
+            .show()
     }
 
     private fun renderLogs() {
