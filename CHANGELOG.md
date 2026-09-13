@@ -21,6 +21,29 @@
 - **`docs/screenshots/README.md`** соответствует реальному `app.png`
 - **`ROADMAP.md`**: T6 (ТЗ по фильтрам) закрыт
 
+## [0.4.32] - 2026-09-13
+
+### Добавлено
+- **Детали события в истории**: клик по событию открывает диалог с полной
+  информацией — тип, время, отправитель, статус, получатель (Telegram Chat ID),
+  бот (@username), канал, число попыток, исходный текст и **полный текст
+  отправленного сообщения** (скроллится, можно выделить/скопировать)
+- **`EventEntity.chatId` + `botUsername`** (Room v2, миграция 1→2 — накопленная
+  история не теряется); сервис пишет получателя и бота при отправке
+- **`Prefs.botUsername`** — кэш username бота (обновляется при успешной проверке
+  связи и при первой отправке), чтобы история не делала лишний getMe
+
+## [0.4.31] - 2026-09-13
+
+### Добавлено
+- **Тесты `TelegramClient`** (`TelegramClientTest`, MockWebServer): sendMessage
+  (успех с проверкой пути/тела запроса, ошибка Telegram, пустые токен и chat id),
+  resolveChatId (chat id из getUpdates, «нет сообщений», пустой токен),
+  getBotUsername (username/ошибка/пустой токен) — пункт T2 дорожной карты закрыт
+- **Тестируемость Bot API**: internal-перегрузки `sendMessage`/`resolveChatId`/
+  `getBotUsername` с явными token/chatId/channels; `ChannelClientFactory.apiBase`
+  подменяется на MockWebServer; зависимость `mockwebserver`
+
 ## [0.4.30] - 2026-09-13
 
 ### Добавлено
