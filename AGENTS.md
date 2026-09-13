@@ -10,7 +10,7 @@
 
 **SMS Forwarder** — Android app forwarding incoming SMS & missed calls to Telegram via Bot API.
 - Min SDK: 29 (Android 10), Target: 34 (Android 14)
-- Language: Kotlin 2.2, Gradle Kotlin DSL (Gradle 8.11, AGP 8.9)
+- Language: Kotlin 2.2, Gradle Kotlin DSL (Gradle 9.3, AGP 9.1)
 - Architecture: Clean separation — UI (MVVM), Receivers, Foreground Service, Telegram channels
 - Privacy-first: encrypted token storage, no logs leave device, no analytics
 
@@ -165,20 +165,29 @@
 ```yaml
 build:
   if: pull_request
-  steps: checkout → setup-java (temurin 17) → setup-android →
-         assembleDebug → testDebugUnitTest + lintDebug → upload-artifact (debug APK)
+  steps: checkout → setup-java (temurin 17) → setup-gradle@v4 →
+         assembleDebug → testDebugUnitTest → upload-artifact (debug APK)
 
 release-tag:
   if: push to main
   steps: checkout → читает versionMajor/minor/patch из libs.versions.toml →
-         создаёт тег vX.Y.Z через API (если ещё нет) → workflow_dispatch на теге
+         auto-bump patch → коммит через GITHUB_TOKEN → создаёт тег →
+         workflow_dispatch на теге
 
 release:
   if: startsWith(github.ref, 'refs/tags/v')
-  steps: checkout → setup-java → setup-android →
-         testReleaseUnitTest + assembleRelease (KEYSTORE_* secrets) →
-         upload-artifact → softprops/action-gh-release@v3.0.3
+  steps: checkout → setup-java → setup-gradle@v4 →
+         assembleRelease (KEYSTORE_* secrets) →
+         upload-artifact → extract-changelog (awk из CHANGELOG.md) →
+         softprops/action-gh-release@v2 (body_path)
 ```
+
+### Key CI Details
+- `gradle/actions/setup-gradle@v4` — Gradle кэширование (без `actions/setup-gradle` от Google)
+- `--parallel --build-cache` — ускорение сборки
+- Lint **не** запускается в PR (для скорости); линтится отдельно при необходимости
+- Release notes: извлекаются из `CHANGELOG.md` через awk; fallback — git log между тегами
+- `GITHUB_TOKEN` коммиты **не** триггерят новый workflow (защита от infinite loop)
 
 ### Versioning (SemVer)
 - Tags: `v<major>.<minor>.<patch>` (e.g. `v1.2.0`) — создаются **автоматически** при мерже в main
@@ -326,6 +335,7 @@ python3 generate_icons.py logo_transparent.png
 | SMS receiver order | No priority set — works alongside default SMS app; no `READ_SMS` needed for incoming |
 | Проверка обновлений | Авто-проверка раз в сутки + ручная кнопка «Проверить обновления»; метка throttle ставится только при успешном ответе GitHub API (сбой сети не блокирует повторные проверки) |
 | Тёмная тема | Все тексты/иконки используют цвета темы (`textColorPrimary/Secondary`, `colorControlNormal`) — хардкод чёрного недопустим в новых layout. Выбор темы: `Prefs.themeMode` + `ThemeManager.apply()` в onCreate каждой Activity |
+| Акцентные цвета | 7 палитр (бирюзовый, зелёный, красный, синий, фиолетовый, оранжевый, серый); `ThemeManager.setAccentAndApply()` применяет overlay через `activity.theme.applyStyle()`. Выбор в ChipGroup во вкладке «О приложении» |
 | OkHttp-клиенты | Кэшируются в `ChannelClientFactory` по конфигурации канала, `invalidate()` при изменении каналов; НЕ закрывать клиенты после использования (в отличие от старого кода с shutdown) |
 | Room-история | `EventDatabase` версия 2 (`MIGRATION_1_2` — chatId/botUsername); `fallbackToDestructiveMigration` как страховка: история не критична, при сбое миграции она просто очищается |
 | Шаблоны сообщений | Сохраняются автоматически при уходе с экрана (`savePrefs`), плюс явные кнопки «Сохранить»/«Сбросить»; пустое значение = стандартный формат |
