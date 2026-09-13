@@ -57,15 +57,18 @@ object ThemeManager {
 
     /** Сохраняет режим и применяет его (Activity пересоздаётся автоматически). */
     fun setAndApply(activity: AppCompatActivity, mode: String) {
+        if (mode == Prefs.themeMode) return
         Prefs.themeMode = mode
         apply(activity)
         activity.recreate()
     }
 
-    /** Сохраняет акцент и применяет его. */
+    /** Сохраняет акцент и применяет его (отложенное recreate для безопасности). */
     fun setAccentAndApply(activity: AppCompatActivity, accent: String) {
+        if (accent == Prefs.accentColor) return
         Prefs.accentColor = accent
         apply(activity)
-        activity.recreate()
+        // Откладываем recreate, чтобы выйти из текущего callback listener
+        activity.window.decorView.post { activity.recreate() }
     }
 }
