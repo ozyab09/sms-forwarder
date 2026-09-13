@@ -2,7 +2,7 @@
 # Версия приложения — bump здесь, CI сам создаст тег vX.Y.Z и релиз при мерже в main
 versionMajor = "0"
 versionMinor = "5"
-versionPatch = "16"
+versionPatch = "17"
 agp = "9.1.1"
 kotlin = "2.2.10"
 ksp = "2.2.10-2.0.2"
