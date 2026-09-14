@@ -108,16 +108,15 @@
     <string name="pref_calls_enabled">Forward missed calls</string>
     <string name="pref_incoming_calls_enabled">Forward answered incoming calls</string>
     <string name="pref_outgoing_calls_enabled">Forward outgoing calls</string>
-    <string name="pref_notifications_enabled">Forward notifications</string>
-    <string name="pref_notification_apps">Apps</string>
-    <string name="pref_notification_apps_summary">Select apps whose notifications to forward</string>
     <string name="pref_local_notifications">Phone notifications</string>
-    <string name="pref_duplicate_channels">Duplicate to all channels</string>
 
     <!-- Message templates -->
     <string name="pref_templates_section">Message templates</string>
-    <string name="pref_template_sms_hint">SMS template</string>
+    <string name="pref_template_sms_hint">Incoming SMS template</string>
+    <string name="pref_template_outgoing_sms_hint">Outgoing SMS template</string>
     <string name="pref_template_call_hint">Missed call template</string>
+    <string name="pref_template_incoming_call_hint">Answered incoming call template</string>
+    <string name="pref_template_outgoing_call_hint">Outgoing call template</string>
     <string name="pref_template_placeholders">Available: {sender} {name} {text} {time} {date} {type} {sim} {number}. Empty = default format.</string>
     <string name="btn_preview_templates">Preview</string>
     <string name="btn_save_templates">Save</string>
@@ -125,9 +124,12 @@
     <string name="toast_templates_saved">Templates saved</string>
     <string name="toast_templates_reset">Templates reset — default format is used</string>
     <string name="preview_dialog_title">Message preview</string>
-    <string name="preview_sms_label">SMS</string>
+    <string name="preview_sms_label">Incoming SMS</string>
+    <string name="preview_outgoing_sms_label">Outgoing SMS</string>
     <string name="preview_call_label">Missed call</string>
-    <string name="preview_sample_note">Sample data: number +7 900 123-45-67, contact “Ivan”, text “Sample SMS text”, SIM “Sim1 beeline”.</string>
+    <string name="preview_incoming_call_label">Answered incoming call</string>
+    <string name="preview_outgoing_call_label">Outgoing call</string>
+    <string name="preview_sample_note">Sample data: number +7 900 123-45-67, contact "Ivan", text "Sample SMS text", SIM "Sim1 beeline".</string>
 
     <!-- Quiet hours -->
     <string name="pref_quiet_hours_section">Quiet hours</string>

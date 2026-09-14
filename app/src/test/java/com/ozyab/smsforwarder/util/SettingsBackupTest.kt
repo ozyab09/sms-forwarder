@@ -23,7 +23,7 @@ import org.robolectric.annotation.Config
  * - direct-канал не экспортируется (при импорте генерируются новые id);
  * - импорт применяет настройки, не трогая токен;
  * - неверный формат и более новая версия файла отклоняются;
- * - новые настройки (исходящие SMS, звонки, уведомления) экспортируются/импортируются.
+ * - новые настройки (исходящие SMS, звонки) экспортируются/импортируются.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30])
@@ -39,8 +39,6 @@ class SettingsBackupTest {
         Prefs.callsEnabled = true
         Prefs.incomingCallsEnabled = false
         Prefs.outgoingCallsEnabled = false
-        Prefs.notificationsEnabled = false
-        Prefs.notificationApps = ""
         Prefs.themeMode = "system"
         Prefs.messageTemplateSms = ""
         Prefs.messageTemplateOutgoingSms = ""
@@ -94,8 +92,6 @@ class SettingsBackupTest {
         Prefs.outgoingSmsEnabled = true
         Prefs.incomingCallsEnabled = true
         Prefs.outgoingCallsEnabled = true
-        Prefs.notificationsEnabled = true
-        Prefs.notificationApps = "[\"com.telegram.messenger\",\"com.whatsapp\"]"
 
         val json = SettingsBackup.export()
         val settings = json.getJSONObject("settings")
@@ -103,8 +99,8 @@ class SettingsBackupTest {
         assertTrue(settings.getBoolean("outgoingSmsEnabled"))
         assertTrue(settings.getBoolean("incomingCallsEnabled"))
         assertTrue(settings.getBoolean("outgoingCallsEnabled"))
-        assertTrue(settings.getBoolean("notificationsEnabled"))
-        assertEquals("[\"com.telegram.messenger\",\"com.whatsapp\"]", settings.getString("notificationApps"))
+        assertFalse(settings.has("notificationsEnabled"))
+        assertFalse(settings.has("notificationApps"))
     }
 
     @Test
@@ -139,8 +135,6 @@ class SettingsBackupTest {
                     .put("outgoingSmsEnabled", true)
                     .put("incomingCallsEnabled", true)
                     .put("outgoingCallsEnabled", true)
-                    .put("notificationsEnabled", true)
-                    .put("notificationApps", "[\"com.telegram.messenger\"]")
                     .put("themeMode", "dark"),
             )
             .put(
@@ -161,8 +155,7 @@ class SettingsBackupTest {
         waitForPrefs({
             Prefs.chatId == "12345" && !Prefs.smsEnabled &&
                 Prefs.outgoingSmsEnabled && Prefs.incomingCallsEnabled &&
-                Prefs.outgoingCallsEnabled && Prefs.notificationsEnabled &&
-                Prefs.themeMode == "dark"
+                Prefs.outgoingCallsEnabled && Prefs.themeMode == "dark"
         })
 
         assertEquals("12345", Prefs.chatId)
@@ -170,8 +163,6 @@ class SettingsBackupTest {
         assertTrue(Prefs.outgoingSmsEnabled)
         assertTrue(Prefs.incomingCallsEnabled)
         assertTrue(Prefs.outgoingCallsEnabled)
-        assertTrue(Prefs.notificationsEnabled)
-        assertEquals("[\"com.telegram.messenger\"]", Prefs.notificationApps)
         assertEquals("dark", Prefs.themeMode)
         assertEquals("токен не трогается импортом", tokenBefore, Prefs.botToken)
         assertEquals("канал импортирован", 1, result.channelsImported)

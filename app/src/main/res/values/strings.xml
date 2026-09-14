@@ -108,11 +108,7 @@
     <string name="pref_calls_enabled">Пересылать пропущенные</string>
     <string name="pref_incoming_calls_enabled">Пересылать принятые входящие</string>
     <string name="pref_outgoing_calls_enabled">Пересылать исходящие звонки</string>
-    <string name="pref_notifications_enabled">Пересылать уведомления</string>
-    <string name="pref_notification_apps">Приложения</string>
-    <string name="pref_notification_apps_summary">Выбери приложения, уведомления которых пересылать</string>
     <string name="pref_local_notifications">Уведомления на телефоне</string>
-    <string name="pref_duplicate_channels">Дублирование каналов</string>
 
     <!-- Шаблоны сообщений -->
     <string name="pref_templates_section">Шаблоны сообщений</string>
@@ -121,8 +117,7 @@
     <string name="pref_template_call_hint">Шаблон пропущенного вызова</string>
     <string name="pref_template_incoming_call_hint">Шаблон принятого входящего</string>
     <string name="pref_template_outgoing_call_hint">Шаблон исходящего звонка</string>
-    <string name="pref_template_notification_hint">Шаблон уведомлений</string>
-    <string name="pref_template_placeholders">Доступно: {sender} {name} {text} {time} {date} {type} {sim} {number} {app} {title}. Пусто — стандартный формат.</string>
+    <string name="pref_template_placeholders">Доступно: {sender} {name} {text} {time} {date} {type} {sim} {number}. Пусто — стандартный формат.</string>
     <string name="btn_preview_templates">Проверить</string>
     <string name="btn_save_templates">Сохранить</string>
     <string name="btn_reset_templates">Сбросить</string>
@@ -134,8 +129,7 @@
     <string name="preview_call_label">Пропущенный вызов</string>
     <string name="preview_incoming_call_label">Принятый входящий</string>
     <string name="preview_outgoing_call_label">Исходящий звонок</string>
-    <string name="preview_notification_label">Уведомление</string>
-    <string name="preview_sample_note">Пример данных: номер +7 900 123-45-67, контакт «Иван», текст «Пример текста SMS-сообщения», SIM «Sim1 beeline», приложение «Telegram».</string>
+    <string name="preview_sample_note">Пример данных: номер +7 900 123-45-67, контакт «Иван», текст «Пример текста SMS-сообщения», SIM «Sim1 beeline».</string>
 
     <!-- Тихие часы -->
     <string name="pref_quiet_hours_section">Тихие часы</string>

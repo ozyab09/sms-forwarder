@@ -77,12 +77,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swCalls: SwitchMaterial
     private lateinit var swIncomingCalls: SwitchMaterial
     private lateinit var swOutgoingCalls: SwitchMaterial
-    private lateinit var swNotifications: SwitchMaterial
     private lateinit var swLocalNotifications: SwitchMaterial
-    private lateinit var swDuplicateChannels: SwitchMaterial
     private lateinit var btnStart: MaterialButton
     private lateinit var btnStop: MaterialButton
-    private lateinit var btnNotificationApps: MaterialButton
 
     // Каналы отправки
     private lateinit var channelsContainer: LinearLayout
@@ -235,12 +232,9 @@ class MainActivity : AppCompatActivity() {
         swCalls = findViewById(R.id.sw_calls)
         swIncomingCalls = findViewById(R.id.sw_incoming_calls)
         swOutgoingCalls = findViewById(R.id.sw_outgoing_calls)
-        swNotifications = findViewById(R.id.sw_notifications)
         swLocalNotifications = findViewById(R.id.sw_local_notifications)
-        swDuplicateChannels = findViewById(R.id.sw_duplicate_channels)
         btnStart = findViewById(R.id.btn_start)
         btnStop = findViewById(R.id.btn_stop)
-        btnNotificationApps = findViewById(R.id.btn_notification_apps)
 
         channelsContainer = findViewById(R.id.channels_container)
         findViewById<MaterialButton>(R.id.btn_add_proxy).setOnClickListener { showProxyDialog(null) }
@@ -360,9 +354,7 @@ class MainActivity : AppCompatActivity() {
         swCalls.isChecked = s.callsEnabled
         swIncomingCalls.isChecked = s.incomingCallsEnabled
         swOutgoingCalls.isChecked = s.outgoingCallsEnabled
-        swNotifications.isChecked = s.notificationsEnabled
         swLocalNotifications.isChecked = s.localNotificationsEnabled
-        swDuplicateChannels.isChecked = s.duplicateChannels
 
         etTemplateSms.setText(s.templateSms)
         etTemplateOutgoingSms.setText(s.templateOutgoingSms)
@@ -370,9 +362,6 @@ class MainActivity : AppCompatActivity() {
         etTemplateIncomingCall.setText(s.templateIncomingCall)
         etTemplateOutgoingCall.setText(s.templateOutgoingCall)
         etTemplateNotification.setText(s.templateNotification)
-
-        // Показ кнопки выбора приложений для уведомлений
-        btnNotificationApps.visibility = if (s.notificationsEnabled) View.VISIBLE else View.GONE
 
         // Тихие часы
         swQuietHours.isChecked = s.quietHoursEnabled
@@ -488,13 +477,7 @@ class MainActivity : AppCompatActivity() {
         swCalls.setOnCheckedChangeListener { _, v -> viewModel.setCallsEnabled(v) }
         swIncomingCalls.setOnCheckedChangeListener { _, v -> viewModel.setIncomingCallsEnabled(v) }
         swOutgoingCalls.setOnCheckedChangeListener { _, v -> viewModel.setOutgoingCallsEnabled(v) }
-        swNotifications.setOnCheckedChangeListener { _, checked ->
-            viewModel.setNotificationsEnabled(checked)
-            btnNotificationApps.visibility = if (checked) View.VISIBLE else View.GONE
-            if (checked) checkNotificationListenerPermission()
-        }
         swLocalNotifications.setOnCheckedChangeListener { _, v -> viewModel.setLocalNotificationsEnabled(v) }
-        swDuplicateChannels.setOnCheckedChangeListener { _, v -> viewModel.setDuplicateChannels(v) }
         btnStart.setOnClickListener {
             viewModel.save()
             if (!Prefs.isConfigured()) {
@@ -775,10 +758,6 @@ class MainActivity : AppCompatActivity() {
             etTemplateOutgoingCall.text?.toString().orEmpty(),
             EventHistory.TYPE_OUTGOING,
         )
-        val notification = TemplateFormatter.preview(
-            etTemplateNotification.text?.toString().orEmpty(),
-            EventHistory.TYPE_NOTIFICATION,
-        )
         val message = buildString {
             append(getString(R.string.preview_sms_label)).append(":\n").append(sms)
             append("\n\n")
@@ -789,8 +768,6 @@ class MainActivity : AppCompatActivity() {
             append(getString(R.string.preview_incoming_call_label)).append(":\n").append(incomingCall)
             append("\n\n")
             append(getString(R.string.preview_outgoing_call_label)).append(":\n").append(outgoingCall)
-            append("\n\n")
-            append(getString(R.string.preview_notification_label)).append(":\n").append(notification)
             append("\n\n")
             append(getString(R.string.preview_sample_note))
         }
@@ -1051,28 +1028,6 @@ class MainActivity : AppCompatActivity() {
         }
         if (missing.isNotEmpty()) {
             permissionLauncher.launch(missing.toTypedArray())
-        }
-    }
-
-    /** Проверяем, включён ли NotificationListenerService. Если нет — открываем настройки. */
-    private fun checkNotificationListenerPermission() {
-        val enabled = try {
-            val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
-            flat?.contains(packageName) == true
-        } catch (_: Exception) {
-            false
-        }
-        if (!enabled) {
-            AlertDialog.Builder(this)
-                .setTitle(R.string.pref_notifications_enabled)
-                .setMessage(R.string.pref_notification_apps_summary)
-                .setPositiveButton(R.string.ok) { _, _ ->
-                    try {
-                        startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                    } catch (_: Exception) { }
-                }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
         }
     }
 

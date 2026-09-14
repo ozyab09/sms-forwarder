@@ -59,10 +59,7 @@ object Prefs {
     const val KEY_OUTGOING_SMS_ENABLED = "outgoing_sms_enabled"
     const val KEY_INCOMING_CALLS_ENABLED = "incoming_calls_enabled"
     const val KEY_OUTGOING_CALLS_ENABLED = "outgoing_calls_enabled"
-    const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
-    const val KEY_NOTIFICATION_APPS = "notification_apps"
     const val KEY_LOCAL_NOTIFICATIONS = "local_notifications"
-    const val KEY_DUPLICATE_CHANNELS = "duplicate_channels"
     const val KEY_PROXY_ENABLED = "proxy_enabled"
     const val KEY_PROXY_TYPE = "proxy_type" // "http" | "socks5"
     const val KEY_PROXY_HOST = "proxy_host"
@@ -271,36 +268,6 @@ object Prefs {
     var localNotificationsEnabled: Boolean
         get() = getBoolean(KEY_LOCAL_NOTIFICATIONS, false)
         set(v) = setBoolean(KEY_LOCAL_NOTIFICATIONS, v)
-
-    /** Дублирование каналов: параллельная отправка во все вместо каскада. */
-    var duplicateChannels: Boolean
-        get() = getBoolean(KEY_DUPLICATE_CHANNELS, false)
-        set(v) = setBoolean(KEY_DUPLICATE_CHANNELS, v)
-
-    /** Пересылка исходящих SMS. */
-    var outgoingSmsEnabled: Boolean
-        get() = getBoolean(KEY_OUTGOING_SMS_ENABLED, false)
-        set(v) = setBoolean(KEY_OUTGOING_SMS_ENABLED, v)
-
-    /** Пересылка принятых (входящих) звонков. */
-    var incomingCallsEnabled: Boolean
-        get() = getBoolean(KEY_INCOMING_CALLS_ENABLED, false)
-        set(v) = setBoolean(KEY_INCOMING_CALLS_ENABLED, v)
-
-    /** Пересылка исходящих звонков. */
-    var outgoingCallsEnabled: Boolean
-        get() = getBoolean(KEY_OUTGOING_CALLS_ENABLED, false)
-        set(v) = setBoolean(KEY_OUTGOING_CALLS_ENABLED, v)
-
-    /** Пересылка уведомлений (NotificationListenerService). */
-    var notificationsEnabled: Boolean
-        get() = getBoolean(KEY_NOTIFICATIONS_ENABLED, false)
-        set(v) = setBoolean(KEY_NOTIFICATIONS_ENABLED, v)
-
-    /** JSON-массив package names приложений для пересылки уведомлений. Пусто = все. */
-    var notificationApps: String
-        get() = getString(KEY_NOTIFICATION_APPS, "")
-        set(v) = setString(KEY_NOTIFICATION_APPS, v)
 
     var proxyEnabled: Boolean
         get() = getBoolean(KEY_PROXY_ENABLED, false)

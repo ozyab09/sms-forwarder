@@ -40,11 +40,9 @@ object ChannelSender {
     private const val CASCADE_TIMEOUT_MS = 120_000L
 
     /**
-     * Отправка текста через каналы.
+     * Отправка текста через каналы (каскад: первый успешный — победа).
      *
      * @param channels каналы в порядке приоритета (уже отфильтрованы enabled).
-     * @param duplicate если true — параллельная отправка во ВСЕ каналы (дублирование).
-     *   Если false — каскад (остановка на первом успешном).
      * @param sender функция отправки через один канал (по умолчанию — Bot API).
      * @param onSuccess колбэк, вызываемый при успешной отправке каналом
      *   (имя канала). Используется для promote-on-success в сервисе.
@@ -54,17 +52,11 @@ object ChannelSender {
         token: String,
         chatId: String,
         channels: List<Channel>,
-        duplicate: Boolean = false,
         onSuccess: (Channel) -> Unit = {},
         sender: suspend (Channel) -> ChannelOutcome = { realSender(text, token, chatId, it) },
     ): Result = withContext(Dispatchers.IO) {
         if (channels.isEmpty()) return@withContext Result.Err(listOf("Нет включённых каналов"))
-
-        if (duplicate) {
-            sendDuplicate(text, token, chatId, channels, onSuccess, sender)
-        } else {
-            sendCascade(text, token, chatId, channels, onSuccess, sender)
-        }
+        sendCascade(text, token, chatId, channels, onSuccess, sender)
     }
 
     /** Каскадная отправка: первый успешный канал — победа. */
@@ -98,55 +90,7 @@ object ChannelSender {
         } catch (e: TimeoutCancellationException) {
             failures += "Общий таймаут каскада (${CASCADE_TIMEOUT_MS / 1000}с)"
             LogStore.warn("Каскад прерван по общему таймауту")
-        }
-        sent?.let { return it }
-        return Result.Err(failures)
-    }
-
-    /**
-     * Параллельная отправка во все каналы (дублирование).
-     * Успех, если хотя бы один канал отправил.
-     */
-    private suspend fun sendDuplicate(
-        text: String,
-        token: String,
-        chatId: String,
-        channels: List<Channel>,
-        onSuccess: (Channel) -> Unit,
-        sender: suspend (Channel) -> ChannelOutcome,
-    ): Result {
-        val failures = mutableListOf<String>()
-        val successes = mutableListOf<Pair<String, Long>>()
-        try {
-            withTimeout(CASCADE_TIMEOUT_MS) {
-                coroutineScope {
-                    channels.map { ch ->
-                        async {
-                            when (val out = sender(ch)) {
-                                is ChannelOutcome.Sent -> {
-                                    LogStore.info("Дублирование через «${ch.name}» — успех")
-                                    onSuccess(ch)
-                                    synchronized(successes) { successes += ch.name to out.messageId }
-                                }
-                                is ChannelOutcome.Failed -> {
-                                    LogStore.warn("Дублирование через «${ch.name}»: ${out.reason}")
-                                    synchronized(failures) { failures += "«${ch.name}»: ${out.reason}" }
-                                }
-                            }
-                        }
-                    }.awaitAll()
-                }
-            }
-        } catch (e: TimeoutCancellationException) {
-            failures += "Общий таймаут дублирования (${CASCADE_TIMEOUT_MS / 1000}с)"
-            LogStore.warn("Дублирование прервано по общему таймауту")
-        }
-        if (successes.isNotEmpty()) {
-            val (name, mid) = successes.first()
-            return Result.Ok(name, mid)
-        }
-        return Result.Err(failures)
-    }
+}
 
     /** Результат теста подключения одного канала (через getMe). */
     data class ChannelTestResult(

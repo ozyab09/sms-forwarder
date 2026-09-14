@@ -8,7 +8,7 @@
 
 ## 🎯 Project Overview
 
-**SMS Forwarder** — Android app forwarding incoming SMS & missed calls to Telegram via Bot API.
+**SMS Forwarder** — Android app forwarding incoming/outgoing SMS, incoming/outgoing/missed calls, and app notifications to Telegram via Bot API.
 - Min SDK: 29 (Android 10), Target: 34 (Android 14)
 - Language: Kotlin 2.2, Gradle Kotlin DSL (Gradle 9.3, AGP 9.1)
 - Architecture: Clean separation — UI (MVVM), Receivers, Foreground Service, Telegram channels
@@ -27,10 +27,11 @@
 └────────────────────────────┬────────────────────────────────────────┘
                              │ Prefs (cache) / EventHistory (Room)
 ┌────────────────────────────▼────────────────────────────────────────┐
-│  Broadcast Receivers (system-triggered)                             │
-│  ├─ SmsReceiver:     SMS_RECEIVED → формат по шаблону               │
-│  ├─ CallReceiver:    PHONE_STATE + CallLog → только пропущенные     │
-│  └─ BootReceiver:    BOOT_COMPLETED → start ForwardService          │
+│  Broadcast Receivers & Listeners (system-triggered)                 │
+│  ├─ SmsReceiver:        SMS_RECEIVED → формат по шаблону            │
+│  ├─ CallReceiver:       PHONE_STATE + CallLog → missed/incoming/outgoing │
+│  ├─ OutgoingSmsObserver: ContentObserver на content://sms/sent      │
+│  └─ BootReceiver:       BOOT_COMPLETED → start ForwardService       │
 └────────────────────────────┬────────────────────────────────────────┘
                              │ Intent extras (QueuedEvent)
 ┌────────────────────────────▼────────────────────────────────────────┐
@@ -50,11 +51,12 @@
 | `ui` | `MainViewModel` | Состояние экрана + операции (тест каналов, getMyId), MVVM |
 | `ui` | `OnboardingActivity` | Первый запуск: приветствие → токен → Chat ID → готово |
 | `receiver` | `SmsReceiver` | Входящие SMS, формат по шаблону |
-| `receiver` | `CallReceiver` | Состояние вызова, подтверждение «пропущен» через CallLog |
+| `receiver` | `CallReceiver` | PHONE_STATE: missed/incoming/outgoing, подтверждение через CallLog |
 | `receiver` | `BootReceiver` | Автозапуск сервиса после перезагрузки |
 | `service` | `ForwardService` | Foreground-сервис: очередь, per-event ретраи, история |
 | `service` | `SendQueue` | FIFO новых событий + min-heap ретраев, MAX_ATTEMPTS |
 | `service` | `EventQueueStore` | Персистентность очереди (tmp + rename) — события не теряются |
+| `service` | `OutgoingSmsObserver` | ContentObserver на content://sms/sent — исходящие SMS |
 | `telegram` | `Channel` | Канал отправки: direct / http / socks5 (+ `ChannelStore`) |
 | `telegram` | `ChannelSender` | Каскадная отправка + `testAll` (getMe, лимит 4) |
 | `telegram` | `ChannelClientFactory` | Кэш OkHttp-клиентов по конфигурации канала |
@@ -62,7 +64,7 @@
 | `history` | `EventHistory` | Запись/чтение истории (Room) — вкладка «История» |
 | `update` | `UpdateChecker` / `UpdateManager` | Проверка GitHub Releases, диалог, загрузка APK |
 | `util` | `Prefs` | DataStore (plain) + EncryptedSharedPreferences; **async init** |
-| `util` | `LogStore` | Кольцевой буфер логов в памяти (200 записей) |
+| `util` | `LogStore` | Буфер логов (200 записей, хранение 7 дней) |
 | `util` | `TemplateFormatter` | Шаблоны сообщений + предпросмотр |
 | `util` | `QuietHours` | Тихие часы (интервалы, в т.ч. через полночь) |
 | `util` | `SettingsBackup` | Экспорт/импорт настроек (JSON, без секретов) |

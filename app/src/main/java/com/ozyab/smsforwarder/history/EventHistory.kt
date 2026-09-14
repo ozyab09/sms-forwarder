@@ -24,7 +24,6 @@ object EventHistory {
     const val TYPE_INCOMING = "incoming"
     const val TYPE_OUTGOING = "outgoing"
     const val TYPE_OUTGOING_SMS = "outgoing_sms"
-    const val TYPE_NOTIFICATION = "notification"
 
     /** Сколько событий максимум держим в истории. */
     const val MAX_EVENTS = 1000
