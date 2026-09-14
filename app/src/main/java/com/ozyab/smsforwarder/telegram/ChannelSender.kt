@@ -90,7 +90,10 @@ object ChannelSender {
         } catch (e: TimeoutCancellationException) {
             failures += "Общий таймаут каскада (${CASCADE_TIMEOUT_MS / 1000}с)"
             LogStore.warn("Каскад прерван по общему таймауту")
-}
+        }
+        sent?.let { return it }
+        return Result.Err(failures)
+    }
 
     /** Результат теста подключения одного канала (через getMe). */
     data class ChannelTestResult(

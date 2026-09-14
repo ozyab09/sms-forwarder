@@ -135,29 +135,6 @@ class TemplateFormatterTest {
     }
 
     @Test
-    fun `default notification template`() {
-        val result = TemplateFormatter.format(
-            template = "", sender = "", name = null,
-            text = "New message", timestamp = ts, type = "notification",
-            appName = "Telegram", title = "Новое сообщение"
-        )
-        assertTrue(result.contains("Telegram"))
-        assertTrue(result.contains("Новое сообщение"))
-        assertTrue(result.contains("New message"))
-    }
-
-    @Test
-    fun `notification template replaces app and title placeholders`() {
-        val tpl = "[{app}] {title}: {text}"
-        val result = TemplateFormatter.format(
-            template = tpl, sender = "", name = null,
-            text = "Hello", timestamp = ts, type = "notification",
-            appName = "WhatsApp", title = "John"
-        )
-        assertEquals("[WhatsApp] John: Hello", result)
-    }
-
-    @Test
     fun `outgoing SMS template with custom template`() {
         val tpl = "OUTGOING to {sender}: {text}"
         val result = TemplateFormatter.format(
@@ -211,19 +188,6 @@ class TemplateFormatterTest {
         val result = TemplateFormatter.preview("", type = "outgoing", timestamp = ts)
         assertTrue(result.contains("📞 Исходящий"))
         assertTrue(result.contains(TemplateFormatter.PREVIEW_SENDER))
-    }
-
-    @Test
-    fun `preview uses sample data for notification`() {
-        val result = TemplateFormatter.preview("", type = "notification", timestamp = ts)
-        assertTrue(result.contains("Telegram"))
-        assertTrue(result.contains("Новое сообщение"))
-    }
-
-    @Test
-    fun `preview respects custom template for notification`() {
-        val result = TemplateFormatter.preview("NOTIF {app}: {title}", type = "notification", timestamp = ts)
-        assertEquals("NOTIF Telegram: Новое сообщение", result)
     }
 
     // ──────────────────────────────────────────────

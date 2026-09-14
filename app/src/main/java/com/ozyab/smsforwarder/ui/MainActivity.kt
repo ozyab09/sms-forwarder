@@ -90,7 +90,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etTemplateCall: TextInputEditText
     private lateinit var etTemplateIncomingCall: TextInputEditText
     private lateinit var etTemplateOutgoingCall: TextInputEditText
-    private lateinit var etTemplateNotification: TextInputEditText
     private lateinit var swQuietHours: SwitchMaterial
     private lateinit var layoutQuietTimes: View
     private lateinit var btnQuietStart: MaterialButton
@@ -244,7 +243,6 @@ class MainActivity : AppCompatActivity() {
         etTemplateOutgoingSms = findViewById(R.id.et_template_outgoing_sms)
         etTemplateIncomingCall = findViewById(R.id.et_template_incoming_call)
         etTemplateOutgoingCall = findViewById(R.id.et_template_outgoing_call)
-        etTemplateNotification = findViewById(R.id.et_template_notification)
         etTemplateSms.addTextChangedListener(textWatcher {
             viewModel.setTemplateSms(etTemplateSms.text?.toString() ?: "")
         })
@@ -260,9 +258,6 @@ class MainActivity : AppCompatActivity() {
         etTemplateOutgoingCall.addTextChangedListener(textWatcher {
             viewModel.setTemplateOutgoingCall(etTemplateOutgoingCall.text?.toString() ?: "")
         })
-        etTemplateNotification.addTextChangedListener(textWatcher {
-            viewModel.setTemplateNotification(etTemplateNotification.text?.toString() ?: "")
-        })
         findViewById<MaterialButton>(R.id.btn_preview_templates).setOnClickListener {
             showTemplatePreview()
         }
@@ -276,13 +271,11 @@ class MainActivity : AppCompatActivity() {
             etTemplateCall.setText("")
             etTemplateIncomingCall.setText("")
             etTemplateOutgoingCall.setText("")
-            etTemplateNotification.setText("")
             viewModel.setTemplateSms("")
             viewModel.setTemplateOutgoingSms("")
             viewModel.setTemplateCall("")
             viewModel.setTemplateIncomingCall("")
             viewModel.setTemplateOutgoingCall("")
-            viewModel.setTemplateNotification("")
             viewModel.save()
             Toast.makeText(this, R.string.toast_templates_reset, Toast.LENGTH_SHORT).show()
         }
@@ -361,7 +354,6 @@ class MainActivity : AppCompatActivity() {
         etTemplateCall.setText(s.templateCall)
         etTemplateIncomingCall.setText(s.templateIncomingCall)
         etTemplateOutgoingCall.setText(s.templateOutgoingCall)
-        etTemplateNotification.setText(s.templateNotification)
 
         // Тихие часы
         swQuietHours.isChecked = s.quietHoursEnabled
@@ -729,7 +721,6 @@ class MainActivity : AppCompatActivity() {
         viewModel.setTemplateCall(etTemplateCall.text?.toString() ?: "")
         viewModel.setTemplateIncomingCall(etTemplateIncomingCall.text?.toString() ?: "")
         viewModel.setTemplateOutgoingCall(etTemplateOutgoingCall.text?.toString() ?: "")
-        viewModel.setTemplateNotification(etTemplateNotification.text?.toString() ?: "")
         viewModel.save()
     }
 

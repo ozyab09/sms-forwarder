@@ -20,8 +20,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-typealias ChannelTestResult = com.ozyab.smsforwarder.telegram.ChannelSender.ChannelTestResult
-
 /**
  * Неизменяемое состояние экрана настроек.
  * UI подписывается на [MainViewModel.state] и рендерит его — логика отделена
@@ -41,7 +39,6 @@ data class SettingsUiState(
     val templateCall: String = "",
     val templateIncomingCall: String = "",
     val templateOutgoingCall: String = "",
-    val templateNotification: String = "",
     val quietHoursEnabled: Boolean = false,
     val quietHoursStart: Int = 23 * 60,
     val quietHoursEnd: Int = 8 * 60,
@@ -109,7 +106,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             templateCall = Prefs.messageTemplateCall,
             templateIncomingCall = Prefs.messageTemplateIncomingCall,
             templateOutgoingCall = Prefs.messageTemplateOutgoingCall,
-            templateNotification = Prefs.messageTemplateNotification,
             quietHoursEnabled = Prefs.quietHoursEnabled,
             quietHoursStart = Prefs.quietHoursStart,
             quietHoursEnd = Prefs.quietHoursEnd,
@@ -131,7 +127,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setTemplateCall(v: String) { _state.value = _state.value.copy(templateCall = v) }
     fun setTemplateIncomingCall(v: String) { _state.value = _state.value.copy(templateIncomingCall = v) }
     fun setTemplateOutgoingCall(v: String) { _state.value = _state.value.copy(templateOutgoingCall = v) }
-    fun setTemplateNotification(v: String) { _state.value = _state.value.copy(templateNotification = v) }
     fun setQuietHoursEnabled(v: Boolean) { _state.value = _state.value.copy(quietHoursEnabled = v) }
     fun setQuietHoursStart(v: Int) { _state.value = _state.value.copy(quietHoursStart = v) }
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
@@ -152,7 +147,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.messageTemplateCall = s.templateCall
         Prefs.messageTemplateIncomingCall = s.templateIncomingCall
         Prefs.messageTemplateOutgoingCall = s.templateOutgoingCall
-        Prefs.messageTemplateNotification = s.templateNotification
         Prefs.quietHoursEnabled = s.quietHoursEnabled
         Prefs.quietHoursStart = s.quietHoursStart
         Prefs.quietHoursEnd = s.quietHoursEnd
@@ -180,11 +174,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = _state.value.copy(testing = true)
         LogStore.info("Проверка связи через каналы: ${channels.joinToString { it.name }}")
         viewModelScope.launch {
-            val results = withContext(ioDispatcher) { testAllImpl(token, channels) } as List<ChannelTestResult>
+            val results = withContext(ioDispatcher) { testAllImpl(token, channels) }
             _state.value = _state.value.copy(testing = false)
-            val mapped = mutableListOf<TestChannel>()
-            for (r in results) {
-                mapped.add(TestChannel(r.channel.name, r.ok, r.botUsername, r.error))
+            val mapped = results.map {
+                TestChannel(it.channel.name, it.ok, it.botUsername, it.error)
             }
             for (r in mapped) {
                 if (r.ok) LogStore.ok("Тест «${r.name}» — бот @${r.botUsername ?: "?"} доступен")

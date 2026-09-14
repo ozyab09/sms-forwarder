@@ -87,7 +87,6 @@ object Prefs {
     const val KEY_MESSAGE_TEMPLATE_OUTGOING_SMS = "message_template_outgoing_sms"
     const val KEY_MESSAGE_TEMPLATE_INCOMING_CALL = "message_template_incoming_call"
     const val KEY_MESSAGE_TEMPLATE_OUTGOING_CALL = "message_template_outgoing_call"
-    const val KEY_MESSAGE_TEMPLATE_NOTIFICATION = "message_template_notification"
 
     // Тихие часы (plain)
     const val KEY_QUIET_HOURS_ENABLED = "quiet_hours_enabled"
@@ -361,11 +360,6 @@ object Prefs {
     var messageTemplateOutgoingCall: String
         get() = getString(KEY_MESSAGE_TEMPLATE_OUTGOING_CALL, "")
         set(v) = setString(KEY_MESSAGE_TEMPLATE_OUTGOING_CALL, v)
-
-    /** Шаблон для уведомлений. Пусто = дефолтный формат. */
-    var messageTemplateNotification: String
-        get() = getString(KEY_MESSAGE_TEMPLATE_NOTIFICATION, "")
-        set(v) = setString(KEY_MESSAGE_TEMPLATE_NOTIFICATION, v)
 
     // --- Тихие часы (минуты от полуночи) ---
     var quietHoursEnabled: Boolean
