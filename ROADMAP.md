@@ -1,9 +1,9 @@
 # 🗺️ ROADMAP — SMS Forwarder (Android → Telegram)
 
 > Живой документ: дорожная карта приложения. Обновляется по мере выполнения.
-> Соглашения: каждый пункт — feature-ветка + PR → зелёный CI → авто-мерж (squash) → bump версии (patch) + changelog + release.
+> Соглашения: каждый пункт — issue + feature-ветка + PR → зелёный CI (build + тесты + lint) → squash-мерж. Версию bump'ит **автор в том же PR** (auto-bump ботом убран: branch protection запрещает прямые push в main, #95); после мержа CI создаёт тег v0.5.X и GitHub Release.
 
-**Текущая версия:** 0.5.22 · **Дата:** 2026-09-14
+**Текущая версия:** 0.5.35 · **Дата:** 2026-09-14
 
 ---
 
@@ -28,10 +28,10 @@
 - [x] **MVVM** — `MainViewModel` (StateFlow+SharedFlow), MainActivity — тонкий вид (PR #56/#57), поворот экрана безопасен (#59). Issue #55 закрыт.
 - [x] [2026-09-13] **Фикс гонки `Prefs`** — коллектор DataStore больше не откатывает оптимистичный кэш (флейки теста `save`).
 - [x] **Тесты** — 10 файлов: TemplateFormatter, QuietHours, ChannelStore (promote), UpdateChecker (версии/links), SendQueue, ChannelSender, ChannelClientFactory, EventDao, MainActivityLaunch (6 UI), UtilTest. + [2026-09-13] LogStoreTest, SettingsBackupTest, UI-тест версии в «О приложении».
-- [x] **CI/CD** — GitHub Actions: PR → debug+тесты+lint; тег vX.Y.Z → подписанный release APK + GitHub Release.
+- [x] **CI/CD** — GitHub Actions: PR → debug + unit-тесты + lintDebug; push в main → тег v0.5.X по версии из `libs.versions.toml` (без bump-коммита, #95); тег → unit-тесты + подписанный release APK + GitHub Release (notes из CHANGELOG.md). Branch protection на main: всё через PR.
 - [x] **README** — приведён к актуальному состоянию (2026-09-13): тихие часы, история, экспорт/импорт, шаблоны, MVVM-структура, статусы идей.
 - [x] **Документация** — [2026-09-13] TECH_TASK/AGENTS/BRAINSTORM/README/screenshots актуализированы, T6 закрыт (§ выше).
-- [x] **F10. Пересылка уведомлений** — `NotificationListenerService` с выбором приложений. ✅ 2026-09-14
+- [x] [2026-09-14] **Починка релизного конвейера** — усечённый `sendCascade` восстановлен (#90), остатки F10 вычищены, lintDebug в PR + тесты перед релизом (#91), auto-tag без бота-пуша (#95). Релизы v0.5.34/v0.5.35 зелёные.
 - [x] **Исходящие SMS** — `ContentObserver` на `content://sms/sent` (READ_SMS). ✅ 2026-09-14
 - [x] **Принятые входящие звонки** — `RINGING → OFFHOOK → IDLE` → `type = "incoming"`. ✅ 2026-09-14
 - [x] **Исходящие звонки** — `OFFHOOK без RINGING → IDLE` → `type = "outgoing"`. ✅ 2026-09-14
@@ -89,24 +89,24 @@
 
 ---
 
-## 📊 Карта покрытия тестами (2026-09-14)
+## 📊 Карта покрытия тестами (2026-09-14, ~155 тестов; 16 пропускаются — @Ignore)
 
 | Класс | Тест | Статус |
 |-------|------|--------|
-| TemplateFormatter | TemplateFormatterTest (18: плейсхолдеры + превью + новые типы) | ✅ |
+| TemplateFormatter | TemplateFormatterTest (21: плейсхолдеры + превью + новые типы) | ✅ |
 | QuietHours | QuietHoursTest (7) | ✅ |
 | ChannelStore (promote) | ChannelStoreTest (7) | ✅ |
-| SendQueue | SendQueueTest | ✅ |
-| ChannelSender | ChannelSenderTest (16) | ✅ |
-| ChannelClientFactory | ChannelClientFactoryTest | ✅ |
-| UpdateChecker (версии/links) | UtilTest (8) | ✅ |
-| EventDao (Room) | EventDaoTest | ✅ |
-| MainActivity (UI) | MainActivityLaunchTest (6): старт/холодный старт/поворот/табы/версия | ✅ |
-| LogStore | LogStoreTest (6) | ✅ (2026-09-13) |
-| SettingsBackup | SettingsBackupTest (12: новые настройки + шаблоны) | ✅ (2026-09-14) |
-| MainViewModel | MainViewModelTest (10) | ✅ (2026-09-13) |
+| SendQueue | SendQueueTest (9) | ✅ |
+| ChannelSender | ChannelSenderTest (9: каскад, параллельный testAll) | ✅ |
+| ChannelClientFactory | ChannelClientFactoryTest (6) | ✅ |
+| UpdateChecker (версии/links) | UtilTest (9) | ✅ |
+| MainActivity (UI) | MainActivityLaunchTest (7): старт/холодный старт/поворот/табы/версия | ✅ |
+| LogStore | LogStoreTest (5) | ✅ (2026-09-13) |
+| SettingsBackup | SettingsBackupTest (11: новые настройки + шаблоны + звонки) | ✅ (2026-09-14) |
+| MainViewModel | MainViewModelTest (9) | ✅ (2026-09-13) |
 | TelegramClient | TelegramClientTest (10, MockWebServer) | ✅ (2026-09-13) |
 | EventQueueStore | EventQueueStoreTest (9) | ✅ (2026-09-13) |
-| ForwardService | ForwardServiceTest (8: enqueue/process/stop/persist) | ✅ (2026-09-13) |
-| SmsReceiver/CallReceiver | ReceiverTest (14: state machine + guards) | ✅ (2026-09-14) |
+| SmsReceiver/CallReceiver | ReceiverTest (18: state machine + guards) | ✅ (2026-09-14) |
 | FGS-уведомление | ForwardServiceNotificationTest (3) | ✅ (2026-09-13) |
+| ForwardService | ForwardServiceTest (8) | ⏸️ @Ignore — Robolectric не отменяет корутину сервиса (нужен TestDispatcher) |
+| EventDao (Room) | EventDaoTest (8) | ⏸️ @Ignore — Robolectric+Room ClassNotFoundException (нужен robolectric-sqlite или перенос в androidTest) |
