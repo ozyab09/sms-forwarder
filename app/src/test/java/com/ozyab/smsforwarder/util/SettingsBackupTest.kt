@@ -45,7 +45,6 @@ class SettingsBackupTest {
         Prefs.messageTemplateCall = ""
         Prefs.messageTemplateIncomingCall = ""
         Prefs.messageTemplateOutgoingCall = ""
-        Prefs.messageTemplateNotification = ""
         ChannelStore.setAll(listOf(Channel.direct()))
     }
 
@@ -108,7 +107,6 @@ class SettingsBackupTest {
         Prefs.messageTemplateOutgoingSms = "OUT: {sender}"
         Prefs.messageTemplateIncomingCall = "IN: {sender}"
         Prefs.messageTemplateOutgoingCall = "DIAL: {sender}"
-        Prefs.messageTemplateNotification = "NOTIF: {app}"
 
         val json = SettingsBackup.export()
         val settings = json.getJSONObject("settings")
@@ -116,7 +114,6 @@ class SettingsBackupTest {
         assertEquals("OUT: {sender}", settings.getString("messageTemplateOutgoingSms"))
         assertEquals("IN: {sender}", settings.getString("messageTemplateIncomingCall"))
         assertEquals("DIAL: {sender}", settings.getString("messageTemplateOutgoingCall"))
-        assertEquals("NOTIF: {app}", settings.getString("messageTemplateNotification"))
     }
 
     @Test
@@ -178,8 +175,7 @@ class SettingsBackupTest {
                 JSONObject()
                     .put("messageTemplateOutgoingSms", "OUT: {sender}")
                     .put("messageTemplateIncomingCall", "IN: {sender}")
-                    .put("messageTemplateOutgoingCall", "DIAL: {sender}")
-                    .put("messageTemplateNotification", "NOTIF: {app}"),
+                    .put("messageTemplateOutgoingCall", "DIAL: {sender}"),
             )
 
         SettingsBackup.import(body)
@@ -187,14 +183,12 @@ class SettingsBackupTest {
         waitForPrefs({
             Prefs.messageTemplateOutgoingSms == "OUT: {sender}" &&
                 Prefs.messageTemplateIncomingCall == "IN: {sender}" &&
-                Prefs.messageTemplateOutgoingCall == "DIAL: {sender}" &&
-                Prefs.messageTemplateNotification == "NOTIF: {app}"
+                Prefs.messageTemplateOutgoingCall == "DIAL: {sender}"
         })
 
         assertEquals("OUT: {sender}", Prefs.messageTemplateOutgoingSms)
         assertEquals("IN: {sender}", Prefs.messageTemplateIncomingCall)
         assertEquals("DIAL: {sender}", Prefs.messageTemplateOutgoingCall)
-        assertEquals("NOTIF: {app}", Prefs.messageTemplateNotification)
     }
 
     @Test
