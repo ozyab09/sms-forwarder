@@ -101,6 +101,15 @@ object Prefs {
 
     private lateinit var secure: SharedPreferences
 
+    /**
+     * Fallback-хранилище секретов, если AndroidKeyStore/EncryptedSharedPreferences
+     * недоступны (частные ROM, JVM-тесты). Обычный in-memory SharedPreferences
+     * Robolectric-приложения (в проде НЕ используется — keystore есть всегда,
+     * кроме реально сломанных устройств; там это лучше, чем неработающая
+     * пересылка и потерянный токен при каждом старте).
+     */
+    @Volatile private var secureFallback: SharedPreferences? = null
+
     /** DataStore для plain-настроек (создаётся в [init]). */
     private lateinit var plainStore: DataStore<Preferences>
 
@@ -143,7 +152,8 @@ object Prefs {
             try {
                 doInitSecure(appContext)
             } catch (e: Throwable) {
-                LogStore.error("Prefs secure init failed: ${e.message}")
+                LogStore.error("Prefs secure init failed (${e.message}) — секреты только в памяти процесса")
+                secureFallback = appContext.getSharedPreferences(FILE_SECURE + "_fallback", Context.MODE_PRIVATE)
             } finally {
                 markReady()
             }
@@ -215,35 +225,43 @@ object Prefs {
 
     // --- secure (EncryptedSharedPreferences) ---
 
+    /** Реальное хранилище секретов: EncryptedSharedPreferences или fallback. */
+    private fun secureStore(): SharedPreferences =
+        if (::secure.isInitialized) secure
+        else secureFallback
+            // Не должно случиться: init() всегда создаёт fallback в catch,
+            // а аксессоры дожидаются готовности через awaitReady().
+            ?: throw IllegalStateException("Prefs secure storage not initialized")
+
     var botToken: String
         get() {
             awaitReady()
-            return if (::secure.isInitialized) secure.getString(KEY_BOT_TOKEN, "") ?: "" else ""
+            return secureStore().getString(KEY_BOT_TOKEN, "") ?: ""
         }
         set(v) {
             awaitReady()
-            if (::secure.isInitialized) secure.edit().putString(KEY_BOT_TOKEN, v).apply()
+            secureStore().edit().putString(KEY_BOT_TOKEN, v).apply()
         }
 
     var proxyPass: String
         get() {
             awaitReady()
-            return if (::secure.isInitialized) secure.getString(KEY_PROXY_PASS, "") ?: "" else ""
+            return secureStore().getString(KEY_PROXY_PASS, "") ?: ""
         }
         set(v) {
             awaitReady()
-            if (::secure.isInitialized) secure.edit().putString(KEY_PROXY_PASS, v).apply()
+            secureStore().edit().putString(KEY_PROXY_PASS, v).apply()
         }
 
     /** JSON-массив каналов отправки (secure). */
     var channelsJson: String
         get() {
             awaitReady()
-            return if (::secure.isInitialized) secure.getString(KEY_CHANNELS_JSON, "") ?: "" else ""
+            return secureStore().getString(KEY_CHANNELS_JSON, "") ?: ""
         }
         set(v) {
             awaitReady()
-            if (::secure.isInitialized) secure.edit().putString(KEY_CHANNELS_JSON, v).apply()
+            secureStore().edit().putString(KEY_CHANNELS_JSON, v).apply()
         }
 
     // --- plain (DataStore, через кэш) ---
@@ -417,7 +435,7 @@ object Prefs {
                 pendingWrites.decrementAndGet()
             }
         }
-        secure.edit().remove(KEY_PROXY_PASS).apply()
+        secureStore().edit().remove(KEY_PROXY_PASS).apply()
         // Сразу отражаем в кэше, чтобы чтения после вызова вернули дефолты.
         if (::cache.isInitialized) {
             val mut = cache.toMutablePreferences()
