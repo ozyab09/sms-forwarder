@@ -178,9 +178,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = _state.value.copy(testing = true)
         LogStore.info("Проверка связи через каналы: ${channels.joinToString { it.name }}")
         viewModelScope.launch {
-            val results = withContext(ioDispatcher) { testAllImpl(token, channels) }
+            val results: List<ChannelSender.ChannelTestResult> = withContext(ioDispatcher) { testAllImpl(token, channels) }
             _state.value = _state.value.copy(testing = false)
-            val mapped = results.map {
+            val mapped: List<TestChannel> = results.map {
                 TestChannel(it.channel.name, it.ok, it.botUsername, it.error)
             }
             for (r in mapped) {
