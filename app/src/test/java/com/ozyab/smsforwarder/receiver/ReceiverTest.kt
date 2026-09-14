@@ -126,8 +126,9 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79009998877")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79009998877")
         assertNotNull(result)
+        // 📵 = \uD83D\uDCF5
         assertTrue("текст начинается с иконки пропущенного",
-            result!!.first.contains("\uD83D\uDCD5") || result.first.contains("Пропущенный"))
+            result!!.first.startsWith("\uD83D\uDCF5") || result.first.contains("Пропущенный"))
     }
 
     @Test
