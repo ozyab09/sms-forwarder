@@ -221,7 +221,7 @@ class CallReceiver : android.content.BroadcastReceiver() {
             )
 
             com.ozyab.smsforwarder.service.ForwardService.start(
-                context, text, type = type, sender = number
+                context, text, type = type, sender = number ?: ""
             )
         }
     }
