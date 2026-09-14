@@ -64,7 +64,7 @@
 | `history` | `EventHistory` | Запись/чтение истории (Room) — вкладка «История» |
 | `update` | `UpdateChecker` / `UpdateManager` | Проверка GitHub Releases, диалог, загрузка APK |
 | `util` | `Prefs` | DataStore (plain) + EncryptedSharedPreferences; **async init** |
-| `util` | `LogStore` | Буфер логов (200 записей, хранение 7 дней) |
+| `util` | `LogStore` | Кольцевой буфер логов (последние 200 записей, in-memory) |
 | `util` | `TemplateFormatter` | Шаблоны сообщений + предпросмотр |
 | `util` | `QuietHours` | Тихие часы (интервалы, в т.ч. через полночь) |
 | `util` | `SettingsBackup` | Экспорт/импорт настроек (JSON, без секретов) |
