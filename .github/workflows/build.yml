@@ -109,8 +109,10 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build + test
-        run: ./gradlew assembleDebug testDebugUnitTest --parallel --build-cache
+      # lintDebug добавлен: PR-пайплайн должен ловить проблемы линтером,
+      # а не только компилятором и unit-тестами (см. issue #91).
+      - name: Build + test + lint
+        run: ./gradlew assembleDebug testDebugUnitTest lintDebug --parallel --build-cache
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -135,6 +137,11 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      # Unit-тесты перед сборкой релиза: тег не должен собираться
+      # из непротестированного кода (см. issue #91).
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --parallel --build-cache
 
       - name: Build signed release APK
         run: ./gradlew assembleRelease --parallel --build-cache
