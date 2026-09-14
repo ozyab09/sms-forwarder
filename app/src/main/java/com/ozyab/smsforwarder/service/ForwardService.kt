@@ -16,6 +16,7 @@ import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.telegram.TelegramClient
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,7 +42,12 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 class ForwardService : Service() {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    /** Диспетчер воркера; в тестах подменяется на TestDispatcher (см. ForwardServiceTest). */
+    internal var workerDispatcher: CoroutineDispatcher = Dispatchers.IO
+
+    // Храним скоуп воркера: get()-свойство создавало бы НОВЫЙ скоуп на каждое
+    // обращение, и cancel() в onDestroy отменял бы пустой скоуп, а не воркер.
+    private var workerScope: CoroutineScope? = null
     private val queue = SendQueue()
     private lateinit var outgoingSmsObserver: OutgoingSmsObserver
 
@@ -143,7 +149,8 @@ class ForwardService : Service() {
         // Постоянный цикл обработки очереди — только один раз за жизнь сервиса
         if (!workerStarted) {
             workerStarted = true
-            scope.launch {
+            workerScope = CoroutineScope(SupervisorJob() + workerDispatcher)
+            workerScope!!.launch {
                 val restored = EventQueueStore.load(this@ForwardService)
                 if (restored.isNotEmpty()) {
                     if (Prefs.isConfigured()) {
@@ -164,6 +171,7 @@ class ForwardService : Service() {
 
     /** Добавить событие в очередь (вызывается из ресиверов). */
     fun enqueue(text: String, type: String = "sms", sender: String = "", eventTime: Long = System.currentTimeMillis()) {
+        if (text.isBlank()) return // пустые события не пересылаем
         queue.enqueue(text, type = type, sender = sender, eventTime = eventTime)
         persist()
         wake.trySend(Unit)
@@ -343,6 +351,8 @@ class ForwardService : Service() {
         if (::outgoingSmsObserver.isInitialized) {
             outgoingSmsObserver.stop()
         }
-        scope.cancel()
+        workerScope?.cancel()
+        workerScope = null
+        workerStarted = false
     }
 }

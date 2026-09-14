@@ -8,16 +8,18 @@ import com.ozyab.smsforwarder.telegram.ChannelClientFactory
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
+import java.util.concurrent.TimeUnit
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
+import org.robolectric.android.controller.ServiceController
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
@@ -26,7 +28,6 @@ import org.robolectric.annotation.Config
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30])
-@Ignore("ForwardService coroutine blocks on Channel.receive(); Robolectric cannot cancel it — needs TestDispatcher")
 class ForwardServiceTest {
 
     private lateinit var mockServer: MockWebServer
@@ -39,6 +40,10 @@ class ForwardServiceTest {
         ChannelStore.invalidate()
         LogStore.clear()
         EventQueueStore.clear(context)
+        // Синхронизируемся с асинхронным clear() из setUp и предыдущего tearDown
+        await("очередь чиста перед тестом") {
+            !java.io.File(context.filesDir, "event_queue.json").exists()
+        }
         mockServer = MockWebServer()
         mockServer.start()
         ChannelClientFactory.apiBase = mockServer.url("/").toString().trimEnd('/')
@@ -50,8 +55,43 @@ class ForwardServiceTest {
         mockServer.shutdown()
         ChannelStore.invalidate()
         LogStore.clear()
+        // ВАЖНО: clear() асинхронный (executor 'queue-store'); если не дождаться
+        // удаления, следующий тест загрузит файл с событием прошлого теста и
+        // воркер отправит его — загрязнение MockWebServer (флейки).
         EventQueueStore.clear(context)
+        await("файл очереди удалён в tearDown") {
+            !java.io.File(context.filesDir, "event_queue.json").exists()
+        }
     }
+
+    /**
+     * Создаёт сервис и прогоняет startCommand. Воркер работает на реальном
+     * Dispatchers.IO (умолчание): отмена корутины в onDestroy корректна
+     * (wake.receive() — suspending), а сетевые вызовы OkHttp и так блокирующие.
+     * Все ожидания в тестах ограничены таймаутами — тест не может зависнуть.
+     */
+    private fun buildStartedService(intent: Intent): ServiceController<ForwardService> {
+        val ctrl = Robolectric.buildService(ForwardService::class.java, intent)
+        ctrl.create()
+        ctrl.get().workerDispatcher = kotlinx.coroutines.Dispatchers.IO
+        ctrl.startCommand(0, 0)
+        return ctrl
+    }
+
+
+    /** Ждёт выполнения условия до timeoutMs (воркер асинхронный, fixed sleep ненадёжен). */
+    private fun await(what: String, timeoutMs: Long = 15_000, condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (condition()) return
+            Thread.sleep(25)
+        }
+        assertTrue("не дождались: $what", condition())
+    }
+
+    /** takeRequest с таймаутом: без него тест висит вечно при отсутствии запроса. */
+    private fun takeRequestOrNull(timeoutMs: Long = 15_000): okhttp3.mockwebserver.RecordedRequest? =
+        mockServer.takeRequest(timeoutMs, TimeUnit.MILLISECONDS)
 
     private fun configurePrefs() {
         Prefs.botToken = "test-token-123"
@@ -77,15 +117,15 @@ class ForwardServiceTest {
         configureDirectChannel()
         mockServer.enqueue(MockResponse().setBody("""{"ok":true,"result":{"message_id":42}}"""))
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java, startIntent("Test message"))
-        ctrl.create().startCommand(0, 0)
-        Thread.sleep(2000)
+        val ctrl = buildStartedService(startIntent("Test message"))
 
-        val request = mockServer.takeRequest()
-        assertEquals("/bottest-token-123/sendMessage", request.path)
-        assertTrue(request.body.readUtf8().contains("Test message"))
-        assertTrue("sentCount > 0", Prefs.sentCount > 0)
-        assertTrue(LogStore.all().any { it.text.contains("Отправлено") })
+        val request = takeRequestOrNull()
+        assertNotNull("запрос должен прийти за 5с", request)
+        assertEquals("/bottest-token-123/sendMessage", request!!.path)
+        val body = java.net.URLDecoder.decode(request.body.readUtf8(), "UTF-8")
+        assertTrue("текст должен содержать сообщение: $body", body.contains("Test message"))
+        await("sentCount инкрементирован") { Prefs.sentCount > 0 }
+        await("лог об успешной отправке") { LogStore.all().any { it.text.contains("Отправлено") } }
 
         ctrl.destroy()
     }
@@ -96,11 +136,11 @@ class ForwardServiceTest {
         Prefs.chatId = ""
         configureDirectChannel()
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java, startIntent("Delayed"))
-        ctrl.create().startCommand(0, 0)
-        Thread.sleep(1000)
+        val ctrl = buildStartedService(startIntent("Delayed"))
 
-        assertTrue(LogStore.all().any { it.text.contains("токен") || it.text.contains("chatId") })
+        await("лог о незаданных токене/chatId") {
+            LogStore.all().any { it.text.contains("токен") || it.text.contains("chatId") }
+        }
         assertEquals(0, mockServer.requestCount)
         ctrl.destroy()
     }
@@ -110,15 +150,12 @@ class ForwardServiceTest {
         configurePrefs()
         configureDirectChannel()
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java, startIntent("Some message"))
-        ctrl.create().startCommand(0, 0)
-        Thread.sleep(500)
+        val ctrl = buildStartedService(startIntent("Some message"))
+        await("событие в очереди") { java.io.File(context.filesDir, "event_queue.json").exists() }
 
-        val stopCtrl = Robolectric.buildService(ForwardService::class.java,
-            Intent().apply { action = ForwardService.ACTION_STOP })
-        stopCtrl.create().startCommand(0, 0)
+        val stopCtrl = buildStartedService(Intent().apply { action = ForwardService.ACTION_STOP })
 
-        assertTrue(LogStore.all().any { it.text.contains("Сервис остановлен") })
+        await("лог остановки") { LogStore.all().any { it.text.contains("Сервис остановлен") } }
         ctrl.destroy()
         stopCtrl.destroy()
     }
@@ -129,11 +166,11 @@ class ForwardServiceTest {
         configureDirectChannel()
         mockServer.enqueue(MockResponse().setBody("""{"ok":false,"error_code":401,"description":"Unauthorized"}"""))
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java, startIntent("Fail message"))
-        ctrl.create().startCommand(0, 0)
-        Thread.sleep(2000)
+        val ctrl = buildStartedService(startIntent("Fail message"))
 
-        assertTrue(LogStore.all().any { it.level == LogStore.Level.ERROR && it.text.contains("не вышли") })
+        await("лог об ошибке всех каналов") {
+            LogStore.all().any { it.level == LogStore.Level.ERROR && it.text.contains("не вышли") }
+        }
         ctrl.destroy()
     }
 
@@ -142,15 +179,10 @@ class ForwardServiceTest {
         configurePrefs()
         configureDirectChannel()
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java,
-            Intent().apply { action = ForwardService.ACTION_START })
-        ctrl.create().startCommand(0, 0)
-        Thread.sleep(500)
+        val ctrl = buildStartedService(Intent().apply { action = ForwardService.ACTION_START })
 
-        val ctrl2 = Robolectric.buildService(ForwardService::class.java, startIntent("Quick"))
-        ctrl2.create().startCommand(0, 0)
-        Thread.sleep(2000)
-        assertTrue("запрос отправлен", mockServer.requestCount > 0)
+        val ctrl2 = buildStartedService(startIntent("Quick"))
+        await("запрос отправлен") { mockServer.requestCount > 0 }
         ctrl.destroy()
         ctrl2.destroy()
     }
@@ -161,11 +193,9 @@ class ForwardServiceTest {
         Prefs.chatId = ""
         configureDirectChannel()
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java, startIntent("Persist me"))
-        ctrl.create().startCommand(0, 0)
-        Thread.sleep(500)
+        val ctrl = buildStartedService(startIntent("Persist me"))
 
-        assertTrue(java.io.File(context.filesDir, "event_queue.json").exists())
+        await("файл очереди создан") { java.io.File(context.filesDir, "event_queue.json").exists() }
         ctrl.destroy()
     }
 
@@ -178,9 +208,8 @@ class ForwardServiceTest {
             action = ForwardService.ACTION_START
             putExtra(ForwardService.EXTRA_TEXT, "")
         }
-        val ctrl = Robolectric.buildService(ForwardService::class.java, intent)
-        ctrl.create().startCommand(0, 0)
-        Thread.sleep(500)
+        val ctrl = buildStartedService(intent)
+        Thread.sleep(300) // окно для ложной отправки, если бы пустое событие попало бы в очередь
         assertEquals(0, mockServer.requestCount)
         ctrl.destroy()
     }
