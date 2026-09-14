@@ -10,17 +10,19 @@ import timber.log.Timber
  * Лог событий приложения (вкладка «Логи») + мост в Timber.
  *
  * Каждая запись пишется в [Timber] (logcat, DebugTree в debug-сборках)
- * и в кольцевой буфер с максимум [MAX_ENTRIES] записей для UI.
- * UI (MainActivity) подписывается через [addListener].
+ * и в буфер для UI. Логи хранятся 7 дней, старые удаляются автоматически.
+ * Очистка происходит при добавлении новых записей и вручную через clear().
  */
 object LogStore {
 
     const val MAX_ENTRIES = 200
+    private const val RETENTION_MS = 7L * 24 * 60 * 60 * 1000 // 7 дней
 
     enum class Level { INFO, OK, WARN, ERROR }
 
     data class Entry(
-        val time: String,   // HH:mm:ss
+        val time: String,        // HH:mm:ss для отображения
+        val timestamp: Long,     // epoch ms для очистки старых
         val level: Level,
         val text: String,
     )
@@ -30,18 +32,25 @@ object LogStore {
 
     @Synchronized
     fun log(level: Level, text: String) {
-        val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-        val e = Entry(time, level, text)
+        val now = System.currentTimeMillis()
+        val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(now))
+        val e = Entry(time, now, level, text)
         entries.addLast(e)
+        trimOld()
         while (entries.size > MAX_ENTRIES) entries.removeFirst()
         for (l in listeners) l(e)
-        // Дублируем в logcat через Timber (DebugTree печатает только в debug).
-        // Без посаженных деревьев Timber молча пропускает — безопасно для release.
         when (level) {
             Level.INFO -> Timber.i(text)
             Level.OK -> Timber.i(text)
             Level.WARN -> Timber.w(text)
             Level.ERROR -> Timber.e(text)
+        }
+    }
+
+    private fun trimOld() {
+        val cutoff = System.currentTimeMillis() - RETENTION_MS
+        while (entries.isNotEmpty() && entries.first().timestamp < cutoff) {
+            entries.removeFirst()
         }
     }
 

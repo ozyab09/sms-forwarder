@@ -10,13 +10,12 @@ import java.util.Locale
  * Поддерживаемые плейсхолдеры:
  * - {sender} — номер отправителя (для SMS) / номер звонящего (для звонка)
  * - {name} — имя из контактов (если найдено)
- * - {text} — текст SMS / пусто для звонка / текст уведомления
+ * - {text} — текст SMS / пусто для звонка
  * - {time} — время в формате HH:mm:ss
  * - {date} — дата в формате dd.MM.yyyy
- * - {type} — "sms" | "missed" | "incoming" | "outgoing" | "outgoing_sms" | "notification"
+ * - {type} — "sms" | "missed" | "incoming" | "outgoing" | "outgoing_sms"
  * - {sim} — описание SIM-карты (оператор/слот), если доступно
  * - {number} — синоним {sender} для звонков
- * - {app} — имя приложения (для уведомлений)
  */
 object TemplateFormatter {
 
@@ -46,10 +45,6 @@ object TemplateFormatter {
 {sim}
 Кому: {number}{name}""".trimIndent()
 
-    /** Дефолтный шаблон для уведомлений. */
-    val DEFAULT_NOTIFICATION_TEMPLATE = """🔔 {app}: {title}
-{text}""".trimIndent()
-
     /** Демонстрационные данные для предпросмотра (реальные SMS не используются). */
     const val PREVIEW_SENDER = "+7 900 123-45-67"
     const val PREVIEW_NAME = "Иван"
@@ -65,12 +60,10 @@ object TemplateFormatter {
      * @param template Строка шаблона (пустая = дефолт)
      * @param sender Номер отправителя/звонящего
      * @param name Имя из контактов (может быть null)
-     * @param text Текст сообщения (для SMS / уведомлений)
+     * @param text Текст сообщения (для SMS)
      * @param timestamp Временная метка события
-     * @param type Тип события: "sms", "missed", "incoming", "outgoing", "outgoing_sms", "notification"
+     * @param type Тип события: "sms", "missed", "incoming", "outgoing", "outgoing_sms"
      * @param sim Описание SIM (может быть null)
-     * @param appName Имя приложения (для уведомлений, может быть null)
-     * @param title Заголовок уведомления (может быть null)
      * @return Отформатированный текст
      */
     fun format(
@@ -80,9 +73,7 @@ object TemplateFormatter {
         text: String,
         timestamp: Long,
         type: String,
-        sim: String? = null,
-        appName: String? = null,
-        title: String? = null
+        sim: String? = null
     ): String {
         val cal = Calendar.getInstance()
         cal.timeInMillis = timestamp
@@ -93,7 +84,6 @@ object TemplateFormatter {
                 "outgoing_sms" -> DEFAULT_OUTGOING_SMS_TEMPLATE
                 "incoming" -> DEFAULT_INCOMING_CALL_TEMPLATE
                 "outgoing" -> DEFAULT_OUTGOING_CALL_TEMPLATE
-                "notification" -> DEFAULT_NOTIFICATION_TEMPLATE
                 else -> DEFAULT_CALL_TEMPLATE
             }
         } else template
@@ -107,8 +97,6 @@ object TemplateFormatter {
             .replace("{date}", dateFormat.format(cal.time))
             .replace("{type}", type)
             .replace("{sim}", sim ?: "")
-            .replace("{app}", appName ?: "")
-            .replace("{title}", title ?: "")
 
         return result
     }
@@ -129,7 +117,5 @@ object TemplateFormatter {
             timestamp = timestamp,
             type = type,
             sim = PREVIEW_SIM,
-            appName = "Telegram",
-            title = "Новое сообщение",
         )
 }

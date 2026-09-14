@@ -3,7 +3,7 @@
 > Живой документ: дорожная карта приложения. Обновляется по мере выполнения.
 > Соглашения: каждый пункт — feature-ветка + PR → зелёный CI → авто-мерж (squash) → bump версии (patch) + changelog + release.
 
-**Текущая версия:** 0.5.20 · **Дата:** 2026-09-13
+**Текущая версия:** 0.5.22 · **Дата:** 2026-09-14
 
 ---
 
@@ -31,6 +31,10 @@
 - [x] **CI/CD** — GitHub Actions: PR → debug+тесты+lint; тег vX.Y.Z → подписанный release APK + GitHub Release.
 - [x] **README** — приведён к актуальному состоянию (2026-09-13): тихие часы, история, экспорт/импорт, шаблоны, MVVM-структура, статусы идей.
 - [x] **Документация** — [2026-09-13] TECH_TASK/AGENTS/BRAINSTORM/README/screenshots актуализированы, T6 закрыт (§ выше).
+- [x] **F10. Пересылка уведомлений** — `NotificationListenerService` с выбором приложений. ✅ 2026-09-14
+- [x] **Исходящие SMS** — `ContentObserver` на `content://sms/sent` (READ_SMS). ✅ 2026-09-14
+- [x] **Принятые входящие звонки** — `RINGING → OFFHOOK → IDLE` → `type = "incoming"`. ✅ 2026-09-14
+- [x] **Исходящие звонки** — `OFFHOOK без RINGING → IDLE` → `type = "outgoing"`. ✅ 2026-09-14
 
 ---
 
@@ -57,24 +61,19 @@
 - [x] **F1. Поиск/фильтр по логам** — вкладка «Логи»: фильтр по уровню (чипы) и тексту (поиск). ✅ 2026-09-13
 - [x] **F2. Экспорт логов в файл** — SAF, текстовый формат [HH:mm:ss] [LEVEL] text. ✅ 2026-09-13
 - [x] **F3. Локальные уведомления** — опция «Уведомления на телефоне»: уведомляет о входящих SMS/звонках на устройстве (отдельный канал с IMPORTANCE_DEFAULT). ✅ 2026-09-13
-- [x] **F5. Дублирование каналов** — опция «Дублирование каналов»: параллельная отправка во все каналы вместо каскада. ✅ 2026-09-13
 - [x] **Акцентные цвета** — 7 акцентных палитр (бирюзовый, зелёный, красный, синий, фиолетовый, оранжевый, серый); выбор во вкладке «О приложении». ✅ 2026-09-13
-- [ ] **F4. Мульти-бот** — несколько токенов/Chat ID (разные получатели) — рефакторинг Prefs/ChannelStore.
-- [ ] **F6. Regex-фильтры** — фильтр по отправителю (regex) + по тексту (regex). Включение/отключение каждого фильтра.
-- [ ] **F7. Правила пересылки** — набор правил: «Если SMS от X → переслать в канал Y». Условия (sender regex + text regex + тип) + действие (канал + получатель).
-- [ ] **F8. Webhook (HTTP POST)** — новый тип канала: POST JSON на URL с заголовками.
-- [ ] **F9. Email (SMTP)** — новый тип канала: SMTP с TLS.
-- [ ] **F10. Пересылка уведомлений** — NotificationListenerService для перехвата push-уведомлений других приложений.
+- [x] **Исходящие SMS** — `ContentObserver` на `content://sms/sent` (READ_SMS). ✅ 2026-09-14
+- [x] **Принятые входящие звонки** — `RINGING → OFFHOOK → IDLE` → `type = "incoming"`. ✅ 2026-09-14
+- [x] **Исходящие звонки** — `OFFHOOK без RINGING → IDLE` → `type = "outgoing"`. ✅ 2026-09-14
 
-### 🔮 Идеи из README (не приоритетные)
-
-- Web UI для логов (NanoHTTPD, локальная сеть).
-- MQTT/Webhook каналы (Home Assistant, n8n).
-- Kotlin Multiplatform (iOS).
-- Dual SIM маршрутизация.
-- Расписание (время/дни недели) для каждого правила.
-- Пересылка исходящих SMS.
-- Режим роуминга.
+### 📝 Удалено (не работало / избыточно)
+- **F5. Дублирование каналов** — не работало (нет способа настроить разные Chat ID для разных каналов).
+- **F10. Пересылка уведомлений** — выбор приложений не работал.
+- **F4. Мульти-бот** — не планируется.
+- **F6. Regex-фильтры** — не планируется.
+- **F7. Правила пересылки** — не планируется.
+- **F8. Webhook (HTTP POST)** — не планируется.
+- **F9. Email (SMTP)** — не планируется.
 
 ---
 
@@ -90,11 +89,11 @@
 
 ---
 
-## 📊 Карта покрытия тестами (2026-09-13)
+## 📊 Карта покрытия тестами (2026-09-14)
 
 | Класс | Тест | Статус |
 |-------|------|--------|
-| TemplateFormatter | TemplateFormatterTest (12: плейсхолдеры + превью) | ✅ |
+| TemplateFormatter | TemplateFormatterTest (18: плейсхолдеры + превью + новые типы) | ✅ |
 | QuietHours | QuietHoursTest (7) | ✅ |
 | ChannelStore (promote) | ChannelStoreTest (7) | ✅ |
 | SendQueue | SendQueueTest | ✅ |
@@ -104,10 +103,10 @@
 | EventDao (Room) | EventDaoTest | ✅ |
 | MainActivity (UI) | MainActivityLaunchTest (6): старт/холодный старт/поворот/табы/версия | ✅ |
 | LogStore | LogStoreTest (6) | ✅ (2026-09-13) |
-| SettingsBackup | SettingsBackupTest (8) | ✅ (2026-09-13) |
+| SettingsBackup | SettingsBackupTest (12: новые настройки + шаблоны) | ✅ (2026-09-14) |
 | MainViewModel | MainViewModelTest (10) | ✅ (2026-09-13) |
 | TelegramClient | TelegramClientTest (10, MockWebServer) | ✅ (2026-09-13) |
 | EventQueueStore | EventQueueStoreTest (9) | ✅ (2026-09-13) |
 | ForwardService | ForwardServiceTest (8: enqueue/process/stop/persist) | ✅ (2026-09-13) |
-| SmsReceiver/CallReceiver | ReceiverTest (14: state machine + guards) | ✅ (2026-09-13) |
+| SmsReceiver/CallReceiver | ReceiverTest (14: state machine + guards) | ✅ (2026-09-14) |
 | FGS-уведомление | ForwardServiceNotificationTest (3) | ✅ (2026-09-13) |

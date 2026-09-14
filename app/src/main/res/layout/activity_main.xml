@@ -145,32 +145,10 @@
                     android:checked="false" />
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/sw_notifications"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/pref_notifications_enabled"
-                    android:checked="false" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_notification_apps"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/pref_notification_apps"
-                    android:visibility="gone" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/sw_local_notifications"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/pref_local_notifications"
-                    android:checked="false" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/sw_duplicate_channels"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/pref_duplicate_channels"
                     android:checked="false" />
 
                 <!-- ===== Шаблоны сообщений ===== -->

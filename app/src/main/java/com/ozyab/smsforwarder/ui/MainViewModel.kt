@@ -33,9 +33,7 @@ data class SettingsUiState(
     val callsEnabled: Boolean = true,
     val incomingCallsEnabled: Boolean = false,
     val outgoingCallsEnabled: Boolean = false,
-    val notificationsEnabled: Boolean = false,
     val localNotificationsEnabled: Boolean = false,
-    val duplicateChannels: Boolean = false,
     val templateSms: String = "",
     val templateOutgoingSms: String = "",
     val templateCall: String = "",
@@ -103,9 +101,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             callsEnabled = Prefs.callsEnabled,
             incomingCallsEnabled = Prefs.incomingCallsEnabled,
             outgoingCallsEnabled = Prefs.outgoingCallsEnabled,
-            notificationsEnabled = Prefs.notificationsEnabled,
             localNotificationsEnabled = Prefs.localNotificationsEnabled,
-            duplicateChannels = Prefs.duplicateChannels,
             templateSms = Prefs.messageTemplateSms,
             templateOutgoingSms = Prefs.messageTemplateOutgoingSms,
             templateCall = Prefs.messageTemplateCall,
@@ -127,9 +123,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setCallsEnabled(v: Boolean) { _state.value = _state.value.copy(callsEnabled = v) }
     fun setIncomingCallsEnabled(v: Boolean) { _state.value = _state.value.copy(incomingCallsEnabled = v) }
     fun setOutgoingCallsEnabled(v: Boolean) { _state.value = _state.value.copy(outgoingCallsEnabled = v) }
-    fun setNotificationsEnabled(v: Boolean) { _state.value = _state.value.copy(notificationsEnabled = v) }
     fun setLocalNotificationsEnabled(v: Boolean) { _state.value = _state.value.copy(localNotificationsEnabled = v) }
-    fun setDuplicateChannels(v: Boolean) { _state.value = _state.value.copy(duplicateChannels = v) }
     fun setTemplateSms(v: String) { _state.value = _state.value.copy(templateSms = v) }
     fun setTemplateOutgoingSms(v: String) { _state.value = _state.value.copy(templateOutgoingSms = v) }
     fun setTemplateCall(v: String) { _state.value = _state.value.copy(templateCall = v) }
@@ -150,9 +144,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.callsEnabled = s.callsEnabled
         Prefs.incomingCallsEnabled = s.incomingCallsEnabled
         Prefs.outgoingCallsEnabled = s.outgoingCallsEnabled
-        Prefs.notificationsEnabled = s.notificationsEnabled
         Prefs.localNotificationsEnabled = s.localNotificationsEnabled
-        Prefs.duplicateChannels = s.duplicateChannels
         Prefs.messageTemplateSms = s.templateSms
         Prefs.messageTemplateOutgoingSms = s.templateOutgoingSms
         Prefs.messageTemplateCall = s.templateCall
