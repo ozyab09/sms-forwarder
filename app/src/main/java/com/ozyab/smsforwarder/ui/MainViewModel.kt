@@ -182,8 +182,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val results = withContext(ioDispatcher) { testAllImpl(token, channels) } as List<ChannelTestResult>
             _state.value = _state.value.copy(testing = false)
-            val mapped: List<TestChannel> = results.map { it: ChannelTestResult ->
-                TestChannel(it.channel.name, it.ok, it.botUsername, it.error)
+            val mapped = mutableListOf<TestChannel>()
+            for (r in results) {
+                mapped.add(TestChannel(r.channel.name, r.ok, r.botUsername, r.error))
             }
             for (r in mapped) {
                 if (r.ok) LogStore.ok("Тест «${r.name}» — бот @${r.botUsername ?: "?"} доступен")
