@@ -126,9 +126,8 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79009998877")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79009998877")
         assertNotNull(result)
-        // 📵 = \uD83D\uDCF5
-        assertTrue("текст начинается с иконки пропущенного",
-            result!!.first.startsWith("\uD83D\uDCF5") || result.first.contains("Пропущенный"))
+        assertEquals("missed", result!!.second)
+        assertTrue("текст содержит номер", result.first.contains("+79009998877"))
     }
 
     @Test
@@ -137,8 +136,8 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79001112233")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
         assertNotNull(result)
-        assertTrue("текст содержит 'Входящий'",
-            result!!.first.contains("Входящий") || result.first.contains("\uD83D\uDCDE"))
+        assertEquals("incoming", result!!.second)
+        assertTrue("текст содержит номер", result.first.contains("+79001112233"))
     }
 
     @Test
@@ -146,8 +145,8 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79005556677")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79005556677")
         assertNotNull(result)
-        assertTrue("текст содержит 'Исходящий'",
-            result!!.first.contains("Исходящий") || result.first.contains("\uD83D\uDCDE"))
+        assertEquals("outgoing", result!!.second)
+        assertTrue("текст содержит номер", result.first.contains("+79005556677"))
     }
 
     @Test
