@@ -56,6 +56,11 @@ object Prefs {
     const val KEY_CHAT_ID = "chat_id"
     const val KEY_SMS_ENABLED = "sms_enabled"
     const val KEY_CALLS_ENABLED = "calls_enabled"
+    const val KEY_OUTGOING_SMS_ENABLED = "outgoing_sms_enabled"
+    const val KEY_INCOMING_CALLS_ENABLED = "incoming_calls_enabled"
+    const val KEY_OUTGOING_CALLS_ENABLED = "outgoing_calls_enabled"
+    const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
+    const val KEY_NOTIFICATION_APPS = "notification_apps"
     const val KEY_LOCAL_NOTIFICATIONS = "local_notifications"
     const val KEY_DUPLICATE_CHANNELS = "duplicate_channels"
     const val KEY_PROXY_ENABLED = "proxy_enabled"
@@ -82,6 +87,10 @@ object Prefs {
     // Шаблоны сообщений (plain)
     const val KEY_MESSAGE_TEMPLATE_SMS = "message_template_sms"
     const val KEY_MESSAGE_TEMPLATE_CALL = "message_template_call"
+    const val KEY_MESSAGE_TEMPLATE_OUTGOING_SMS = "message_template_outgoing_sms"
+    const val KEY_MESSAGE_TEMPLATE_INCOMING_CALL = "message_template_incoming_call"
+    const val KEY_MESSAGE_TEMPLATE_OUTGOING_CALL = "message_template_outgoing_call"
+    const val KEY_MESSAGE_TEMPLATE_NOTIFICATION = "message_template_notification"
 
     // Тихие часы (plain)
     const val KEY_QUIET_HOURS_ENABLED = "quiet_hours_enabled"
@@ -268,6 +277,31 @@ object Prefs {
         get() = getBoolean(KEY_DUPLICATE_CHANNELS, false)
         set(v) = setBoolean(KEY_DUPLICATE_CHANNELS, v)
 
+    /** Пересылка исходящих SMS. */
+    var outgoingSmsEnabled: Boolean
+        get() = getBoolean(KEY_OUTGOING_SMS_ENABLED, false)
+        set(v) = setBoolean(KEY_OUTGOING_SMS_ENABLED, v)
+
+    /** Пересылка принятых (входящих) звонков. */
+    var incomingCallsEnabled: Boolean
+        get() = getBoolean(KEY_INCOMING_CALLS_ENABLED, false)
+        set(v) = setBoolean(KEY_INCOMING_CALLS_ENABLED, v)
+
+    /** Пересылка исходящих звонков. */
+    var outgoingCallsEnabled: Boolean
+        get() = getBoolean(KEY_OUTGOING_CALLS_ENABLED, false)
+        set(v) = setBoolean(KEY_OUTGOING_CALLS_ENABLED, v)
+
+    /** Пересылка уведомлений (NotificationListenerService). */
+    var notificationsEnabled: Boolean
+        get() = getBoolean(KEY_NOTIFICATIONS_ENABLED, false)
+        set(v) = setBoolean(KEY_NOTIFICATIONS_ENABLED, v)
+
+    /** JSON-массив package names приложений для пересылки уведомлений. Пусто = все. */
+    var notificationApps: String
+        get() = getString(KEY_NOTIFICATION_APPS, "")
+        set(v) = setString(KEY_NOTIFICATION_APPS, v)
+
     var proxyEnabled: Boolean
         get() = getBoolean(KEY_PROXY_ENABLED, false)
         set(v) = setBoolean(KEY_PROXY_ENABLED, v)
@@ -330,6 +364,26 @@ object Prefs {
     var messageTemplateCall: String
         get() = getString(KEY_MESSAGE_TEMPLATE_CALL, "")
         set(v) = setString(KEY_MESSAGE_TEMPLATE_CALL, v)
+
+    /** Шаблон для исходящих SMS. Пусто = дефолтный формат. */
+    var messageTemplateOutgoingSms: String
+        get() = getString(KEY_MESSAGE_TEMPLATE_OUTGOING_SMS, "")
+        set(v) = setString(KEY_MESSAGE_TEMPLATE_OUTGOING_SMS, v)
+
+    /** Шаблон для принятых (входящих) звонков. Пусто = дефолтный формат. */
+    var messageTemplateIncomingCall: String
+        get() = getString(KEY_MESSAGE_TEMPLATE_INCOMING_CALL, "")
+        set(v) = setString(KEY_MESSAGE_TEMPLATE_INCOMING_CALL, v)
+
+    /** Шаблон для исходящих звонков. Пусто = дефолтный формат. */
+    var messageTemplateOutgoingCall: String
+        get() = getString(KEY_MESSAGE_TEMPLATE_OUTGOING_CALL, "")
+        set(v) = setString(KEY_MESSAGE_TEMPLATE_OUTGOING_CALL, v)
+
+    /** Шаблон для уведомлений. Пусто = дефолтный формат. */
+    var messageTemplateNotification: String
+        get() = getString(KEY_MESSAGE_TEMPLATE_NOTIFICATION, "")
+        set(v) = setString(KEY_MESSAGE_TEMPLATE_NOTIFICATION, v)
 
     // --- Тихие часы (минуты от полуночи) ---
     var quietHoursEnabled: Boolean

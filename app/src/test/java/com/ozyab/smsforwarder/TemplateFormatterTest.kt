@@ -10,11 +10,13 @@ import java.util.Locale
 
 class TemplateFormatterTest {
 
-    // Фиксированная метка; ожидаемые время/дата вычисляются в той же локали/таймзоне,
-    // что и у TemplateFormatter, поэтому тесты не зависят от таймзоны CI.
     private val ts = 1757573400000L
     private val expectedTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(ts))
     private val expectedDate = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(ts))
+
+    // ──────────────────────────────────────────────
+    //  Existing tests (sms, missed)
+    // ──────────────────────────────────────────────
 
     @Test
     fun `default SMS template uses fallback when blank`() {
@@ -42,7 +44,6 @@ class TemplateFormatterTest {
 
     @Test
     fun `custom template replaces all placeholders`() {
-        // {name} подставляется как " (Имя)" (с ведущим пробелом и скобками)
         val tpl = "{type} from {sender}{name}: {text} at {time} on {date} via {sim}"
         val result = TemplateFormatter.format(
             template = tpl, sender = "+79990001122", name = "Bob",
@@ -96,6 +97,139 @@ class TemplateFormatterTest {
         assertEquals("Text: []", result)
     }
 
+    // ──────────────────────────────────────────────
+    //  New types: outgoing_sms, incoming, outgoing, notification
+    // ──────────────────────────────────────────────
+
+    @Test
+    fun `default outgoing SMS template`() {
+        val result = TemplateFormatter.format(
+            template = "", sender = "+79161234567", name = null,
+            text = "Hello!", timestamp = ts, type = "outgoing_sms"
+        )
+        assertTrue(result.contains("📤 SMS"))
+        assertTrue(result.contains("+79161234567"))
+        assertTrue(result.contains("Hello!"))
+    }
+
+    @Test
+    fun `default incoming call template`() {
+        val result = TemplateFormatter.format(
+            template = "", sender = "+79161234567", name = "Иван",
+            text = "", timestamp = ts, type = "incoming"
+        )
+        assertTrue(result.contains("📞 Входящий"))
+        assertTrue(result.contains("+79161234567"))
+        assertTrue(result.contains("Иван"))
+    }
+
+    @Test
+    fun `default outgoing call template`() {
+        val result = TemplateFormatter.format(
+            template = "", sender = "+79161234567", name = "Иван",
+            text = "", timestamp = ts, type = "outgoing"
+        )
+        assertTrue(result.contains("📞 Исходящий"))
+        assertTrue(result.contains("+79161234567"))
+        assertTrue(result.contains("Иван"))
+    }
+
+    @Test
+    fun `default notification template`() {
+        val result = TemplateFormatter.format(
+            template = "", sender = "", name = null,
+            text = "New message", timestamp = ts, type = "notification",
+            appName = "Telegram", title = "Новое сообщение"
+        )
+        assertTrue(result.contains("Telegram"))
+        assertTrue(result.contains("Новое сообщение"))
+        assertTrue(result.contains("New message"))
+    }
+
+    @Test
+    fun `notification template replaces app and title placeholders`() {
+        val tpl = "[{app}] {title}: {text}"
+        val result = TemplateFormatter.format(
+            template = tpl, sender = "", name = null,
+            text = "Hello", timestamp = ts, type = "notification",
+            appName = "WhatsApp", title = "John"
+        )
+        assertEquals("[WhatsApp] John: Hello", result)
+    }
+
+    @Test
+    fun `outgoing SMS template with custom template`() {
+        val tpl = "OUTGOING to {sender}: {text}"
+        val result = TemplateFormatter.format(
+            template = tpl, sender = "+79990001122", name = null,
+            text = "Hi", timestamp = ts, type = "outgoing_sms"
+        )
+        assertEquals("OUTGOING to +79990001122: Hi", result)
+    }
+
+    @Test
+    fun `incoming call template with custom template`() {
+        val tpl = "INCOMING from {sender}{name}"
+        val result = TemplateFormatter.format(
+            template = tpl, sender = "+79990001122", name = "Bob",
+            text = "", timestamp = ts, type = "incoming"
+        )
+        assertEquals("INCOMING from +79990001122 (Bob)", result)
+    }
+
+    @Test
+    fun `outgoing call template with custom template`() {
+        val tpl = "DIAL to {sender}{name}"
+        val result = TemplateFormatter.format(
+            template = tpl, sender = "+79990001122", name = "Bob",
+            text = "", timestamp = ts, type = "outgoing"
+        )
+        assertEquals("DIAL to +79990001122 (Bob)", result)
+    }
+
+    // ──────────────────────────────────────────────
+    //  Preview for new types
+    // ──────────────────────────────────────────────
+
+    @Test
+    fun `preview uses sample data for outgoing SMS`() {
+        val result = TemplateFormatter.preview("", type = "outgoing_sms", timestamp = ts)
+        assertTrue(result.contains("📤 SMS"))
+        assertTrue(result.contains(TemplateFormatter.PREVIEW_SENDER))
+        assertTrue(result.contains(TemplateFormatter.PREVIEW_TEXT))
+    }
+
+    @Test
+    fun `preview uses sample data for incoming call`() {
+        val result = TemplateFormatter.preview("", type = "incoming", timestamp = ts)
+        assertTrue(result.contains("📞 Входящий"))
+        assertTrue(result.contains(TemplateFormatter.PREVIEW_SENDER))
+    }
+
+    @Test
+    fun `preview uses sample data for outgoing call`() {
+        val result = TemplateFormatter.preview("", type = "outgoing", timestamp = ts)
+        assertTrue(result.contains("📞 Исходящий"))
+        assertTrue(result.contains(TemplateFormatter.PREVIEW_SENDER))
+    }
+
+    @Test
+    fun `preview uses sample data for notification`() {
+        val result = TemplateFormatter.preview("", type = "notification", timestamp = ts)
+        assertTrue(result.contains("Telegram"))
+        assertTrue(result.contains("Новое сообщение"))
+    }
+
+    @Test
+    fun `preview respects custom template for notification`() {
+        val result = TemplateFormatter.preview("NOTIF {app}: {title}", type = "notification", timestamp = ts)
+        assertEquals("NOTIF Telegram: Новое сообщение", result)
+    }
+
+    // ──────────────────────────────────────────────
+    //  Misc
+    // ──────────────────────────────────────────────
+
     @Test
     fun `preview uses sample data for SMS`() {
         val result = TemplateFormatter.preview("", type = "sms", timestamp = ts)
@@ -110,7 +244,6 @@ class TemplateFormatterTest {
     fun `preview uses sample data for missed call`() {
         val result = TemplateFormatter.preview("", type = "missed", timestamp = ts)
         assertTrue(result.contains("📵 Пропущенный"))
-        // Для звонка {text} пуст — текст SMS в превью не подставляется
         assertTrue(!result.contains(TemplateFormatter.PREVIEW_TEXT))
     }
 

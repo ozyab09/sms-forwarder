@@ -73,18 +73,27 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnTest: MaterialButton
     private lateinit var btnCheckUpdate: MaterialButton
     private lateinit var swSms: SwitchMaterial
+    private lateinit var swOutgoingSms: SwitchMaterial
     private lateinit var swCalls: SwitchMaterial
+    private lateinit var swIncomingCalls: SwitchMaterial
+    private lateinit var swOutgoingCalls: SwitchMaterial
+    private lateinit var swNotifications: SwitchMaterial
     private lateinit var swLocalNotifications: SwitchMaterial
     private lateinit var swDuplicateChannels: SwitchMaterial
     private lateinit var btnStart: MaterialButton
     private lateinit var btnStop: MaterialButton
+    private lateinit var btnNotificationApps: MaterialButton
 
     // Каналы отправки
     private lateinit var channelsContainer: LinearLayout
 
     // Шаблоны сообщений
     private lateinit var etTemplateSms: TextInputEditText
+    private lateinit var etTemplateOutgoingSms: TextInputEditText
     private lateinit var etTemplateCall: TextInputEditText
+    private lateinit var etTemplateIncomingCall: TextInputEditText
+    private lateinit var etTemplateOutgoingCall: TextInputEditText
+    private lateinit var etTemplateNotification: TextInputEditText
     private lateinit var swQuietHours: SwitchMaterial
     private lateinit var layoutQuietTimes: View
     private lateinit var btnQuietStart: MaterialButton
@@ -222,22 +231,43 @@ class MainActivity : AppCompatActivity() {
         btnGetMyId = findViewById(R.id.btn_get_my_id)
         btnTest = findViewById(R.id.btn_test)
         swSms = findViewById(R.id.sw_sms)
+        swOutgoingSms = findViewById(R.id.sw_outgoing_sms)
         swCalls = findViewById(R.id.sw_calls)
+        swIncomingCalls = findViewById(R.id.sw_incoming_calls)
+        swOutgoingCalls = findViewById(R.id.sw_outgoing_calls)
+        swNotifications = findViewById(R.id.sw_notifications)
         swLocalNotifications = findViewById(R.id.sw_local_notifications)
         swDuplicateChannels = findViewById(R.id.sw_duplicate_channels)
         btnStart = findViewById(R.id.btn_start)
         btnStop = findViewById(R.id.btn_stop)
+        btnNotificationApps = findViewById(R.id.btn_notification_apps)
 
         channelsContainer = findViewById(R.id.channels_container)
         findViewById<MaterialButton>(R.id.btn_add_proxy).setOnClickListener { showProxyDialog(null) }
 
         etTemplateSms = findViewById(R.id.et_template_sms)
         etTemplateCall = findViewById(R.id.et_template_call)
+        etTemplateOutgoingSms = findViewById(R.id.et_template_outgoing_sms)
+        etTemplateIncomingCall = findViewById(R.id.et_template_incoming_call)
+        etTemplateOutgoingCall = findViewById(R.id.et_template_outgoing_call)
+        etTemplateNotification = findViewById(R.id.et_template_notification)
         etTemplateSms.addTextChangedListener(textWatcher {
             viewModel.setTemplateSms(etTemplateSms.text?.toString() ?: "")
         })
         etTemplateCall.addTextChangedListener(textWatcher {
             viewModel.setTemplateCall(etTemplateCall.text?.toString() ?: "")
+        })
+        etTemplateOutgoingSms.addTextChangedListener(textWatcher {
+            viewModel.setTemplateOutgoingSms(etTemplateOutgoingSms.text?.toString() ?: "")
+        })
+        etTemplateIncomingCall.addTextChangedListener(textWatcher {
+            viewModel.setTemplateIncomingCall(etTemplateIncomingCall.text?.toString() ?: "")
+        })
+        etTemplateOutgoingCall.addTextChangedListener(textWatcher {
+            viewModel.setTemplateOutgoingCall(etTemplateOutgoingCall.text?.toString() ?: "")
+        })
+        etTemplateNotification.addTextChangedListener(textWatcher {
+            viewModel.setTemplateNotification(etTemplateNotification.text?.toString() ?: "")
         })
         findViewById<MaterialButton>(R.id.btn_preview_templates).setOnClickListener {
             showTemplatePreview()
@@ -248,9 +278,17 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<MaterialButton>(R.id.btn_reset_templates).setOnClickListener {
             etTemplateSms.setText("")
+            etTemplateOutgoingSms.setText("")
             etTemplateCall.setText("")
+            etTemplateIncomingCall.setText("")
+            etTemplateOutgoingCall.setText("")
+            etTemplateNotification.setText("")
             viewModel.setTemplateSms("")
+            viewModel.setTemplateOutgoingSms("")
             viewModel.setTemplateCall("")
+            viewModel.setTemplateIncomingCall("")
+            viewModel.setTemplateOutgoingCall("")
+            viewModel.setTemplateNotification("")
             viewModel.save()
             Toast.makeText(this, R.string.toast_templates_reset, Toast.LENGTH_SHORT).show()
         }
@@ -318,12 +356,23 @@ class MainActivity : AppCompatActivity() {
         etToken.setText(s.botToken)
         etChatId.setText(s.chatId)
         swSms.isChecked = s.smsEnabled
+        swOutgoingSms.isChecked = s.outgoingSmsEnabled
         swCalls.isChecked = s.callsEnabled
+        swIncomingCalls.isChecked = s.incomingCallsEnabled
+        swOutgoingCalls.isChecked = s.outgoingCallsEnabled
+        swNotifications.isChecked = s.notificationsEnabled
         swLocalNotifications.isChecked = s.localNotificationsEnabled
         swDuplicateChannels.isChecked = s.duplicateChannels
 
         etTemplateSms.setText(s.templateSms)
+        etTemplateOutgoingSms.setText(s.templateOutgoingSms)
         etTemplateCall.setText(s.templateCall)
+        etTemplateIncomingCall.setText(s.templateIncomingCall)
+        etTemplateOutgoingCall.setText(s.templateOutgoingCall)
+        etTemplateNotification.setText(s.templateNotification)
+
+        // Показ кнопки выбора приложений для уведомлений
+        btnNotificationApps.visibility = if (s.notificationsEnabled) View.VISIBLE else View.GONE
 
         // Тихие часы
         swQuietHours.isChecked = s.quietHoursEnabled
@@ -435,7 +484,15 @@ class MainActivity : AppCompatActivity() {
         btnQuietEnd.setOnClickListener { showTimePicker(isStart = false) }
         btnGetMyId.setOnClickListener { viewModel.resolveChatId() }
         swSms.setOnCheckedChangeListener { _, v -> viewModel.setSmsEnabled(v) }
+        swOutgoingSms.setOnCheckedChangeListener { _, v -> viewModel.setOutgoingSmsEnabled(v) }
         swCalls.setOnCheckedChangeListener { _, v -> viewModel.setCallsEnabled(v) }
+        swIncomingCalls.setOnCheckedChangeListener { _, v -> viewModel.setIncomingCallsEnabled(v) }
+        swOutgoingCalls.setOnCheckedChangeListener { _, v -> viewModel.setOutgoingCallsEnabled(v) }
+        swNotifications.setOnCheckedChangeListener { _, checked ->
+            viewModel.setNotificationsEnabled(checked)
+            btnNotificationApps.visibility = if (checked) View.VISIBLE else View.GONE
+            if (checked) checkNotificationListenerPermission()
+        }
         swLocalNotifications.setOnCheckedChangeListener { _, v -> viewModel.setLocalNotificationsEnabled(v) }
         swDuplicateChannels.setOnCheckedChangeListener { _, v -> viewModel.setDuplicateChannels(v) }
         btnStart.setOnClickListener {
@@ -685,7 +742,11 @@ class MainActivity : AppCompatActivity() {
     private fun savePrefs() {
         // Шаблоны вводились в EditText — синхронизируем в состояние и сохраняем
         viewModel.setTemplateSms(etTemplateSms.text?.toString() ?: "")
+        viewModel.setTemplateOutgoingSms(etTemplateOutgoingSms.text?.toString() ?: "")
         viewModel.setTemplateCall(etTemplateCall.text?.toString() ?: "")
+        viewModel.setTemplateIncomingCall(etTemplateIncomingCall.text?.toString() ?: "")
+        viewModel.setTemplateOutgoingCall(etTemplateOutgoingCall.text?.toString() ?: "")
+        viewModel.setTemplateNotification(etTemplateNotification.text?.toString() ?: "")
         viewModel.save()
     }
 
@@ -698,14 +759,38 @@ class MainActivity : AppCompatActivity() {
             etTemplateSms.text?.toString().orEmpty(),
             EventHistory.TYPE_SMS,
         )
+        val outgoingSms = TemplateFormatter.preview(
+            etTemplateOutgoingSms.text?.toString().orEmpty(),
+            EventHistory.TYPE_OUTGOING_SMS,
+        )
         val call = TemplateFormatter.preview(
             etTemplateCall.text?.toString().orEmpty(),
             EventHistory.TYPE_MISSED,
         )
+        val incomingCall = TemplateFormatter.preview(
+            etTemplateIncomingCall.text?.toString().orEmpty(),
+            EventHistory.TYPE_INCOMING,
+        )
+        val outgoingCall = TemplateFormatter.preview(
+            etTemplateOutgoingCall.text?.toString().orEmpty(),
+            EventHistory.TYPE_OUTGOING,
+        )
+        val notification = TemplateFormatter.preview(
+            etTemplateNotification.text?.toString().orEmpty(),
+            EventHistory.TYPE_NOTIFICATION,
+        )
         val message = buildString {
             append(getString(R.string.preview_sms_label)).append(":\n").append(sms)
             append("\n\n")
+            append(getString(R.string.preview_outgoing_sms_label)).append(":\n").append(outgoingSms)
+            append("\n\n")
             append(getString(R.string.preview_call_label)).append(":\n").append(call)
+            append("\n\n")
+            append(getString(R.string.preview_incoming_call_label)).append(":\n").append(incomingCall)
+            append("\n\n")
+            append(getString(R.string.preview_outgoing_call_label)).append(":\n").append(outgoingCall)
+            append("\n\n")
+            append(getString(R.string.preview_notification_label)).append(":\n").append(notification)
             append("\n\n")
             append(getString(R.string.preview_sample_note))
         }
@@ -966,6 +1051,28 @@ class MainActivity : AppCompatActivity() {
         }
         if (missing.isNotEmpty()) {
             permissionLauncher.launch(missing.toTypedArray())
+        }
+    }
+
+    /** Проверяем, включён ли NotificationListenerService. Если нет — открываем настройки. */
+    private fun checkNotificationListenerPermission() {
+        val enabled = try {
+            val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+            flat?.contains(packageName) == true
+        } catch (_: Exception) {
+            false
+        }
+        if (!enabled) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.pref_notifications_enabled)
+                .setMessage(R.string.pref_notification_apps_summary)
+                .setPositiveButton(R.string.ok) { _, _ ->
+                    try {
+                        startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                    } catch (_: Exception) { }
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
         }
     }
 

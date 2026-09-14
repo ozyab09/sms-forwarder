@@ -58,8 +58,12 @@
     <string name="history_detail_original">Original text</string>
     <string name="history_detail_message">Sent message text</string>
     <string name="history_detail_none">—</string>
-    <string name="history_detail_type_sms">SMS</string>
+    <string name="history_detail_type_sms">Incoming SMS</string>
+    <string name="history_detail_type_outgoing_sms">Outgoing SMS</string>
     <string name="history_detail_type_call">Missed call</string>
+    <string name="history_detail_type_incoming">Answered incoming call</string>
+    <string name="history_detail_type_outgoing">Outgoing call</string>
+    <string name="history_detail_type_notification">Notification</string>
     <string name="tab_about">About</string>
     <string name="about_version">Version %1$s</string>
     <string name="about_theme">Theme</string>
@@ -99,8 +103,14 @@
     <string name="logs_export_failed">Could not save logs</string>
 
     <!-- Toggles -->
-    <string name="pref_sms_enabled">Forward SMS</string>
+    <string name="pref_sms_enabled">Forward incoming SMS</string>
+    <string name="pref_outgoing_sms_enabled">Forward outgoing SMS</string>
     <string name="pref_calls_enabled">Forward missed calls</string>
+    <string name="pref_incoming_calls_enabled">Forward answered incoming calls</string>
+    <string name="pref_outgoing_calls_enabled">Forward outgoing calls</string>
+    <string name="pref_notifications_enabled">Forward notifications</string>
+    <string name="pref_notification_apps">Apps</string>
+    <string name="pref_notification_apps_summary">Select apps whose notifications to forward</string>
     <string name="pref_local_notifications">Phone notifications</string>
     <string name="pref_duplicate_channels">Duplicate to all channels</string>
 

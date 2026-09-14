@@ -117,11 +117,47 @@
                     android:checked="true" />
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/sw_outgoing_sms"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_outgoing_sms_enabled"
+                    android:checked="false" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/sw_calls"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/pref_calls_enabled"
                     android:checked="true" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/sw_incoming_calls"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_incoming_calls_enabled"
+                    android:checked="false" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/sw_outgoing_calls"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_outgoing_calls_enabled"
+                    android:checked="false" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/sw_notifications"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_notifications_enabled"
+                    android:checked="false" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_notification_apps"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/pref_notification_apps"
+                    android:visibility="gone" />
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/sw_local_notifications"
@@ -166,11 +202,75 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
+                    android:hint="@string/pref_template_outgoing_sms_hint"
+                    app:helperText="@string/pref_template_placeholders">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/et_template_outgoing_sms"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textMultiLine"
+                        android:maxLines="2"
+                        android:minLines="1" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
                     android:hint="@string/pref_template_call_hint"
                     app:helperText="@string/pref_template_placeholders">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/et_template_call"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textMultiLine"
+                        android:maxLines="2"
+                        android:minLines="1" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:hint="@string/pref_template_incoming_call_hint"
+                    app:helperText="@string/pref_template_placeholders">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/et_template_incoming_call"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textMultiLine"
+                        android:maxLines="2"
+                        android:minLines="1" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:hint="@string/pref_template_outgoing_call_hint"
+                    app:helperText="@string/pref_template_placeholders">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/et_template_outgoing_call"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textMultiLine"
+                        android:maxLines="2"
+                        android:minLines="1" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:hint="@string/pref_template_notification_hint"
+                    app:helperText="@string/pref_template_placeholders">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/et_template_notification"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:inputType="textMultiLine"
