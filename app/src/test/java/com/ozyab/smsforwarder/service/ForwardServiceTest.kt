@@ -68,6 +68,17 @@ class ForwardServiceTest {
         return ctrl
     }
 
+
+    /** Ждёт выполнения условия до timeoutMs (воркер асинхронный, fixed sleep ненадёжен). */
+    private fun await(what: String, timeoutMs: Long = 5_000, condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (condition()) return
+            Thread.sleep(25)
+        }
+        assertTrue("не дождались: $what", condition())
+    }
+
     /** takeRequest с таймаутом: без него тест висит вечно при отсутствии запроса. */
     private fun takeRequestOrNull(timeoutMs: Long = 5_000): okhttp3.mockwebserver.RecordedRequest? =
         mockServer.takeRequest(timeoutMs, TimeUnit.MILLISECONDS)
@@ -97,14 +108,13 @@ class ForwardServiceTest {
         mockServer.enqueue(MockResponse().setBody("""{"ok":true,"result":{"message_id":42}}"""))
 
         val ctrl = buildStartedService(startIntent("Test message"))
-        Thread.sleep(2000)
 
         val request = takeRequestOrNull()
         assertNotNull("запрос должен прийти за 5с", request)
         assertEquals("/bottest-token-123/sendMessage", request!!.path)
         assertTrue(request.body.readUtf8().contains("Test message"))
-        assertTrue("sentCount > 0", Prefs.sentCount > 0)
-        assertTrue(LogStore.all().any { it.text.contains("Отправлено") })
+        await("sentCount инкрементирован") { Prefs.sentCount > 0 }
+        await("лог об успешной отправке") { LogStore.all().any { it.text.contains("Отправлено") } }
 
         ctrl.destroy()
     }
@@ -116,9 +126,10 @@ class ForwardServiceTest {
         configureDirectChannel()
 
         val ctrl = buildStartedService(startIntent("Delayed"))
-        Thread.sleep(1000)
 
-        assertTrue(LogStore.all().any { it.text.contains("токен") || it.text.contains("chatId") })
+        await("лог о незаданных токене/chatId") {
+            LogStore.all().any { it.text.contains("токен") || it.text.contains("chatId") }
+        }
         assertEquals(0, mockServer.requestCount)
         ctrl.destroy()
     }
@@ -129,11 +140,11 @@ class ForwardServiceTest {
         configureDirectChannel()
 
         val ctrl = buildStartedService(startIntent("Some message"))
-        Thread.sleep(500)
+        await("событие в очереди") { java.io.File(context.filesDir, "event_queue.json").exists() }
 
         val stopCtrl = buildStartedService(Intent().apply { action = ForwardService.ACTION_STOP })
 
-        assertTrue(LogStore.all().any { it.text.contains("Сервис остановлен") })
+        await("лог остановки") { LogStore.all().any { it.text.contains("Сервис остановлен") } }
         ctrl.destroy()
         stopCtrl.destroy()
     }
@@ -145,9 +156,10 @@ class ForwardServiceTest {
         mockServer.enqueue(MockResponse().setBody("""{"ok":false,"error_code":401,"description":"Unauthorized"}"""))
 
         val ctrl = buildStartedService(startIntent("Fail message"))
-        Thread.sleep(2000)
 
-        assertTrue(LogStore.all().any { it.level == LogStore.Level.ERROR && it.text.contains("не вышли") })
+        await("лог об ошибке всех каналов") {
+            LogStore.all().any { it.level == LogStore.Level.ERROR && it.text.contains("не вышли") }
+        }
         ctrl.destroy()
     }
 
@@ -157,11 +169,9 @@ class ForwardServiceTest {
         configureDirectChannel()
 
         val ctrl = buildStartedService(Intent().apply { action = ForwardService.ACTION_START })
-        Thread.sleep(500)
 
         val ctrl2 = buildStartedService(startIntent("Quick"))
-        Thread.sleep(2000)
-        assertTrue("запрос отправлен", mockServer.requestCount > 0)
+        await("запрос отправлен") { mockServer.requestCount > 0 }
         ctrl.destroy()
         ctrl2.destroy()
     }
@@ -173,9 +183,8 @@ class ForwardServiceTest {
         configureDirectChannel()
 
         val ctrl = buildStartedService(startIntent("Persist me"))
-        Thread.sleep(500)
 
-        assertTrue(java.io.File(context.filesDir, "event_queue.json").exists())
+        await("файл очереди создан") { java.io.File(context.filesDir, "event_queue.json").exists() }
         ctrl.destroy()
     }
 
@@ -189,7 +198,7 @@ class ForwardServiceTest {
             putExtra(ForwardService.EXTRA_TEXT, "")
         }
         val ctrl = buildStartedService(intent)
-        Thread.sleep(500)
+        Thread.sleep(300) // окно для ложной отправки, если бы пустое событие попало бы в очередь
         assertEquals(0, mockServer.requestCount)
         ctrl.destroy()
     }
