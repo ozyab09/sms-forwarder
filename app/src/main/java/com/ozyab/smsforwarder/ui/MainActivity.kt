@@ -295,7 +295,7 @@ class MainActivity : AppCompatActivity() {
             renderLogs()
         }
         etLogsSearch.addTextChangedListener(textWatcher { renderLogs() })
-        chipGroupLogs.setOnCheckedChangeListener { _, _ ->
+        chipGroupLogs.setOnCheckedStateChangeListener { _, _ ->
             logsFilterLevel = when (chipGroupLogs.checkedChipId) {
                 R.id.chip_logs_ok -> LogStore.Level.OK
                 R.id.chip_logs_warn -> LogStore.Level.WARN
@@ -641,8 +641,9 @@ class MainActivity : AppCompatActivity() {
         // Пароль — маскированный, с переключателем видимости (глазик)
         val passLayout = TextInputLayout(this).apply {
             hint = getString(R.string.pref_proxy_pass)
+            // END_ICON_PASSWORD_TOGGLE включает глазик; deprecated
+            // isPasswordVisibilityToggleEnabled больше не используется
             endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
-            isPasswordVisibilityToggleEnabled = true
         }
         val etPass = TextInputEditText(this).apply {
             setText(existing?.pass ?: "")

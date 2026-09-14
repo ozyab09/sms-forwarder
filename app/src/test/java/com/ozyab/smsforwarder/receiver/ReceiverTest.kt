@@ -30,6 +30,11 @@ import org.robolectric.annotation.Config
 @Config(sdk = [30])
 class ReceiverTest {
 
+    // Telephony.Sms.Intents.EXTRA_INCOMING_NUMBER deprecated (номер приходит отдельным
+    // extra на API 29+); тесты эмулируют интент звонка осознанно.
+    @Suppress("DEPRECATION")
+
+
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
     @Before

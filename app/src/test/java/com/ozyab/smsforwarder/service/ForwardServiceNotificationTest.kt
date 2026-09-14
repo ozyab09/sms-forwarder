@@ -29,6 +29,11 @@ import org.robolectric.annotation.Config
 @Config(sdk = [30])
 class ForwardServiceNotificationTest {
 
+    // Проверяем именно legacy-поле Notification.priority (PRIORITY_MIN) —
+    // депрекейшн осознанный.
+    @Suppress("DEPRECATION")
+
+
     private fun notificationManager(): NotificationManager =
         ApplicationProvider.getApplicationContext<Context>()
             .getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
