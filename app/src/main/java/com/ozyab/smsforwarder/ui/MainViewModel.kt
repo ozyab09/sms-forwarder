@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.ozyab.smsforwarder.telegram.Channel
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.telegram.ChannelSender
-import com.ozyab.smsforwarder.telegram.ChannelSender.ChannelTestResult
 import com.ozyab.smsforwarder.telegram.TelegramClient
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
@@ -20,6 +19,8 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+typealias ChannelTestResult = com.ozyab.smsforwarder.telegram.ChannelSender.ChannelTestResult
 
 /**
  * Неизменяемое состояние экрана настроек.
@@ -181,7 +182,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val results = withContext(ioDispatcher) { testAllImpl(token, channels) } as List<ChannelTestResult>
             _state.value = _state.value.copy(testing = false)
-            val mapped: List<TestChannel> = results.map { (it: ChannelTestResult) ->
+            val mapped: List<TestChannel> = results.map { it: ChannelTestResult ->
                 TestChannel(it.channel.name, it.ok, it.botUsername, it.error)
             }
             for (r in mapped) {
