@@ -85,7 +85,7 @@ jobs:
           java-version: "17"
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       # lintDebug добавлен: PR-пайплайн должен ловить проблемы линтером,
       # а не только компилятором и unit-тестами (см. issue #91).
@@ -93,7 +93,7 @@ jobs:
         run: ./gradlew assembleDebug testDebugUnitTest lintDebug --parallel --build-cache
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/*.apk
@@ -114,7 +114,7 @@ jobs:
           java-version: "17"
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       # Unit-тесты перед сборкой релиза: тег не должен собираться
       # из непротестированного кода (см. issue #91).
@@ -130,7 +130,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload release APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-release-${{ github.ref_name }}
           path: app/build/outputs/apk/release/*.apk
@@ -156,7 +156,7 @@ jobs:
           echo "$BODY" > /tmp/release_body.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
