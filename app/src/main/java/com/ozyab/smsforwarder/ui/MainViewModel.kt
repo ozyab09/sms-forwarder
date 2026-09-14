@@ -180,7 +180,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val results = withContext(ioDispatcher) { testAllImpl(token, channels) } as List<com.ozyab.smsforwarder.telegram.ChannelSender.ChannelTestResult>
             _state.value = _state.value.copy(testing = false)
-            val mapped: List<TestChannel> = results.map {
+            val mapped: List<TestChannel> = results.map { (it: com.ozyab.smsforwarder.telegram.ChannelSender.ChannelTestResult) ->
                 TestChannel(it.channel.name, it.ok, it.botUsername, it.error)
             }
             for (r in mapped) {
