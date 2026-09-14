@@ -9,6 +9,12 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+    # Документация и CI-конфиги не влияют на APK — PR только с такими
+    # изменениями не собираем вовсе (issue #111).
+    paths-ignore:
+      - "**.md"
+      - "**.markdown"
+      - ".github/**"
   workflow_dispatch:
 
 jobs:
@@ -22,11 +28,36 @@ jobs:
       - uses: actions/checkout@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          # fetch-depth: 0 — нужен для diff github.event.before..github.sha
+          # (мелкий клон не содержит родителя предыдущего коммита)
+          fetch-depth: 0
+
+      # Пуш только с .md / .github изменениями не является изменением
+      # приложения: тег не трогаем, релиз не собираем (issue #111).
+      - name: Check for buildable changes
+        id: changes
+        run: |
+          CHANGED=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" || true)
+          if [ -z "$CHANGED" ]; then
+            # Первый коммит репозитория / недоступный before — собираем как обычно
+            echo "buildable=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Изменённые файлы:"
+          echo "$CHANGED"
+          NON_BUILDABLE=$(echo "$CHANGED" | grep -v -E '(^|\.)(md|markdown)$|^\.github/' || true)
+          if [ -z "$NON_BUILDABLE" ]; then
+            echo "buildable=false" >> "$GITHUB_OUTPUT"
+            echo "Только документация/workflow — сборка и релиз не нужны"
+          else
+            echo "buildable=true" >> "$GITHUB_OUTPUT"
+          fi
 
       # Версию бампит автор в том же PR (процесс в AGENTS.md) — бот ничего
       # не пушит в main: branch protection требует PR для всех изменений (#95).
       - name: Read version
         id: version
+        if: steps.changes.outputs.buildable == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -38,6 +69,7 @@ jobs:
           echo "version=v$MAJOR.$MINOR.$PATCH"
 
       - name: Create tag
+        if: steps.changes.outputs.buildable == 'true'
         uses: actions/github-script@v8
         with:
           script: |
@@ -63,6 +95,7 @@ jobs:
       # перезаливал те же APK в опубликованный релиз (см. issue #109:
       # v0.5.35 собиралась 6 раз).
       - name: Trigger release workflow (skip if already published)
+        if: steps.changes.outputs.buildable == 'true'
         uses: actions/github-script@v8
         with:
           script: |
