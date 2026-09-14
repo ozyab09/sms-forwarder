@@ -40,6 +40,10 @@ class ForwardServiceTest {
         ChannelStore.invalidate()
         LogStore.clear()
         EventQueueStore.clear(context)
+        // Синхронизируемся с асинхронным clear() из setUp и предыдущего tearDown
+        await("очередь чиста перед тестом") {
+            !java.io.File(context.filesDir, "event_queue.json").exists()
+        }
         mockServer = MockWebServer()
         mockServer.start()
         ChannelClientFactory.apiBase = mockServer.url("/").toString().trimEnd('/')
@@ -51,7 +55,13 @@ class ForwardServiceTest {
         mockServer.shutdown()
         ChannelStore.invalidate()
         LogStore.clear()
+        // ВАЖНО: clear() асинхронный (executor 'queue-store'); если не дождаться
+        // удаления, следующий тест загрузит файл с событием прошлого теста и
+        // воркер отправит его — загрязнение MockWebServer (флейки).
         EventQueueStore.clear(context)
+        await("файл очереди удалён в tearDown") {
+            !java.io.File(context.filesDir, "event_queue.json").exists()
+        }
     }
 
     /**
