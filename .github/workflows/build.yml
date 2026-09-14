@@ -58,18 +58,34 @@ jobs:
               }
             }
 
-      - name: Trigger release workflow
+      # Диспатчим release-сборку только если релиза для тега ещё нет.
+      # Без проверки каждый merge в main перестраивал последний тег и
+      # перезаливал те же APK в опубликованный релиз (см. issue #109:
+      # v0.5.35 собиралась 6 раз).
+      - name: Trigger release workflow (skip if already published)
         uses: actions/github-script@v8
         with:
           script: |
             const ver = '${{ steps.version.outputs.tag }}';
+            try {
+              await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: ver
+              });
+              console.log(`Релиз ${ver} уже опубликован — сборка не требуется`);
+              return;
+            } catch (e) {
+              if (e.status !== 404) throw e;
+              // 404 — релиза нет, собираем
+            }
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'build.yml',
               ref: ver
             });
-            console.log(`Release workflow запущен для ${ver}`);
+            console.log(`Релиз ${ver} отсутствует — запущена release-сборка`);
 
   build:
     name: Build debug APK
