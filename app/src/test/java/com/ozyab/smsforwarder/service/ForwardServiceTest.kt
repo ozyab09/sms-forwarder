@@ -8,15 +8,12 @@ import com.ozyab.smsforwarder.telegram.ChannelClientFactory
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
+import java.util.concurrent.TimeUnit
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -36,15 +33,8 @@ class ForwardServiceTest {
     private lateinit var mockServer: MockWebServer
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
-    /** Тестовый диспетчер: подменяется в сервисе перед стартом каждого теста. */
-    private lateinit var testDispatcher: TestDispatcher
-
     @Before
     fun setUp() {
-        // Main-планишер подменяем, чтобы viewModelScope-подобные launch на Main
-        // (если появятся) не висели; сервису диспетчер инжектится явно.
-        Dispatchers.setMain(StandardTestDispatcher())
-        testDispatcher = StandardTestDispatcher()
         Prefs.init(context)
         Prefs.chatId
         ChannelStore.invalidate()
@@ -62,17 +52,25 @@ class ForwardServiceTest {
         ChannelStore.invalidate()
         LogStore.clear()
         EventQueueStore.clear(context)
-        Dispatchers.resetMain()
     }
 
-    /** Создаёт сервис с тестовым диспетчером и прогоняет startCommand. */
+    /**
+     * Создаёт сервис и прогоняет startCommand. Воркер работает на реальном
+     * Dispatchers.IO (умолчание): отмена корутины в onDestroy корректна
+     * (wake.receive() — suspending), а сетевые вызовы OkHttp и так блокирующие.
+     * Все ожидания в тестах ограничены таймаутами — тест не может зависнуть.
+     */
     private fun buildStartedService(intent: Intent): ServiceController<ForwardService> {
         val ctrl = Robolectric.buildService(ForwardService::class.java, intent)
         ctrl.create()
-        ctrl.get().workerDispatcher = testDispatcher
+        ctrl.get().workerDispatcher = kotlinx.coroutines.Dispatchers.IO
         ctrl.startCommand(0, 0)
         return ctrl
     }
+
+    /** takeRequest с таймаутом: без него тест висит вечно при отсутствии запроса. */
+    private fun takeRequestOrNull(timeoutMs: Long = 5_000): okhttp3.mockwebserver.RecordedRequest? =
+        mockServer.takeRequest(timeoutMs, TimeUnit.MILLISECONDS)
 
     private fun configurePrefs() {
         Prefs.botToken = "test-token-123"
@@ -101,8 +99,9 @@ class ForwardServiceTest {
         val ctrl = buildStartedService(startIntent("Test message"))
         Thread.sleep(2000)
 
-        val request = mockServer.takeRequest()
-        assertEquals("/bottest-token-123/sendMessage", request.path)
+        val request = takeRequestOrNull()
+        assertNotNull("запрос должен прийти за 5с", request)
+        assertEquals("/bottest-token-123/sendMessage", request!!.path)
         assertTrue(request.body.readUtf8().contains("Test message"))
         assertTrue("sentCount > 0", Prefs.sentCount > 0)
         assertTrue(LogStore.all().any { it.text.contains("Отправлено") })
