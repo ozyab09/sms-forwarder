@@ -16,6 +16,7 @@ import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.telegram.TelegramClient
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,7 +42,10 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 class ForwardService : Service() {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    /** Диспетчер воркера; в тестах подменяется на TestDispatcher (см. ForwardServiceTest). */
+    internal var workerDispatcher: CoroutineDispatcher = Dispatchers.IO
+
+    private val scope get() = CoroutineScope(SupervisorJob() + workerDispatcher)
     private val queue = SendQueue()
     private lateinit var outgoingSmsObserver: OutgoingSmsObserver
 
