@@ -43,7 +43,7 @@ abstract class EventDatabase : RoomDatabase() {
                 )
                     .addMigrations(MIGRATION_1_2)
                     // История не критична: падение БД не должно ронять приложение
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                     .also { instance = it }
             }
