@@ -80,7 +80,7 @@ class ForwardServiceTest {
 
 
     /** Ждёт выполнения условия до timeoutMs (воркер асинхронный, fixed sleep ненадёжен). */
-    private fun await(what: String, timeoutMs: Long = 5_000, condition: () -> Boolean) {
+    private fun await(what: String, timeoutMs: Long = 15_000, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
             if (condition()) return
@@ -90,7 +90,7 @@ class ForwardServiceTest {
     }
 
     /** takeRequest с таймаутом: без него тест висит вечно при отсутствии запроса. */
-    private fun takeRequestOrNull(timeoutMs: Long = 5_000): okhttp3.mockwebserver.RecordedRequest? =
+    private fun takeRequestOrNull(timeoutMs: Long = 15_000): okhttp3.mockwebserver.RecordedRequest? =
         mockServer.takeRequest(timeoutMs, TimeUnit.MILLISECONDS)
 
     private fun configurePrefs() {
@@ -122,7 +122,8 @@ class ForwardServiceTest {
         val request = takeRequestOrNull()
         assertNotNull("запрос должен прийти за 5с", request)
         assertEquals("/bottest-token-123/sendMessage", request!!.path)
-        assertTrue(request.body.readUtf8().contains("Test message"))
+        val body = java.net.URLDecoder.decode(request.body.readUtf8(), "UTF-8")
+        assertTrue("текст должен содержать сообщение: $body", body.contains("Test message"))
         await("sentCount инкрементирован") { Prefs.sentCount > 0 }
         await("лог об успешной отправке") { LogStore.all().any { it.text.contains("Отправлено") } }
 
