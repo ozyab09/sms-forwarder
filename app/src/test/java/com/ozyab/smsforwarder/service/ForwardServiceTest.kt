@@ -8,13 +8,17 @@ import com.ozyab.smsforwarder.telegram.ChannelClientFactory
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -26,14 +30,20 @@ import org.robolectric.annotation.Config
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30])
-@Ignore("ForwardService coroutine blocks on Channel.receive(); Robolectric cannot cancel it — needs TestDispatcher")
 class ForwardServiceTest {
 
     private lateinit var mockServer: MockWebServer
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
+    /** Тестовый диспетчер: подменяется в сервисе перед стартом каждого теста. */
+    private lateinit var testDispatcher: TestDispatcher
+
     @Before
     fun setUp() {
+        // Main-планишер подменяем, чтобы viewModelScope-подобные launch на Main
+        // (если появятся) не висели; сервису диспетчер инжектится явно.
+        Dispatchers.setMain(StandardTestDispatcher())
+        testDispatcher = StandardTestDispatcher()
         Prefs.init(context)
         Prefs.chatId
         ChannelStore.invalidate()
@@ -51,6 +61,16 @@ class ForwardServiceTest {
         ChannelStore.invalidate()
         LogStore.clear()
         EventQueueStore.clear(context)
+        Dispatchers.resetMain()
+    }
+
+    /** Создаёт сервис с тестовым диспетчером и прогоняет startCommand. */
+    private fun buildStartedService(intent: Intent): Robolectric.ServiceController<ForwardService> {
+        val ctrl = Robolectric.buildService(ForwardService::class.java, intent)
+        ctrl.create()
+        ctrl.get().workerDispatcher = testDispatcher
+        ctrl.startCommand(0, 0)
+        return ctrl
     }
 
     private fun configurePrefs() {
@@ -77,8 +97,7 @@ class ForwardServiceTest {
         configureDirectChannel()
         mockServer.enqueue(MockResponse().setBody("""{"ok":true,"result":{"message_id":42}}"""))
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java, startIntent("Test message"))
-        ctrl.create().startCommand(0, 0)
+        val ctrl = buildStartedService(startIntent("Test message"))
         Thread.sleep(2000)
 
         val request = mockServer.takeRequest()
@@ -96,8 +115,7 @@ class ForwardServiceTest {
         Prefs.chatId = ""
         configureDirectChannel()
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java, startIntent("Delayed"))
-        ctrl.create().startCommand(0, 0)
+        val ctrl = buildStartedService(startIntent("Delayed"))
         Thread.sleep(1000)
 
         assertTrue(LogStore.all().any { it.text.contains("токен") || it.text.contains("chatId") })
@@ -110,13 +128,10 @@ class ForwardServiceTest {
         configurePrefs()
         configureDirectChannel()
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java, startIntent("Some message"))
-        ctrl.create().startCommand(0, 0)
+        val ctrl = buildStartedService(startIntent("Some message"))
         Thread.sleep(500)
 
-        val stopCtrl = Robolectric.buildService(ForwardService::class.java,
-            Intent().apply { action = ForwardService.ACTION_STOP })
-        stopCtrl.create().startCommand(0, 0)
+        val stopCtrl = buildStartedService(Intent().apply { action = ForwardService.ACTION_STOP })
 
         assertTrue(LogStore.all().any { it.text.contains("Сервис остановлен") })
         ctrl.destroy()
@@ -129,8 +144,7 @@ class ForwardServiceTest {
         configureDirectChannel()
         mockServer.enqueue(MockResponse().setBody("""{"ok":false,"error_code":401,"description":"Unauthorized"}"""))
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java, startIntent("Fail message"))
-        ctrl.create().startCommand(0, 0)
+        val ctrl = buildStartedService(startIntent("Fail message"))
         Thread.sleep(2000)
 
         assertTrue(LogStore.all().any { it.level == LogStore.Level.ERROR && it.text.contains("не вышли") })
@@ -142,13 +156,10 @@ class ForwardServiceTest {
         configurePrefs()
         configureDirectChannel()
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java,
-            Intent().apply { action = ForwardService.ACTION_START })
-        ctrl.create().startCommand(0, 0)
+        val ctrl = buildStartedService(Intent().apply { action = ForwardService.ACTION_START })
         Thread.sleep(500)
 
-        val ctrl2 = Robolectric.buildService(ForwardService::class.java, startIntent("Quick"))
-        ctrl2.create().startCommand(0, 0)
+        val ctrl2 = buildStartedService(startIntent("Quick"))
         Thread.sleep(2000)
         assertTrue("запрос отправлен", mockServer.requestCount > 0)
         ctrl.destroy()
@@ -161,8 +172,7 @@ class ForwardServiceTest {
         Prefs.chatId = ""
         configureDirectChannel()
 
-        val ctrl = Robolectric.buildService(ForwardService::class.java, startIntent("Persist me"))
-        ctrl.create().startCommand(0, 0)
+        val ctrl = buildStartedService(startIntent("Persist me"))
         Thread.sleep(500)
 
         assertTrue(java.io.File(context.filesDir, "event_queue.json").exists())
@@ -178,8 +188,7 @@ class ForwardServiceTest {
             action = ForwardService.ACTION_START
             putExtra(ForwardService.EXTRA_TEXT, "")
         }
-        val ctrl = Robolectric.buildService(ForwardService::class.java, intent)
-        ctrl.create().startCommand(0, 0)
+        val ctrl = buildStartedService(intent)
         Thread.sleep(500)
         assertEquals(0, mockServer.requestCount)
         ctrl.destroy()
