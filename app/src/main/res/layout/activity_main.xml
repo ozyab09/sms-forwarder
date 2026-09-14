@@ -240,22 +240,6 @@
                         android:minLines="1" />
                 </com.google.android.material.textfield.TextInputLayout>
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:hint="@string/pref_template_notification_hint"
-                    app:helperText="@string/pref_template_placeholders">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/et_template_notification"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="textMultiLine"
-                        android:maxLines="2"
-                        android:minLines="1" />
-                </com.google.android.material.textfield.TextInputLayout>
-
                 <LinearLayout
                     android:id="@+id/layout_template_buttons"
                     android:layout_width="match_parent"
