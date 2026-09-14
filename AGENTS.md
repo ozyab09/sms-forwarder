@@ -137,20 +137,22 @@
 > Для локального прогона нужен Android SDK (`ANDROID_HOME` или `local.properties`
 > с `sdk.dir`). Без SDK проверка — через CI (PR: build + test + lint).
 
-### Test Coverage Areas
+### Test Coverage Areas (~155 тестов; 16 пропускаются — @Ignore)
 - `MainViewModel` — load/save, testConnection (успех/ошибки/нет токена), resolveChatId
 - `SendQueue` — порядок FIFO/ретраев, per-event backoff, отброс после попыток
 - `ChannelStore` / `ChannelSender` / `ChannelClientFactory` — приоритет, promote, testAll, прокси-конфиг
 - `TemplateFormatter` — плейсхолдеры, дефолты, предпросмотр
 - `QuietHours` — интервалы, в т.ч. через полночь
-- `EventDao` (Room) — сортировка, поиск, лимиты, новые поля
 - `EventQueueStore` — персистентность очереди (атомарная запись, битый файл, лимит)
-- `LogStore`, `SettingsBackup` — кольцевой буфер, privacy-first экспорт/импорт
+- `LogStore`, `SettingsBackup` — кольцевой буфер, privacy-first экспорт/импорт (включая настройки звонков)
 - `UtilTest` — сравнение версий, ссылки обновлений
 - `MainActivityLaunchTest` — регрессии главного экрана (холодный старт, поворот, вкладки)
+- `ForwardServiceNotificationTest` — FGS-канал IMPORTANCE_MIN, без heads-up
+- `ReceiverTest` — state machine вызовов (missed/incoming/outgoing) + guards
 
-Не покрыто (см. ROADMAP T4, T5): `ForwardService` (интеграционный),
-`SmsReceiver`/`CallReceiver`.
+Не покрыто (пропускаются, @Ignore — см. ROADMAP):
+- `ForwardServiceTest` (интеграционный) — Robolectric не отменяет корутину сервиса
+- `EventDaoTest` (Room) — Robolectric+Room ClassNotFoundException (нужен robolectric-sqlite или androidTest)
 
 ---
 
@@ -159,44 +161,48 @@
 ### Triggers
 | Event | Jobs Run |
 |-------|----------|
-| `pull_request` | `build` (debug APK + test + lint) |
-| `push` `main` | `release-tag` (auto tag из `libs.versions.toml`) |
-| tag `v*` / `workflow_dispatch` на теге | `release` (signed APK + GitHub Release) |
+| `pull_request` | `build` (debug APK + unit-тесты + lintDebug) |
+| `push` `main` | `release-tag` (создаёт тег из версии в `libs.versions.toml`) |
+| tag `v*` / `workflow_dispatch` на теге | `release` (unit-тесты + signed APK + GitHub Release) |
 
 ### Jobs
 ```yaml
 build:
   if: pull_request
   steps: checkout → setup-java (temurin 17) → setup-gradle@v4 →
-         assembleDebug → testDebugUnitTest → upload-artifact (debug APK)
+         assembleDebug + testDebugUnitTest + lintDebug (--parallel --build-cache) →
+         upload-artifact (debug APK)
 
 release-tag:
   if: push to main
   steps: checkout → читает versionMajor/minor/patch из libs.versions.toml →
-         auto-bump patch → коммит через GITHUB_TOKEN → создаёт тег →
+         создаёт тег v{major}.{minor}.{patch} через API (push не нужен) →
          workflow_dispatch на теге
+  # Бота-пуша в main больше нет: branch protection требует PR для всех
+  # изменений. Версию bump'ит автор в том же PR (#95).
 
 release:
   if: startsWith(github.ref, 'refs/tags/v')
   steps: checkout → setup-java → setup-gradle@v4 →
+         testDebugUnitTest (релиз не собирается из непротестированного кода) →
          assembleRelease (KEYSTORE_* secrets) →
          upload-artifact → extract-changelog (awk из CHANGELOG.md) →
          softprops/action-gh-release@v2 (body_path)
 ```
 
 ### Key CI Details
-- `gradle/actions/setup-gradle@v4` — Gradle кэширование (без `actions/setup-gradle` от Google)
+- `gradle/actions/setup-gradle@v4` — Gradle кэширование
 - `--parallel --build-cache` — ускорение сборки
-- Lint **не** запускается в PR (для скорости); линтится отдельно при необходимости
-- Release notes: извлекаются из `CHANGELOG.md` через awk; fallback — git log между тегами
-- `GITHUB_TOKEN` коммиты **не** триггерят новый workflow (защита от infinite loop)
+- **Branch protection на main**: все изменения через PR с зелёным CI (build + test + lint). Прямые push отклоняются (GH013) — в т.ч. для бота, поэтому auto-bump коммитов нет (#95)
+- Release notes: извлекаются из `CHANGELOG.md` через awk (секция `## [X.Y.Z]`); fallback — git log между тегами
+- Node.js 20 deprecation warning от upload-artifact@v4 / setup-gradle@v4 / action-gh-release@v2 — известная косметика, actions работают на Node 24 принудительно; обновление — отдельным PR
 
 ### Versioning (SemVer)
-- Tags: `v<major>.<minor>.<patch>` (e.g. `v1.2.0`) — создаются **автоматически** при мерже в main
+- Tags: `v<major>.<minor>.<patch>` (e.g. `v1.2.0`) — создаются **автоматически при мерже в main** из версии в `libs.versions.toml` (только тег, без bump-коммита)
 - `versionName` = tag without `v`
 - `versionCode` = `major*10000 + minor*100 + patch`
 - Source: `gradle/libs.versions.toml` (versionMajor/minor/patch)
-- Bump версии делается **в том же PR**, что и фича/фикс (patch — фиксы, minor — фичи)
+- Bump версии делается **в том же PR**, что и фича/фикс (patch — фиксы, minor — фичи). Забыл bump — тег просто не создастся/переиспользуется существующий
 
 ### Required Secrets (GitHub → Settings → Secrets → Actions)
 | Secret | Description |
@@ -215,6 +221,7 @@ release:
 #    gradle/libs.versions.toml: versionPatch += 1
 
 # 2. Примержить PR в main — CI сам создаст тег и GitHub Release
+#    (branch protection: direct push в main невозможен, только PR)
 ```
 
 ---
@@ -328,6 +335,7 @@ python3 generate_icons.py logo_transparent.png
 
 | Issue | Workaround / Fix |
 |-------|------------------|
+| Branch protection на main | Все изменения — через PR (build+test+lint обязателен). Auto-bump ботом убран (#95): версию bump'ит автор в PR |
 | FGS-старт из PHONE_STATE на Android 12+ | `ForwardService.start` обёрнут в try/catch; при запрете событие сохраняется в файл очереди и уйдёт при следующем старте сервиса |
 | Без `READ_CALL_LOG` номера пропущенных не приходят (Android 9+) | UI предупреждает: фича «пропущенные» требует разрешения «Журнал вызовов» |
 | «Стоп» сервиса | Очередь отбрасывается (включая файл на диске) — остановка означает остановку пересылки |
@@ -340,6 +348,7 @@ python3 generate_icons.py logo_transparent.png
 | Акцентные цвета | 7 палитр (бирюзовый, зелёный, красный, синий, фиолетовый, оранжевый, серый); `ThemeManager.setAccentAndApply()` применяет overlay через `activity.theme.applyStyle()`. Выбор в ChipGroup во вкладке «О приложении» |
 | OkHttp-клиенты | Кэшируются в `ChannelClientFactory` по конфигурации канала, `invalidate()` при изменении каналов; НЕ закрывать клиенты после использования (в отличие от старого кода с shutdown) |
 | Room-история | `EventDatabase` версия 2 (`MIGRATION_1_2` — chatId/botUsername); `fallbackToDestructiveMigration` как страховка: история не критична, при сбое миграции она просто очищается |
+| Node.js 20 deprecation в CI | Warning от `upload-artifact@v4`, `setup-gradle@v4`, `action-gh-release@v2` — они принудительно работают на Node 24; обновление до node24-версий (upload-artifact@v6, setup-gradle@v5+, gh-release v3) — отдельный PR. До 16.09.2026 Node 20 удалят с раннеров — тогда станет ошибкой |
 | Шаблоны сообщений | Сохраняются автоматически при уходе с экрана (`savePrefs`), плюс явные кнопки «Сохранить»/«Сбросить»; пустое значение = стандартный формат |
 | Username бота в истории | Кэш `Prefs.botUsername` (обновляется при успешной проверке связи); если пусто — один `getMe` при первой успешной отправке |
 
