@@ -264,6 +264,21 @@ object Prefs {
         get() = getBoolean(KEY_CALLS_ENABLED, true)
         set(v) = setBoolean(KEY_CALLS_ENABLED, v)
 
+    /** Пересылка исходящих SMS. */
+    var outgoingSmsEnabled: Boolean
+        get() = getBoolean(KEY_OUTGOING_SMS_ENABLED, false)
+        set(v) = setBoolean(KEY_OUTGOING_SMS_ENABLED, v)
+
+    /** Пересылка принятых (входящих) звонков. */
+    var incomingCallsEnabled: Boolean
+        get() = getBoolean(KEY_INCOMING_CALLS_ENABLED, false)
+        set(v) = setBoolean(KEY_INCOMING_CALLS_ENABLED, v)
+
+    /** Пересылка исходящих звонков. */
+    var outgoingCallsEnabled: Boolean
+        get() = getBoolean(KEY_OUTGOING_CALLS_ENABLED, false)
+        set(v) = setBoolean(KEY_OUTGOING_CALLS_ENABLED, v)
+
     /** Локальные уведомления на телефоне (при входящем SMS/звонке). */
     var localNotificationsEnabled: Boolean
         get() = getBoolean(KEY_LOCAL_NOTIFICATIONS, false)
