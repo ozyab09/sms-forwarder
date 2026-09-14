@@ -64,8 +64,11 @@ Android-приложение, которое пересылает **входящ
   Порядок списка = приоритет каскада; канал, через который прошла отправка,
   автоматически становится приоритетным (promote-on-success). Кнопка «Проверить
   связь» тестирует все каналы.
-- **Переключатели**: «Пересылать SMS», «Пересылать пропущенные», «Тихие часы».
-- **Шаблоны сообщений** — отдельные шаблоны для SMS и пропущенного вызова
+- **Переключатели**: «Пересылать SMS», «Пересылать исходящие SMS», «Пересылать
+  пропущенные», «Пересылать принятые входящие», «Пересылать исходящие звонки»,
+  «Тихие часы», «Локальные уведомления».
+- **Шаблоны сообщений** — отдельные шаблоны для входящего/исходящего SMS и
+  пропущенного/принятого/исходящего вызова
   (`{sender} {name} {text} {time} {date} {type} {sim} {number}`), кнопки
   «Проверить» (превью), «Сохранить», «Сбросить» (пусто = стандартный формат).
 - **Тихие часы**: интервал, в т.ч. через полночь (например 23:00–08:00).
@@ -273,8 +276,8 @@ ForwardService (Foreground, START_STICKY, dataSync)
 | Job | Когда | Что делает |
 |-----|-------|------------|
 | `build` | `pull_request` | `assembleDebug` + `testDebugUnitTest` + `lintDebug`, загрузка debug APK в артефакты |
-| `release-tag` («Auto tag») | `push` в `main` | читает версию из `libs.versions.toml`, создаёт тег `vX.Y.Z` (если нет) и запускает release-джобу |
-| `release` | теги `v*` | `testReleaseUnitTest` + `assembleRelease` (подпись из секретов), артефакт APK, создание **GitHub Release** (`softprops/action-gh-release`) |
+| `release-tag` («Auto tag») | `push` в `main` | читает версию из `libs.versions.toml`, создаёт тег `vX.Y.Z` через API (без bump-коммита — branch protection, #95) и запускает release-джобу |
+| `release` | теги `v*` | `testDebugUnitTest` + `assembleRelease` (подпись из секретов), артефакт APK, создание **GitHub Release** (`softprops/action-gh-release`, notes из `CHANGELOG.md`) |
 
 Правила запуска:
 - Pull request → `build` (обязательно зелёный до мержа)
@@ -296,9 +299,10 @@ ForwardService (Foreground, START_STICKY, dataSync)
 ### 13.3. GitHub Release
 - На каждый тег `v*` джоба `release` создаёт **GitHub Release**:
   - имя: `vX.Y.Z`;
-  - описание: автогенерируемые release notes (`generate_release_notes: true`);
+  - описание: секция `## [X.Y.Z]` из `CHANGELOG.md` (awk-extraction; fallback — git log между тегами);
   - ассеты: signed release APK (`app/build/outputs/apk/release/*.apk`).
-- `CHANGELOG.md` — разделы `## [vX.Y.Z] - YYYY-MM-DD` (обновляется в том же MR, где bump версии).
+- `CHANGELOG.md` — разделы `## [X.Y.Z] - YYYY-MM-DD` (обновляется в том же MR, где bump версии).
+- Branch protection на `main`: прямые push запрещены (в т.ч. для бота) — все изменения через PR с обязательным зелёным CI.
 
 ### 13.4. Секреты репозитория (Settings → Secrets → Actions)
 | Переменная | Назначение |
