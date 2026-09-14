@@ -22,6 +22,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
+import org.robolectric.android.controller.ServiceController
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
@@ -65,7 +66,7 @@ class ForwardServiceTest {
     }
 
     /** Создаёт сервис с тестовым диспетчером и прогоняет startCommand. */
-    private fun buildStartedService(intent: Intent): Robolectric.ServiceController<ForwardService> {
+    private fun buildStartedService(intent: Intent): ServiceController<ForwardService> {
         val ctrl = Robolectric.buildService(ForwardService::class.java, intent)
         ctrl.create()
         ctrl.get().workerDispatcher = testDispatcher
