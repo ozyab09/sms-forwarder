@@ -4,6 +4,12 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версионирование — [SemVer](https://semver.org/lang/ru/).
 
+## [0.5.37] - 2026-09-15
+
+### Изменено
+- Устранены deprecation warnings от `androidx.security:security-crypto` 1.1.0 (вся библиотека Deprecated без замены): в `Prefs.kt` включён осознанный `@file:Suppress("DEPRECATION")` — секреты продолжают храниться в `EncryptedSharedPreferences`, миграция не делается, чтобы не сломать данные существующих пользователей
+- Тесты: `@Suppress("DEPRECATION")` перенесён на уровень классов `ReceiverTest` и `ForwardServiceNotificationTest` (прошлый вариант висел между объявлений и не подавлял предупреждения)
+
 ## [0.5.36] - 2026-09-15
 
 ### Исправлено

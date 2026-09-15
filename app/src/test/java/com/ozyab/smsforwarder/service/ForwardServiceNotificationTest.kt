@@ -25,14 +25,12 @@ import org.robolectric.annotation.Config
  * heads-up показываются только для HIGH/MAX, поэтому такое уведомление
  * не всплывает; обычных уведомлений сервис не создаёт.
  */
+// Проверяем именно legacy-поле Notification.priority (PRIORITY_MIN) —
+// депрекейшн осознанный.
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30])
+@Suppress("DEPRECATION")
 class ForwardServiceNotificationTest {
-
-    // Проверяем именно legacy-поле Notification.priority (PRIORITY_MIN) —
-    // депрекейшн осознанный.
-    @Suppress("DEPRECATION")
-
 
     private fun notificationManager(): NotificationManager =
         ApplicationProvider.getApplicationContext<Context>()

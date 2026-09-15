@@ -26,14 +26,12 @@ import org.robolectric.annotation.Config
  *  - OFFHOOK без RINGING → IDLE = исходящий
  *  - сброс состояния между вызовами
  */
+// TelephonyManager.EXTRA_INCOMING_NUMBER deprecated (incoming-номер приходит
+// отдельным extra на API 29+); тесты эмулируют интент звонка осознанно.
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30])
+@Suppress("DEPRECATION")
 class ReceiverTest {
-
-    // Telephony.Sms.Intents.EXTRA_INCOMING_NUMBER deprecated (номер приходит отдельным
-    // extra на API 29+); тесты эмулируют интент звонка осознанно.
-    @Suppress("DEPRECATION")
-
 
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
