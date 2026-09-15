@@ -30,6 +30,7 @@ object CallReceiverLogic {
     private var ringingNumber: String? = null
     private var outgoingNumber: String? = null
     private var callAnswered = false
+    private var callConnectTimeMs: Long = 0L
 
     /** Окно «свежести» для fallback-поиска пропущенного в CallLog. */
     private const val RECENT_WINDOW_MS = 2 * 60_000L
@@ -40,6 +41,7 @@ object CallReceiverLogic {
         ringingNumber = null
         outgoingNumber = null
         callAnswered = false
+        callConnectTimeMs = 0L
     }
 
     /**
@@ -61,6 +63,7 @@ object CallReceiverLogic {
             }
             TelephonyManager.EXTRA_STATE_OFFHOOK -> {
                 callAnswered = true
+                callConnectTimeMs = System.currentTimeMillis()
                 if (ringingNumber == null) {
                     outgoingNumber = number
                 }
@@ -70,14 +73,21 @@ object CallReceiverLogic {
                 val numberAtRinging = ringingNumber
                 val numberOutgoing = outgoingNumber
                 val wasAnswered = callAnswered
+                val connectTime = callConnectTimeMs
                 ringingNumber = null
                 outgoingNumber = null
                 callAnswered = false
+                callConnectTimeMs = 0L
+
+                // Длительность: от OFFHOOK до IDLE (только для принятых/исходящих)
+                val durationMs = if (connectTime > 0L) {
+                    (System.currentTimeMillis() - connectTime)
+                } else null
 
                 return when {
                     // Входящий вызов был (RINGING) и принят
                     numberAtRinging != null && wasAnswered -> {
-                        val text = buildEvent(context, numberAtRinging, "incoming")
+                        val text = buildEvent(context, numberAtRinging, "incoming", durationMs)
                         Triple(text, "incoming", "Входящий")
                     }
                     // Входящий вызов был, но не принят — пропущенный
@@ -168,7 +178,8 @@ object CallReceiverLogic {
     private fun buildEvent(
         context: Context,
         number: String,
-        type: String
+        type: String,
+        durationMs: Long? = null
     ): String {
         val name = ContactNames.lookup(context, number)
         val now = System.currentTimeMillis()
@@ -185,7 +196,8 @@ object CallReceiverLogic {
             text = "",
             timestamp = now,
             type = type,
-            sim = sim
+            sim = sim,
+            durationMs = durationMs
         )
     }
 }
