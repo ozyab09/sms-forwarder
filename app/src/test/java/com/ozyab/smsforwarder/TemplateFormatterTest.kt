@@ -104,12 +104,14 @@ class TemplateFormatterTest {
     @Test
     fun `default outgoing SMS template`() {
         val result = TemplateFormatter.format(
-            template = "", sender = "+79161234567", name = null,
-            text = "Hello!", timestamp = ts, type = "outgoing_sms"
+            template = "", sender = "+79161234567", name = "Маша",
+            text = "Hello!", timestamp = ts, type = "outgoing_sms", sim = "МТС"
         )
         assertTrue(result.contains("📤 SMS"))
+        assertTrue(result.contains("Маша"))
         assertTrue(result.contains("+79161234567"))
         assertTrue(result.contains("Hello!"))
+        assertTrue(result.contains("МТС"))
     }
 
     @Test
