@@ -1,3 +1,9 @@
+// androidx.security:security-crypto Deprecated (вся библиотека). Замены в
+// пакете нет (Google рекомендует AndroidKeystore вручную или плейн-prefs).
+// Пока храним секреты здесь осознанно: миграция на другое хранилище сломает
+// совместимость с данными существующих пользователей (secure_prefs).
+@file:Suppress("DEPRECATION")
+
 package com.ozyab.smsforwarder.util
 
 import android.content.Context
