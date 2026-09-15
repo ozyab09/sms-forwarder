@@ -79,7 +79,8 @@ class ReceiverTest {
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
         assertNotNull("принятый входящий обнаружен", result)
         assertEquals("incoming", result!!.second)
-        assertEquals("+79001112233", result.first)
+        assertTrue("текст отформатирован по шаблону «Входящий»", result.first.contains("Входящий"))
+        assertTrue("текст содержит номер", result.first.contains("+79001112233"))
     }
 
     @Test
@@ -101,7 +102,9 @@ class ReceiverTest {
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79005556677")
         assertNotNull("исходящий звонок обнаружен", result)
         assertEquals("outgoing", result!!.second)
-        assertEquals("+79005556677", result.first)
+        assertTrue("текст отформатирован по шаблону «Исходящий»", result.first.contains("Исходящий"))
+        assertTrue("текст содержит Кому", result.first.contains("Кому:"))
+        assertTrue("текст содержит номер", result.first.contains("+79005556677"))
     }
 
     @Test

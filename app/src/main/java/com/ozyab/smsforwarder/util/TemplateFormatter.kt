@@ -32,7 +32,10 @@ object TemplateFormatter {
 От: {number}{name}""".trimIndent()
 
     /** Дефолтный шаблон для исходящих SMS. */
-    val DEFAULT_OUTGOING_SMS_TEMPLATE = """📤 SMS [{time}] → {sender}
+    val DEFAULT_OUTGOING_SMS_TEMPLATE = """📤 SMS [{time}]
+{sim}
+Кому: {sender}{name}
+──────────────────
 {text}""".trimIndent()
 
     /** Дефолтный шаблон для принятых (входящих) звонков. */
