@@ -108,6 +108,7 @@ object TemplateFormatter {
             .replace("{time}", timeFormat.format(cal.time))
             .replace("{date}", dateFormat.format(cal.time))
             .replace("{type}", type)
+            .replace("{sim}", sim ?: "")
             .replace("{duration}", formatDuration(durationMs))
 
         return result
