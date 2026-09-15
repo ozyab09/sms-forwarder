@@ -51,14 +51,17 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
 
         LogStore.info("OutgoingSmsObserver: исходящий SMS → ${sms.address}")
 
+        val name = com.ozyab.smsforwarder.util.ContactNames.lookup(appContext, sms.address)
+        val sim = com.ozyab.smsforwarder.util.SimInfo.describe(appContext, null)
+
         val formatted = com.ozyab.smsforwarder.util.TemplateFormatter.format(
             template = Prefs.messageTemplateOutgoingSms,
             sender = sms.address,
-            name = null,
+            name = name,
             text = sms.body,
             timestamp = sms.date,
             type = "outgoing_sms",
-            sim = null
+            sim = sim
         )
 
         ForwardService.start(

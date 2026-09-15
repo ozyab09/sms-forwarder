@@ -77,7 +77,8 @@ object CallReceiverLogic {
                 return when {
                     // Входящий вызов был (RINGING) и принят
                     numberAtRinging != null && wasAnswered -> {
-                        Triple(numberAtRinging, "incoming", "Входящий")
+                        val text = buildEvent(context, numberAtRinging, "incoming")
+                        Triple(text, "incoming", "Входящий")
                     }
                     // Входящий вызов был, но не принят — пропущенный
                     numberAtRinging != null && !wasAnswered -> {
@@ -86,16 +87,21 @@ object CallReceiverLogic {
                         } else {
                             numberAtRinging
                         }
-                        candidate?.let { Triple(it, "missed", "Пропущенный") }
+                        candidate?.let {
+                            Triple(buildEvent(context, it, "missed"), "missed", "Пропущенный")
+                        }
                     }
                     // Исходящий вызов (OFFHOOK без RINGING)
                     numberOutgoing != null -> {
-                        Triple(numberOutgoing, "outgoing", "Исходящий")
+                        val text = buildEvent(context, numberOutgoing, "outgoing")
+                        Triple(text, "outgoing", "Исходящий")
                     }
                     // RINGING потерян — ищем свежий пропущенный в CallLog
                     else -> {
                         val recent = findRecentMissed(context)
-                        recent?.let { Triple(it, "missed", "Пропущенный") }
+                        recent?.let {
+                            Triple(buildEvent(context, it, "missed"), "missed", "Пропущенный")
+                        }
                     }
                 }
             }
@@ -162,8 +168,7 @@ object CallReceiverLogic {
     private fun buildEvent(
         context: Context,
         number: String,
-        type: String,
-        label: String
+        type: String
     ): String {
         val name = ContactNames.lookup(context, number)
         val now = System.currentTimeMillis()
