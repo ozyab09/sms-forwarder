@@ -220,9 +220,16 @@ class ForwardService : Service() {
             ev.text, token, chatId, channels,
             onSuccess = { ch ->
                 // promote-on-success: канал, через который удалось отправить,
-                // становится первым среди прокси (после direct) для следующих сообщений
-                if (!ch.isDirect && ChannelStore.promote(ch.id)) {
+                // становится первым в списке для следующих сообщений
+                if (ChannelStore.promote(ch.id)) {
                     LogStore.info("Канал «${ch.name}» теперь приоритетный")
+                }
+            },
+            onFailure = { ch ->
+                // demote-on-failure: неуспешный канал уходит в конец списка
+                // (в т.ч. «Без прокси») — переключатель канала не трогаем
+                if (ChannelStore.demote(ch.id)) {
+                    LogStore.info("Канал «${ch.name}» перемещён в конец списка")
                 }
             },
         )) {

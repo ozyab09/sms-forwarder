@@ -70,8 +70,12 @@ data class Channel(
  * Хранилище каналов отправки.
  *
  * Сериализация — JSON-массив в EncryptedSharedPreferences (пароли прокси
- * не должны лежать в plain-префсах). Канал direct добавляется автоматически
- * при чтении, если его нет.
+ * не должны лежать в plain-префсах).
+ *
+ * Канал direct добавляется автоматически при чтении, если его нет. Порядок
+ * списка = приоритет каскадной отправки и полностью динамический: канал,
+ * через который прошла отправка, поднимается наверх (promote-on-success),
+ * а неуспешный уходит в конец (demote-on-failure) — в том числе direct.
  */
 object ChannelStore {
 
@@ -80,21 +84,23 @@ object ChannelStore {
     @Volatile
     private var cache: List<Channel>? = null
 
-    /** Все каналы: direct всегда первым, затем прокси в порядке добавления. */
+    /** Все каналы в текущем порядке приоритета (успешный — выше, неуспешный — ниже). */
     fun all(): List<Channel> {
         cachedOrLoad()?.let { return it }
         return listOf(Channel.direct())
     }
 
-    /** Только включённые каналы, direct первым. */
+    /** Только включённые каналы. */
     fun enabled(): List<Channel> = all().filter { it.enabled }
 
     fun get(id: String): Channel? = all().find { it.id == id }
 
     fun setAll(channels: List<Channel>) {
-        // Нормализация: канал «Без прокси» всегда первый, всегда включён и не может
-        // быть выключен/изменён из хранилища (иначе можно остаться без каналов)
-        val normalized = listOf(Channel.direct()) + channels.filterNot { it.isDirect }
+        // Нормализация: direct всегда включён и не может быть выключен/изменён
+        // из хранилища (иначе можно остаться без каналов). Позиция direct в списке
+        // НЕ фиксируется — порядок динамический (promote/demote).
+        val direct = channels.firstOrNull { it.isDirect } ?: Channel.direct()
+        val normalized = listOf(direct) + channels.filterNot { it.isDirect }
         val arr = JSONArray()
         for (c in normalized) arr.put(c.toJson())
         Prefs.channelsJson = arr.toString()
@@ -116,38 +122,49 @@ object ChannelStore {
     }
 
     /**
-     * Переместить канал вверх/вниз относительно других прокси-каналов.
-     * Канал «Без прокси» (direct) всегда первый и не двигается.
+     * Переместить канал вверх/вниз по списку приоритета.
      *
      * @param delta -1 = выше, +1 = ниже.
      * @return true, если перестановка выполнена.
      */
     fun move(id: String, delta: Int): Boolean {
-        val cur = all()
-        val direct = cur.first()
-        val proxies = cur.drop(1).toMutableList()
-        val idx = proxies.indexOfFirst { it.id == id }
+        val cur = all().toMutableList()
+        val idx = cur.indexOfFirst { it.id == id }
         if (idx < 0) return false
         val newIdx = idx + delta
-        if (newIdx < 0 || newIdx >= proxies.size) return false
-        val tmp = proxies[idx]
-        proxies[idx] = proxies[newIdx]
-        proxies[newIdx] = tmp
-        setAll(listOf(direct) + proxies)
+        if (newIdx < 0 || newIdx >= cur.size) return false
+        val tmp = cur[idx]
+        cur[idx] = cur[newIdx]
+        cur[newIdx] = tmp
+        setAll(cur)
         return true
     }
 
     /**
-     * Поднять прокси-канал на первое место среди прокси (сразу после direct).
+     * Поднять канал на первое место списка.
      *
      * Используется при promote-on-success: после успешной отправки через канал
-     * он становится приоритетным для следующих сообщений. Если канал уже первый
-     * (или не найден / является direct), порядок не меняется.
+     * он становится приоритетным для следующих сообщений.
      *
      * @return true, если порядок был изменён.
      */
     fun promote(id: String): Boolean {
         val next = promoteOrder(all(), id) ?: return false
+        setAll(next)
+        return true
+    }
+
+    /**
+     * Опустить канал в конец списка.
+     *
+     * Используется при demote-on-failure: после неуспешной отправки канал
+     * пробуется последним, пока снова не увенчается успехом. Работает и для
+     * direct — порядок динамический.
+     *
+     * @return true, если порядок был изменён.
+     */
+    fun demote(id: String): Boolean {
+        val next = demoteOrder(all(), id) ?: return false
         setAll(next)
         return true
     }
@@ -192,15 +209,27 @@ object ChannelStore {
 
 /**
  * Чистая функция promote-on-success (без хранилища, тестируется отдельно):
- * возвращает новый порядок каналов с каналом [id] на первом месте среди прокси
- * (сразу после direct) или null, если порядок менять не надо.
+ * возвращает новый порядок каналов с каналом [id] на первом месте или null,
+ * если порядок менять не надо (пустой список, канал не найден или уже первый).
  */
 internal fun promoteOrder(cur: List<Channel>, id: String): List<Channel>? {
-    if (cur.isEmpty()) return null
-    val direct = cur.first()
-    val proxies = cur.drop(1)
-    if (proxies.size < 2) return null
-    val idx = proxies.indexOfFirst { it.id == id }
+    if (cur.size < 2) return null
+    val idx = cur.indexOfFirst { it.id == id }
     if (idx <= 0) return null // не найден или уже первый
-    return listOf(direct) + listOf(proxies[idx]) + proxies.filterIndexed { i, _ -> i != idx }
+    val ch = cur[idx]
+    return listOf(ch) + cur.filterIndexed { i, _ -> i != idx }
+}
+
+/**
+ * Чистая функция demote-on-failure (без хранилища, тестируется отдельно):
+ * возвращает новый порядок каналов с каналом [id] в конце списка или null,
+ * если порядок менять не надо (пустой список, один канал, канал не найден
+ * или уже последний).
+ */
+internal fun demoteOrder(cur: List<Channel>, id: String): List<Channel>? {
+    if (cur.size < 2) return null
+    val idx = cur.indexOfFirst { it.id == id }
+    if (idx < 0 || idx == cur.size - 1) return null // не найден или уже последний
+    val ch = cur[idx]
+    return cur.filterIndexed { i, _ -> i != idx } + ch
 }
