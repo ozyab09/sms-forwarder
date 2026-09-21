@@ -550,7 +550,7 @@ class MainActivity : AppCompatActivity() {
             else -> ch.type
         }
         if (ch.isDirect) {
-            // direct всегда первый, всегда включён и не изменяется
+            // direct всегда включён и не изменяется (порядок двигается автоматически)
             sw.isChecked = true
             sw.isEnabled = false
         } else {
@@ -559,24 +559,22 @@ class MainActivity : AppCompatActivity() {
                 ChannelStore.upsert(ch.copy(enabled = checked))
             }
         }
+        // Кнопки порядка — для всех каналов: порядок динамический, «Без прокси»
+        // тоже двигается (promote/demote по результату отправки)
+        setEnabled(up, index > 0)
+        setEnabled(down, index < total - 1)
+        up.setOnClickListener {
+            ChannelStore.move(ch.id, -1)
+            renderChannels()
+        }
+        down.setOnClickListener {
+            ChannelStore.move(ch.id, +1)
+            renderChannels()
+        }
+        edit.setOnClickListener { showProxyDialog(ch) }
         if (ch.isDirect) {
-            // direct всегда первый и не перемещается
-            up.visibility = View.GONE
-            down.visibility = View.GONE
+            // edit для direct бессмыслен (нет настроек прокси)
             edit.visibility = View.GONE
-        } else {
-            // index 0 — direct, первый прокси начинается с 1
-            setEnabled(up, index > 1)
-            setEnabled(down, index < total - 1)
-            up.setOnClickListener {
-                ChannelStore.move(ch.id, -1)
-                renderChannels()
-            }
-            down.setOnClickListener {
-                ChannelStore.move(ch.id, +1)
-                renderChannels()
-            }
-            edit.setOnClickListener { showProxyDialog(ch) }
         }
         del.setOnClickListener { confirmDelete(ch) }
         return row
