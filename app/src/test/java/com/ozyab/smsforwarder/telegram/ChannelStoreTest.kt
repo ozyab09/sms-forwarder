@@ -1,10 +1,16 @@
 package com.ozyab.smsforwarder.telegram
 
+import androidx.test.core.app.ApplicationProvider
+import com.ozyab.smsforwarder.util.Prefs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Тесты динамической сортировки каналов (issue #123).
@@ -14,8 +20,20 @@ import org.junit.Test
  * [demoteOrder] — чистая функция demote-on-failure: неуспешный канал опускается
  * в конец списка. Порядок полностью динамический — в том числе для direct
  * («Без прокси»). Переключатель [Channel.enabled] сортировка не трогает.
+ *
+ * Контракты хранилища ([ChannelStore.setAll]/[ChannelStore.remove]) проверяются
+ * на Robolectric — им нужен инициализированный [Prefs] (secure prefs).
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [30])
 class ChannelStoreTest {
+
+    @Before
+    fun setUp() {
+        Prefs.init(ApplicationProvider.getApplicationContext())
+        ChannelStore.invalidate()
+        ChannelStore.setAll(listOf(Channel.direct()))
+    }
 
     private fun channel(id: String, name: String, type: String = Channel.TYPE_DIRECT, enabled: Boolean = true) =
         Channel(id = id, type = type, name = name, host = "", port = 0, user = "", pass = "", enabled = enabled)
@@ -162,8 +180,9 @@ class ChannelStoreTest {
             channel("p2", "Прокси 2", Channel.TYPE_SOCKS5, enabled = false),
         )
         val next = promoteOrder(cur, "p2")!!
-        assertEquals(listOf(true, true, false), next.map { it.enabled })
+        // порядок: p2 первым, остальные в исходном порядке; enabled НЕ меняется
         assertEquals(listOf("p2", "direct", "p1"), next.map { it.id })
+        assertEquals(listOf(false, true, true), next.map { it.enabled })
     }
 
     @Test
