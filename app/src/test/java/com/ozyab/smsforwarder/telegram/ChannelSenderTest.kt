@@ -18,8 +18,8 @@ class ChannelSenderTest {
     private val token = "123:TEST"
     private val chatId = "42"
 
-    private fun channel(id: String, name: String, type: String = Channel.TYPE_DIRECT) =
-        Channel(id = id, type = type, name = name, host = "", port = 0, user = "", pass = "", enabled = true)
+    private fun channel(id: String, name: String, type: String = Channel.TYPE_DIRECT, enabled: Boolean = true) =
+        Channel(id = id, type = type, name = name, host = "", port = 0, user = "", pass = "", enabled = enabled)
 
     @Test
     fun `first channel success wins`() = runTest {
