@@ -18,8 +18,8 @@ class ChannelSenderTest {
     private val token = "123:TEST"
     private val chatId = "42"
 
-    private fun channel(id: String, name: String, type: String = Channel.TYPE_DIRECT) =
-        Channel(id = id, type = type, name = name, host = "", port = 0, user = "", pass = "", enabled = true)
+    private fun channel(id: String, name: String, type: String = Channel.TYPE_DIRECT, enabled: Boolean = true) =
+        Channel(id = id, type = type, name = name, host = "", port = 0, user = "", pass = "", enabled = enabled)
 
     @Test
     fun `first channel success wins`() = runTest {
@@ -72,6 +72,86 @@ class ChannelSenderTest {
         assertEquals(2, reasons.size)
         assertTrue(reasons[0].contains("Без прокси"))
         assertTrue(reasons[1].contains("Прокси 1"))
+    }
+
+    // --- onFailure / onSuccess колбэки (issue #123: demote-on-failure) ---
+
+    @Test
+    fun `onFailure called for each failed channel with the channel itself`() = runTest {
+        val channels = listOf(
+            channel("direct", "Без прокси"),
+            channel("p1", "Прокси 1", Channel.TYPE_HTTP),
+            channel("p2", "Прокси 2", Channel.TYPE_SOCKS5),
+        )
+        val failed = mutableListOf<String>()
+        val r = ChannelSender.send(
+            "hi", token, chatId, channels,
+            onFailure = { failed += it.id },
+        ) {
+            ChannelSender.ChannelOutcome.Failed("down")
+        }
+        assertTrue(r is ChannelSender.Result.Err)
+        // Все три канала неудачны — onFailure для каждого, в порядке каскада
+        assertEquals(listOf("direct", "p1", "p2"), failed)
+    }
+
+    @Test
+    fun `onFailure not called for successful channel`() = runTest {
+        val channels = listOf(
+            channel("direct", "Без прокси"),
+            channel("p1", "Прокси 1", Channel.TYPE_HTTP),
+        )
+        val failed = mutableListOf<String>()
+        val succeeded = mutableListOf<String>()
+        val r = ChannelSender.send(
+            "hi", token, chatId, channels,
+            onSuccess = { succeeded += it.id },
+            onFailure = { failed += it.id },
+        ) {
+            if (it.id == "direct") ChannelSender.ChannelOutcome.Failed("timeout")
+            else ChannelSender.ChannelOutcome.Sent(1)
+        }
+        assertTrue(r is ChannelSender.Result.Ok)
+        assertEquals(listOf("direct"), failed)
+        assertEquals(listOf("p1"), succeeded)
+    }
+
+    @Test
+    fun `onSuccess not called on total failure`() = runTest {
+        val channels = listOf(channel("direct", "Без прокси"))
+        var successCalls = 0
+        val r = ChannelSender.send(
+            "hi", token, chatId, channels,
+            onSuccess = { successCalls++ },
+            onFailure = { },
+        ) {
+            ChannelSender.ChannelOutcome.Failed("nope")
+        }
+        assertTrue(r is ChannelSender.Result.Err)
+        assertEquals(0, successCalls)
+    }
+
+    /**
+     * Регрессия (issue #123): колбэки отправки не имеют доступа к enabled и не
+     * должны влиять на него; контракт — список каналов передаётся снаружи, а
+     * sender получает их as-is. Проверяем, что enablement не мутируется внутри
+     * send: исходный список не меняется (data class, без side effects).
+     */
+    @Test
+    fun `send does not mutate channels list or enabled flags`() = runTest {
+        val channels = listOf(
+            channel("direct", "Без прокси", enabled = true),
+            channel("p1", "Прокси 1", Channel.TYPE_HTTP, enabled = false),
+        )
+        val snapshot = channels.map { it.id to it.enabled }
+        ChannelSender.send(
+            "hi", token, chatId, channels,
+            onSuccess = { },
+            onFailure = { },
+        ) {
+            ChannelSender.ChannelOutcome.Failed("x")
+        }
+        assertEquals(snapshot, channels.map { it.id to it.enabled })
     }
 
     // --- testAll: параллельная проверка подключения (getMe) по всем каналам ---

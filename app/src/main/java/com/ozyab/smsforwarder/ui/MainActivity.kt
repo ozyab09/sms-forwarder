@@ -586,6 +586,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmDelete(ch: Channel) {
+        // «Без прокси» удалить нельзя (должен остаться хотя бы один канал) — no-op
+        if (ch.isDirect) return
         AlertDialog.Builder(this)
             .setTitle(R.string.channels_proxy_delete)
             .setMessage(getString(R.string.channels_proxy_delete_confirm, ch.name))
