@@ -97,10 +97,14 @@ object ChannelStore {
 
     fun setAll(channels: List<Channel>) {
         // Нормализация: direct всегда включён и не может быть выключен/изменён
-        // из хранилища (иначе можно остаться без каналов). Позиция direct в списке
-        // НЕ фиксируется — порядок динамический (promote/demote).
+        // из хранилища (иначе можно остаться без каналов). Порядок каналов сохраняется
+        // ровно в том виде, в котором передан в channels (динамический порядок promote/demote).
         val direct = channels.firstOrNull { it.isDirect } ?: Channel.direct()
-        val normalized = listOf(direct) + channels.filterNot { it.isDirect }
+        val normalized = if (channels.any { it.isDirect }) {
+            channels.map { if (it.isDirect) direct else it }
+        } else {
+            channels + direct
+        }
         val arr = JSONArray()
         for (c in normalized) arr.put(c.toJson())
         Prefs.channelsJson = arr.toString()
@@ -144,7 +148,8 @@ object ChannelStore {
      * Поднять канал на первое место списка.
      *
      * Используется при promote-on-success: после успешной отправки через канал
-     * он становится приоритетным для следующих сообщений.
+     * он становится приоритетным для следующих сообщений. Работает для всех
+     * каналов, в т.ч. direct — порядок динамический.
      *
      * @return true, если порядок был изменён.
      */
@@ -211,11 +216,12 @@ object ChannelStore {
  * Чистая функция promote-on-success (без хранилища, тестируется отдельно):
  * возвращает новый порядок каналов с каналом [id] на первом месте или null,
  * если порядок менять не надо (пустой список, канал не найден или уже первый).
+ * Работает для всех каналов, в т.ч. direct — порядок полностью динамический.
  */
 internal fun promoteOrder(cur: List<Channel>, id: String): List<Channel>? {
     if (cur.size < 2) return null
     val idx = cur.indexOfFirst { it.id == id }
-    if (idx <= 0) return null // не найден или уже первый
+    if (idx < 0 || idx == 0) return null // не найден или уже первый
     val ch = cur[idx]
     return listOf(ch) + cur.filterIndexed { i, _ -> i != idx }
 }
