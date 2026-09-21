@@ -97,13 +97,13 @@ object ChannelStore {
 
     fun setAll(channels: List<Channel>) {
         // Нормализация: direct всегда включён и не может быть выключен/изменён
-        // из хранилища (иначе можно остаться без каналов). Порядок каналов сохраняется
-        // ровно в том виде, в котором передан в channels (динамический порядок promote/demote).
-        val direct = channels.firstOrNull { it.isDirect } ?: Channel.direct()
+        // из хранилища (иначе можно остаться без каналов). Позиция direct в списке
+        // НЕ фиксируется — порядок динамический (promote/demote/move). Если direct
+        // во входном списке нет (импорт, старые версии) — добавляется первым.
         val normalized = if (channels.any { it.isDirect }) {
-            channels.map { if (it.isDirect) direct else it }
+            channels.map { if (it.isDirect && !it.enabled) it.copy(enabled = true) else it }
         } else {
-            channels + direct
+            listOf(Channel.direct()) + channels
         }
         val arr = JSONArray()
         for (c in normalized) arr.put(c.toJson())
@@ -121,8 +121,13 @@ object ChannelStore {
         setAll(next)
     }
 
-    fun remove(id: String) {
-        setAll(all().filterNot { it.id == id })
+    fun remove(id: String): Boolean {
+        // «Без прокси» удалить нельзя — удаляются только пользовательские прокси
+        if (id == Channel.DIRECT_ID) return false
+        val cur = all()
+        if (cur.none { it.id == id }) return false
+        setAll(cur.filterNot { it.id == id })
+        return true
     }
 
     /**
@@ -148,8 +153,7 @@ object ChannelStore {
      * Поднять канал на первое место списка.
      *
      * Используется при promote-on-success: после успешной отправки через канал
-     * он становится приоритетным для следующих сообщений. Работает для всех
-     * каналов, в т.ч. direct — порядок динамический.
+     * он становится приоритетным для следующих сообщений.
      *
      * @return true, если порядок был изменён.
      */
@@ -180,13 +184,18 @@ object ChannelStore {
         val raw = Prefs.channelsJson
         if (raw.isNotBlank()) {
             val arr = JSONArray(raw)
-            val list = buildList {
+            val stored = buildList {
                 for (i in 0 until arr.length()) {
-                    val c = Channel.fromJson(arr.getJSONObject(i))
-                    if (!c.isDirect) add(c)
+                    add(Channel.fromJson(arr.getJSONObject(i)))
                 }
             }
-            val result = listOf(Channel.direct()) + list
+            // direct хранится в общем порядке: если есть — оставляем на его позиции
+            // (принудительно включённым), если нет (старые версии) — добавляем первым.
+            val result = if (stored.any { it.isDirect }) {
+                stored.map { if (it.isDirect && !it.enabled) it.copy(enabled = true) else it }
+            } else {
+                listOf(Channel.direct()) + stored
+            }
             cache = result
             return result
         }
@@ -216,12 +225,11 @@ object ChannelStore {
  * Чистая функция promote-on-success (без хранилища, тестируется отдельно):
  * возвращает новый порядок каналов с каналом [id] на первом месте или null,
  * если порядок менять не надо (пустой список, канал не найден или уже первый).
- * Работает для всех каналов, в т.ч. direct — порядок полностью динамический.
  */
 internal fun promoteOrder(cur: List<Channel>, id: String): List<Channel>? {
     if (cur.size < 2) return null
     val idx = cur.indexOfFirst { it.id == id }
-    if (idx < 0 || idx == 0) return null // не найден или уже первый
+    if (idx <= 0) return null // не найден или уже первый
     val ch = cur[idx]
     return listOf(ch) + cur.filterIndexed { i, _ -> i != idx }
 }

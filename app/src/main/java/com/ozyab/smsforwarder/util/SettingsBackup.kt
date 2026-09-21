@@ -2,6 +2,7 @@ package com.ozyab.smsforwarder.util
 
 import android.content.Context
 import android.net.Uri
+import com.ozyab.smsforwarder.telegram.Channel
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import org.json.JSONArray
 import org.json.JSONObject
@@ -116,7 +117,9 @@ object SettingsBackup {
         Prefs.quietHoursStart = settings.optInt("quietHoursStart", Prefs.quietHoursStart)
         Prefs.quietHoursEnd = settings.optInt("quietHoursEnd", Prefs.quietHoursEnd)
 
-        // Каналы: заменяем все прокси-каналы (direct остаётся всегда первым).
+        // Каналы: заменяем все прокси-каналы. Позиция direct не фиксируется
+        // (порядок динамический, см. issue #123): setAll сохранит его позицию,
+        // если direct был в списке, иначе добавит первым.
         val arr = json.optJSONArray("channels")
         if (arr != null) {
             val proxies = buildList {
@@ -138,7 +141,8 @@ object SettingsBackup {
                     )
                 }
             }
-            ChannelStore.setAll(listOf(ChannelStore.all().first()) + proxies)
+            // direct мог быть demote'нут в конец списка — не привязываемся к позиции
+            ChannelStore.setAll(listOf(ChannelStore.get(Channel.DIRECT_ID) ?: Channel.direct()) + proxies)
         }
 
         return ImportResult(
