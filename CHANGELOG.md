@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- Автоверсионирование: версия вычисляется из тегов (semver), статичные
+  versionMajor/Minor/Patch удалены из libs.versions.toml (#128).
+  Merge в main → CI сам вычисляет следующий тег: patch+1 по умолчанию,
+  `feat:` в коммитах → minor+1, `BREAKING CHANGE`/`!:` → major+1.
+### Changed
+- Release notes берутся из секции `## [Unreleased]` CHANGELOG.md (fallback —
+  legacy-секция [X.Y.Z] или git log).
+
 ## [0.5.41] - 2026-09-22
 
 ### Fixed
