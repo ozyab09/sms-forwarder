@@ -1,6 +1,7 @@
 package com.ozyab.smsforwarder.service
 
 import android.content.Context
+import com.ozyab.smsforwarder.util.LogStore
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -15,6 +16,11 @@ import java.util.concurrent.Executors
  *
  * Политика: at-least-once. При сбое записи события теряются только в худшем
  * случае; дубликаты при повторной отправке допустимы (лучше, чем потеря).
+ *
+ * Гонка снимок/append: снимок очереди (saveAsync) и append одного события
+ * (persistSingle) пишут в один файл из одного executor-потока. Чтобы снимок
+ * не затёр только что добавленные persistSingle-события, перед записью снимка
+ * события из файла подмешиваются в него (см. [saveAsync]).
  */
 object EventQueueStore {
 
@@ -33,33 +39,42 @@ object EventQueueStore {
         val f = file(context)
         if (!f.exists()) return emptyList()
         return try {
-            val arr = JSONArray(f.readText())
-            buildList {
-                for (i in 0 until arr.length()) {
-                    val o = arr.optJSONObject(i) ?: continue
-                    val text = o.optString("text", "")
-                    if (text.isBlank()) continue
-                    // nextRetryAt сбрасывается при restore — события отправляются сразу после рестарта
-                    add(
-                        QueuedEvent(
-                            text = text,
-                            attempts = o.optInt("attempts", 0),
-                            type = o.optString("type", "sms"),
-                            sender = o.optString("sender", ""),
-                            eventTime = o.optLong("eventTime", 0L),
-                        )
-                    )
-                }
-            }
+            parse(f.readText())
         } catch (e: Exception) {
-            // Битый/старый файл — начинаем с чистой очереди
+            // Битый/старый файл — начинаем с чистой очереди (диагностика в логе)
+            LogStore.warn("Очередь: не удалось прочитать ${FILE_NAME} (${e.message ?: e.javaClass.simpleName}) — начинаем с пустой")
             emptyList()
+        }
+    }
+
+    private fun parse(raw: String): List<QueuedEvent> {
+        val arr = JSONArray(raw)
+        return buildList {
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val text = o.optString("text", "")
+                if (text.isBlank()) continue
+                // nextRetryAt сбрасывается при restore — события отправляются сразу после рестарта
+                add(
+                    QueuedEvent(
+                        text = text,
+                        attempts = o.optInt("attempts", 0),
+                        type = o.optString("type", "sms"),
+                        sender = o.optString("sender", ""),
+                        eventTime = o.optLong("eventTime", 0L),
+                    )
+                )
+            }
         }
     }
 
     /**
      * Асинхронное сохранение снимка. Вызовы из разных потоков безопасны;
      * запись сериализована одним потоком, при пачке изменений пишется последний снимок.
+     *
+     * События, добавленные в файл через [persistSingle] (сервис не мог стартовать
+     * из фона), в памяти очереди отсутствуют — они подмешиваются в снимок, чтобы
+     * не теряться при перезаписи файла.
      */
     fun saveAsync(context: Context, events: List<QueuedEvent>) {
         pendingSave = events
@@ -67,7 +82,16 @@ object EventQueueStore {
             val snapshot = pendingSave ?: return@execute
             pendingSave = null
             try {
-                write(context, snapshot)
+                val f = file(context)
+                val onDisk = if (f.exists()) {
+                    runCatching { parse(f.readText()) }.getOrElse { emptyList() }
+                } else emptyList()
+                // Мержим: события с диска, которых нет в снимке, добавляем в конец
+                // (это append'ы persistSingle — свежие, для них текст уникален в рамках
+                // очереди; точных дедуп-ключей нет, сравнение по тексту+sender+time).
+                val seen = snapshot.map { Triple(it.text, it.sender, it.eventTime) }.toHashSet()
+                val merged = snapshot + onDisk.filter { Triple(it.text, it.sender, it.eventTime) !in seen }
+                write(context, merged.takeLast(MAX_EVENTS))
             } catch (e: Exception) {
                 // Не критично: при следующем изменении очереди попробуем снова
             }
@@ -95,7 +119,8 @@ object EventQueueStore {
                         .put("type", type)
                         .put("sender", sender)
                         .put("eventTime", eventTime)
-                )                // Держим файл ограниченным — самые свежие MAX_EVENTS событий
+                )
+                // Держим файл ограниченным — самые свежие MAX_EVENTS событий
                 val arr = JSONArray()
                 val start = maxOf(0, existing.length() - MAX_EVENTS)
                 for (i in start until existing.length()) arr.put(existing.getJSONObject(i))

@@ -43,7 +43,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Подпись из CI-переменных (релизные сборки только в GitLab CI)
+            // Подпись из CI-переменных (релизные сборки — в GitHub Actions)
             signingConfig = if (System.getenv("KEYSTORE_BASE64") != null) {
                 signingConfigs.create("ci") {
                     val keystoreFile = File(layout.buildDirectory.get().asFile, "ci-keystore.jks")

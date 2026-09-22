@@ -77,16 +77,9 @@ object UpdateChecker {
                 if (compareVersions(tag, current) <= 0) return@withContext CheckResult.UpToDate
 
                 val assets = json.optJSONArray("assets") ?: return@withContext CheckResult.Unavailable
-                var apkUrl: String? = null
-                for (i in 0 until assets.length()) {
-                    val a = assets.optJSONObject(i)
-                    val name = a?.optString("name", "")
-                    if (name?.endsWith(".apk") == true) {
-                        apkUrl = a.optString("browser_download_url")
-                        break
-                    }
-                }
-                if (apkUrl == null) return@withContext CheckResult.Unavailable
+                // Релиз собирается с ABI splits (universal отключён): выбираем APK
+                // под архитектуру устройства, а не первый попавшийся.
+                val apkUrl = pickApkUrl(assets) ?: return@withContext CheckResult.Unavailable
 
                 CheckResult.Update(
                     UpdateInfo(
@@ -103,6 +96,32 @@ object UpdateChecker {
             // Не даём утечь thread-pool OkHttp при каждом запуске приложения.
             client.dispatcher.executorService.shutdown()
         }
+    }
+
+    /**
+     * Выбор APK под архитектуру устройства из ассетов релиза.
+     * Имена ассетов: app-arm64-v8a-release.apk / app-armeabi-v7a-release.apk.
+     * Fallback — первый .apk (на случай universal/переименованного ассета).
+     */
+    fun pickApkUrl(assets: org.json.JSONArray): String? {
+        val apkAssets = buildList {
+            for (i in 0 until assets.length()) {
+                val a = assets.optJSONObject(i) ?: continue
+                val name = a.optString("name", "")
+                if (name.endsWith(".apk")) {
+                    add(name to a.optString("browser_download_url"))
+                }
+            }
+        }
+        if (apkAssets.isEmpty()) return null
+        if (apkAssets.size == 1) return apkAssets.single().second
+
+        // Приоритет ABI устройства (первый совпавший — самый предпочтительный)
+        for (abi in android.os.Build.SUPPORTED_ABIS) {
+            apkAssets.firstOrNull { it.first.contains(abi, ignoreCase = true) }
+                ?.let { return it.second }
+        }
+        return apkAssets.first().second
     }
 
     /** Сравнение семверсий. >0 если a новее b. */

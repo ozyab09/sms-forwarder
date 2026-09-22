@@ -26,17 +26,18 @@ class SmsReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
-        if (!Prefs.smsEnabled) return
-
-        // Тихие часы: не пересылаем в указанный период
-        if (QuietHours.isActiveNow()) {
-            return
-        }
 
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
         if (messages.isEmpty()) return
 
         ReceiverExecutor.goAsync(this) {
+            // Настройки читаем в фоне: awaitReady() в Prefs может блокировать
+            // до 5 c — на main thread это риск ANR.
+            if (!Prefs.smsEnabled) return@goAsync
+
+            // Тихие часы: не пересылаем в указанный период
+            if (QuietHours.isActiveNow()) return@goAsync
+
             val sb = StringBuilder()
             for (m in messages) sb.append(m.messageBody ?: "")
             val body = sb.toString()
@@ -45,10 +46,9 @@ class SmsReceiver : BroadcastReceiver() {
             val ts = messages.firstOrNull()?.timestampMillis ?: System.currentTimeMillis()
 
             val name = ContactNames.lookup(context, sender)
-            // SIM-слот и оператор: берём subscriptionId из интента (на какую SIM пришло)
-            val subId = if (android.os.Build.VERSION.SDK_INT >= 24)
-                intent.getIntExtra("subscription", -1).takeIf { it > 0 }
-            else null
+            // SIM-слот и оператор: берём subscriptionId из интента (на какую SIM пришло).
+            // INVALID_SUBSCRIPTION_ID = -1; 0 — валидный id (первая SIM), отбрасывать нельзя.
+            val subId = intent.getIntExtra("subscription", -1).takeIf { it != -1 }
             val sim = SimInfo.describe(context, subId)
 
             val text = TemplateFormatter.format(

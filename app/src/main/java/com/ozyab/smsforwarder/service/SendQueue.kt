@@ -62,16 +62,16 @@ class SendQueue(
     fun enqueue(text: String, type: String = "sms", sender: String = "", eventTime: Long = 0L) {
         synchronized(lock) {
             if (pending.size + retries.size >= maxSize) {
-                when {
-                    pending.isNotEmpty() -> {
-                        pending.removeFirst()
-                        droppedOverflow++
-                    }
-                    retries.isNotEmpty() -> {
-                        retries.poll()
-                        droppedOverflow++
-                    }
+                // Переполнение: отбрасываем самое старое. Держим текст отброшенного,
+                // чтобы вызывающий (сервис) мог записать это в лог/историю — потеря
+                // события не должна быть невидимой.
+                val dropped: QueuedEvent? = when {
+                    pending.isNotEmpty() -> pending.removeFirst()
+                    retries.isNotEmpty() -> retries.poll()
+                    else -> null
                 }
+                if (dropped != null) droppedOverflow++
+                lastDropped = dropped
             }
             pending.addLast(
                 QueuedEvent(
@@ -84,6 +84,14 @@ class SendQueue(
             )
         }
     }
+
+    /**
+     * Последнее событие, отброшенное при переполнении очереди (для лога/истории).
+     * null — ничего не отбрасывалось. Читается сразу после [enqueue].
+     */
+    @Volatile
+    var lastDropped: QueuedEvent? = null
+        private set
 
     /** Восстановить события после рестарта (все становятся готовыми к отправке). */
     fun restore(events: List<QueuedEvent>) {
@@ -122,14 +130,20 @@ class SendQueue(
      * Событие не отправлено — запланировать ретрай с бэк-оффом.
      * @return true, если попытки исчерпаны и событие отброшено.
      */
-    fun fail(ev: QueuedEvent): Boolean {
+    fun fail(ev: QueuedEvent): Boolean = failWithMinDelay(ev, 0L)
+
+    /**
+     * Как [fail], но задержка не меньше [minDelayMs] (например, retry_after
+     * из 429 Telegram: раньше повторяться бессмысленно).
+     */
+    fun failWithMinDelay(ev: QueuedEvent, minDelayMs: Long): Boolean {
         val nextAttempt = ev.attempts + 1
         synchronized(lock) {
             if (nextAttempt > maxAttempts) {
                 droppedAfterAttempts++
                 return true
             }
-            val delay = nextDelayMs(nextAttempt)
+            val delay = maxOf(nextDelayMs(nextAttempt), minDelayMs)
             retries.add(ev.copy(attempts = nextAttempt, nextRetryAt = now() + delay))
             return false
         }

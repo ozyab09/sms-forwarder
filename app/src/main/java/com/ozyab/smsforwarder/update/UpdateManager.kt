@@ -80,6 +80,20 @@ object UpdateManager {
 
     private fun downloadApk(context: Context, url: String) {
         try {
+            // Android 8+: без «Установка приложений из этого источника» интент
+            // установки молча не сработает — предлагаем выдать разрешение сразу.
+            if (!canInstallPackages(context)) {
+                try {
+                    context.startActivity(
+                        android.content.Intent(
+                            android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                            android.net.Uri.parse("package:${context.packageName}")
+                        )
+                    )
+                    Toast.makeText(context, R.string.update_need_install_permission, Toast.LENGTH_LONG).show()
+                } catch (_: Exception) { }
+                // Продолжаем загрузку: после выдачи разрешения DOWNLOAD_COMPLETE откроет установщик
+            }
             val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             val req = DownloadManager.Request(Uri.parse(url)).apply {
                 setTitle("SMS Forwarder ${BuildConfig.VERSION_NAME} → обновление")
@@ -96,5 +110,11 @@ object UpdateManager {
                 Toast.LENGTH_LONG,
             ).show()
         }
+    }
+
+    private fun canInstallPackages(context: Context): Boolean {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            context.packageManager.canRequestPackageInstalls()
+        } else true
     }
 }
