@@ -108,9 +108,10 @@ object CallReceiverLogic {
                         }
                         candidate?.let { CallEvent(buildEvent(context, it, "missed"), "missed", "Пропущенный", it) }
                     }
-                    // Исходящий вызов (OFFHOOK без RINGING)
+                    // Исходящий вызов (OFFHOOK без RINGING) — длительность тоже считается:
+                    // callConnectTimeMs ставится при OFFHOOK и для исходящих
                     numberOutgoing != null -> {
-                        val text = buildEvent(context, numberOutgoing, "outgoing")
+                        val text = buildEvent(context, numberOutgoing, "outgoing", durationMs)
                         CallEvent(text, "outgoing", "Исходящий", numberOutgoing)
                     }
                     // RINGING потерян — ищем свежий пропущенный в CallLog

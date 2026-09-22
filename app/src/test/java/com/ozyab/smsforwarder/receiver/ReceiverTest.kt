@@ -113,6 +113,21 @@ class ReceiverTest {
         assertTrue("текст содержит номер", result!!.text.contains("+79001231234"))
     }
 
+    @Test
+    fun `outgoing call text contains duration`() {
+        // Баг: у исходящих {duration} был пуст — buildEvent вызывался без durationMs,
+        // хотя callConnectTimeMs ставится при OFFHOOK и для исходящих
+        CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79001231234")
+        Thread.sleep(20) // гарантированная ненулевая длительность OFFHOOK→IDLE
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001231234")
+        assertNotNull(result)
+        val durationLine = result!!.text.lineSequence().firstOrNull { it.startsWith("Длительность:") }
+        assertTrue(
+            "длительность должна быть заполнена (не «Длительность: »): ${result.text}",
+            durationLine != null && durationLine != "Длительность: ",
+        )
+    }
+
     // ──────────────────────────────────────────────
     //  CallReceiverLogic — state machine edge cases
     // ──────────────────────────────────────────────
