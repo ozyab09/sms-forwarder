@@ -204,6 +204,15 @@ object ChannelSender {
                     ChannelOutcome.Sent(mid)
                 } else {
                     val desc = json.optString("description", "HTTP ${resp.code}")
+                    // Флуд-лимит Telegram (429): выделяем retry_after явно —
+                    // healthy канал не должен demote'иться, а ретрай должен
+                    // учитывать рекомендованную паузу.
+                    if (resp.code == 429) {
+                        val retryAfter = json.optJSONObject("parameters")?.optLong("retry_after", 0L) ?: 0L
+                        LogStore.warn("Флуд-лимит Telegram: retry_after=${retryAfter}с («${channel.name}»)")
+                        lastRetryAfterSec = retryAfter
+                        return ChannelOutcome.Failed("Флуд-лимит, повтор через ${retryAfter}с")
+                    }
                     ChannelOutcome.Failed(desc)
                 }
             }
@@ -211,4 +220,8 @@ object ChannelSender {
             ChannelOutcome.Failed(e.message ?: e.javaClass.simpleName)
         }
     }
+
+    /** retry_after последнего 429 (сек); 0 — не было. Читается сервисом при планировании ретрая, обнуляется после чтения. */
+    @Volatile
+    var lastRetryAfterSec: Long = 0
 }

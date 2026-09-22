@@ -12,8 +12,8 @@ import com.ozyab.smsforwarder.R
  *
  * Вызывается в onCreate каждой Activity ДО setContentView: читает выбранный
  * режим из [Prefs.themeMode] и акцент из [Prefs.accentColor], применяет
- * тему глобально через [AppCompatDelegate.setDefaultNightMode] и
- * накладывает стиль акцента через [AppCompatDelegate.setDefaultNightMode].
+ * тему глобально через [AppCompatDelegate.setDefaultNightMode], а стиль
+ * акцента накладывает через [android.content.res.Resources.Theme.applyStyle].
  */
 object ThemeManager {
 

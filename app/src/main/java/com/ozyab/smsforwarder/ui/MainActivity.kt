@@ -128,6 +128,10 @@ class MainActivity : AppCompatActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val logListener: (LogStore.Entry) -> Unit = { mainHandler.post { renderLogs() } }
 
+    // Debounce поиска по истории (запрос к Room не на каждый символ)
+    private val historySearchHandler = Handler(Looper.getMainLooper())
+    private val historySearchRunnable = Runnable { renderHistory() }
+
     // Запрос разрешений (SMS + телефон + контакты) — один раз при старте
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -136,6 +140,16 @@ class MainActivity : AppCompatActivity() {
             // Без READ_CALL_LOG номера пропущенных не приходят (EXTRA_INCOMING_NUMBER)
             LogStore.warn(getString(R.string.warn_call_log_permission))
             Toast.makeText(this, R.string.warn_call_log_permission, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // POST_NOTIFICATIONS (Android 13+): запрос при включении локальных уведомлений
+    private val notificationsPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) {
+            LogStore.warn(getString(R.string.warn_post_notifications))
+            Toast.makeText(this, R.string.warn_post_notifications, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -318,7 +332,9 @@ class MainActivity : AppCompatActivity() {
             confirmClearHistory()
         }
         etHistorySearch.addTextChangedListener(textWatcher {
-            renderHistory()
+            // Debounce: запрос к Room не на каждый символ
+            historySearchHandler.removeCallbacks(historySearchRunnable)
+            historySearchHandler.postDelayed(historySearchRunnable, 300)
         })
         chipGroupHistory.setOnCheckedStateChangeListener { _, _ -> renderHistory() }
 
@@ -389,10 +405,10 @@ class MainActivity : AppCompatActivity() {
             is UiEvent.TestFinished -> showTestResult(e.channels, e.okCount, toastOnSuccess = !startServiceAfterTest)
             is UiEvent.ChatIdResolved -> Toast.makeText(this, "Chat ID: ${e.id}", Toast.LENGTH_LONG).show()
             is UiEvent.ChatIdFailed -> {
-                if (e.botUsername != null) {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/${e.botUsername}")))
-                }
-                Toast.makeText(this, "${e.reason} — напиши боту /start", Toast.LENGTH_LONG).show()
+                // Ссылку на бота показываем текстом, но НЕ открываем автоматически —
+                // неожиданный уход из приложения раздражает.
+                val botHint = e.botUsername?.let { " (t.me/$it)" } ?: ""
+                Toast.makeText(this, "${e.reason}$botHint — напиши боту /start", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -469,7 +485,15 @@ class MainActivity : AppCompatActivity() {
         swCalls.setOnCheckedChangeListener { _, v -> viewModel.setCallsEnabled(v) }
         swIncomingCalls.setOnCheckedChangeListener { _, v -> viewModel.setIncomingCallsEnabled(v) }
         swOutgoingCalls.setOnCheckedChangeListener { _, v -> viewModel.setOutgoingCallsEnabled(v) }
-        swLocalNotifications.setOnCheckedChangeListener { _, v -> viewModel.setLocalNotificationsEnabled(v) }
+        swLocalNotifications.setOnCheckedChangeListener { _, v ->
+            viewModel.setLocalNotificationsEnabled(v)
+            if (v && Build.VERSION.SDK_INT >= 33 &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationsPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
         btnStart.setOnClickListener {
             viewModel.save()
             if (!Prefs.isConfigured()) {
@@ -791,39 +815,26 @@ class MainActivity : AppCompatActivity() {
         logsText.text = sb.toString()
     }
 
-    private fun writeLogsToUri(uri: android.net.Uri): Boolean {
-        return try {
-            val sb = StringBuilder()
-            for (e in LogStore.all()) {
-                val level = when (e.level) {
-                    LogStore.Level.OK -> "OK"
-                    LogStore.Level.WARN -> "WARN"
-                    LogStore.Level.ERROR -> "ERROR"
-                    LogStore.Level.INFO -> "INFO"
-                }
-                sb.appendLine("${e.time}  [$level] ${e.text}")
-            }
-            contentResolver.openOutputStream(uri)?.use { out ->
-                out.write(sb.toString().toByteArray())
-            }
-            true
-        } catch (e: Exception) {
-            LogStore.error("Ошибка экспорта логов: ${e.message}")
-            false
-        }
-    }
-
     /** Загрузка истории из Room в фоне и рендер списка. */
     private fun renderHistory() {
+        // Фильтр «Звонки» — все типы звонков (пропущенные/входящие/исходящие)
         val type = when (chipGroupHistory.checkedChipId) {
             R.id.chip_history_sms -> EventHistory.TYPE_SMS
-            R.id.chip_history_calls -> EventHistory.TYPE_MISSED
+            R.id.chip_history_calls -> null // фильтрация по типам звонков ниже
             else -> null
         }
+        val callsOnly = chipGroupHistory.checkedChipId == R.id.chip_history_calls
         val query = etHistorySearch.text?.toString()?.trim().orEmpty()
         lifecycleScope.launch {
             try {
-                val events = EventHistory.search(this@MainActivity, type, query)
+                var events = EventHistory.search(this@MainActivity, type, query)
+                if (callsOnly) {
+                    events = events.filter {
+                        it.type == EventHistory.TYPE_MISSED ||
+                            it.type == EventHistory.TYPE_INCOMING ||
+                            it.type == EventHistory.TYPE_OUTGOING
+                    }
+                }
                 historyList.removeAllViews()
                 if (events.isEmpty()) {
                     val empty = TextView(this@MainActivity).apply {
@@ -915,6 +926,29 @@ class MainActivity : AppCompatActivity() {
             }
         )
         return row
+    }
+
+    private fun writeLogsToUri(uri: android.net.Uri): Boolean {
+        return try {
+            val sb = StringBuilder()
+            for (e in LogStore.all()) {
+                val level = when (e.level) {
+                    LogStore.Level.OK -> "OK"
+                    LogStore.Level.WARN -> "WARN"
+                    LogStore.Level.ERROR -> "ERROR"
+                    LogStore.Level.INFO -> "INFO"
+                }
+                sb.appendLine("${e.time}  [$level] ${e.text}")
+            }
+            // openOutputStream может вернуть null (нет обработчика) — это НЕ успех
+            contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(sb.toString().toByteArray())
+            } ?: return false
+            true
+        } catch (e: Exception) {
+            LogStore.error("Ошибка экспорта логов: ${e.message}")
+            false
+        }
     }
 
     /**
@@ -1011,10 +1045,9 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.READ_CALL_LOG,
             Manifest.permission.READ_CONTACTS,
         )
-        if (Build.VERSION.SDK_INT >= 33) {
-            // POST_NOTIFICATIONS: НЕ запрашиваем — уведомление и так невидимое,
-            // а отказ не мешает сервису. (Требование: без всплывающих уведомлений.)
-        }
+        // POST_NOTIFICATIONS при старте НЕ запрашиваем (уведомление сервиса и так
+        // невидимое). Разрешение запрашивается при включении локальных уведомлений
+        // (см. swLocalNotifications listener) — оно нужно именно этой фиче.
         val missing = needed.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
@@ -1107,6 +1140,11 @@ class MainActivity : AppCompatActivity() {
                     btnQuietEnd.text = formatTime(mins)
                 }
                 viewModel.save()
+                // Равные start/end = пустой интервал (тишина не работает) — предупреждаем
+                val s = viewModel.state.value
+                if (s.quietHoursStart == s.quietHoursEnd) {
+                    Toast.makeText(this, R.string.quiet_hours_equal_warning, Toast.LENGTH_LONG).show()
+                }
             },
             hour, minute, true
         ).show()
@@ -1117,9 +1155,5 @@ class MainActivity : AppCompatActivity() {
         val h = minutes / 60
         val m = minutes % 60
         return String.format(java.util.Locale.US, "%02d:%02d", h, m)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
     }
 }

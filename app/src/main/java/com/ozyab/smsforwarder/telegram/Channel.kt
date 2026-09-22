@@ -81,6 +81,11 @@ object ChannelStore {
 
     private const val KEY_CHANNELS = "channels_json"
 
+    /** Лок для read-modify-write мутаций: promote/demote идут из воркера сервиса,
+     *  правки — из UI. Без лока возможна потерянная правка (например, promote
+     *  затирает только что добавленный пользователем канал). */
+    private val mutationLock = Any()
+
     @Volatile
     private var cache: List<Channel>? = null
 
@@ -96,19 +101,21 @@ object ChannelStore {
     fun get(id: String): Channel? = all().find { it.id == id }
 
     fun setAll(channels: List<Channel>) {
-        // Нормализация: direct всегда включён и не может быть выключен/изменён
-        // из хранилища (иначе можно остаться без каналов). Позиция direct в списке
-        // НЕ фиксируется — порядок динамический (promote/demote/move). Если direct
-        // во входном списке нет (импорт, старые версии) — добавляется первым.
-        val normalized = if (channels.any { it.isDirect }) {
-            channels.map { if (it.isDirect && !it.enabled) it.copy(enabled = true) else it }
-        } else {
-            listOf(Channel.direct()) + channels
+        synchronized(mutationLock) {
+            // Нормализация: direct всегда включён и не может быть выключен/изменён
+            // из хранилища (иначе можно остаться без каналов). Позиция direct в списке
+            // НЕ фиксируется — порядок динамический (promote/demote/move). Если direct
+            // во входном списке нет (импорт, старые версии) — добавляется первым.
+            val normalized = if (channels.any { it.isDirect }) {
+                channels.map { if (it.isDirect && !it.enabled) it.copy(enabled = true) else it }
+            } else {
+                listOf(Channel.direct()) + channels
+            }
+            val arr = JSONArray()
+            for (c in normalized) arr.put(c.toJson())
+            Prefs.channelsJson = arr.toString()
+            cache = normalized
         }
-        val arr = JSONArray()
-        for (c in normalized) arr.put(c.toJson())
-        Prefs.channelsJson = arr.toString()
-        cache = normalized
         // Конфигурация каналов изменилась — OkHttp-клиенты пересоздадутся при следующем использовании
         ChannelClientFactory.invalidate()
     }
@@ -181,29 +188,32 @@ object ChannelStore {
     /** Первое чтение: миграция старых одиночных прокси-настроек (v0.4.x) в канал. */
     private fun cachedOrLoad(): List<Channel>? {
         cache?.let { return it }
-        val raw = Prefs.channelsJson
-        if (raw.isNotBlank()) {
-            val arr = JSONArray(raw)
-            val stored = buildList {
-                for (i in 0 until arr.length()) {
-                    add(Channel.fromJson(arr.getJSONObject(i)))
+        synchronized(mutationLock) {
+            cache?.let { return it }
+            val raw = Prefs.channelsJson
+            if (raw.isNotBlank()) {
+                val arr = JSONArray(raw)
+                val stored = buildList {
+                    for (i in 0 until arr.length()) {
+                        add(Channel.fromJson(arr.getJSONObject(i)))
+                    }
                 }
+                // direct хранится в общем порядке: если есть — оставляем на его позиции
+                // (принудительно включённым), если нет (старые версии) — добавляем первым.
+                val result = if (stored.any { it.isDirect }) {
+                    stored.map { if (it.isDirect && !it.enabled) it.copy(enabled = true) else it }
+                } else {
+                    listOf(Channel.direct()) + stored
+                }
+                cache = result
+                return result
             }
-            // direct хранится в общем порядке: если есть — оставляем на его позиции
-            // (принудительно включённым), если нет (старые версии) — добавляем первым.
-            val result = if (stored.any { it.isDirect }) {
-                stored.map { if (it.isDirect && !it.enabled) it.copy(enabled = true) else it }
-            } else {
-                listOf(Channel.direct()) + stored
-            }
-            cache = result
+            // Миграция со старых Prefs.proxyEnabled/proxyHost/...
+            val legacy = Prefs.migrateLegacyProxyToChannel() ?: return listOf(Channel.direct()).also { cache = it }
+            val result = listOf(Channel.direct()) + legacy
+            saveMigrated(result)
             return result
         }
-        // Миграция со старых Prefs.proxyEnabled/proxyHost/...
-        val legacy = Prefs.migrateLegacyProxyToChannel() ?: return listOf(Channel.direct())
-        val result = listOf(Channel.direct()) + legacy
-        saveMigrated(result)
-        return result
     }
 
     private fun saveMigrated(result: List<Channel>) {
