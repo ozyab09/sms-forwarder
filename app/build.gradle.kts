@@ -7,16 +7,29 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-// SemVer из CI-тега (GITHUB_REF_NAME) или из gradle/libs.versions.toml (локально/debug)
-val ciTag: String? = System.getenv("GITHUB_REF_NAME")?.takeIf { it.startsWith("v") }
-val semverRegex = Regex("^v(\\d+)\\.(\\d+)\\.(\\d+)$")
-val (major, minor, patch) = ciTag?.let { m ->
-    semverRegex.find(m)?.destructured?.let { (a, b, c) -> Triple(a.toInt(), b.toInt(), c.toInt()) }
-} ?: Triple(
-    libs.versions.versionMajor.get().toInt(),
-    libs.versions.versionMinor.get().toInt(),
-    libs.versions.versionPatch.get().toInt(),
-)
+// SemVer полностью производный от тегов (issue #128):
+//  1. CI-релиз (запуск на теге): версия = GITHUB_REF_NAME (vX.Y.Z).
+//  2. Локально/PR: последний тег в git-истории + patch+1 (dev-версия).
+//  3. Fallback (нет git, например zip-архив): 0.0.0.
+// Никаких статичных versionMajor/Minor/Patch в libs.versions.toml — тег
+// создаётся CI при мерже в main, номер версии нигде не правится руками.
+val semverRegex = Regex("^v?(\\d+)\\.(\\d+)\\.(\\d+)$")
+
+fun parseSemver(tag: String): Triple<Int, Int, Int>? =
+    semverRegex.find(tag.trim())?.destructured?.let { (a, b, c) -> Triple(a.toInt(), b.toInt(), c.toInt()) }
+
+fun lastGitTag(): String? = runCatching {
+    val out = java.io.ByteArrayOutputStream()
+    providers.exec {
+        commandLine("git", "describe", "--tags", "--abbrev=0")
+    }.standardOutput.asText.get().trim().takeIf { it.isNotEmpty() }
+}.getOrNull()
+
+val (major, minor, patch) = System.getenv("GITHUB_REF_NAME")
+    ?.takeIf { parseSemver(it) != null }
+    ?.let { parseSemver(it)!! }
+    ?: lastGitTag()?.let { parseSemver(it) }?.let { (a, b, c) -> Triple(a, b, c + 1) }
+    ?: Triple(0, 0, 0)
 
 android {
     namespace = "com.ozyab.smsforwarder"

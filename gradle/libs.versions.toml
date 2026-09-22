@@ -1,8 +1,7 @@
 [versions]
-# Версия приложения — bump здесь, CI сам создаст тег vX.Y.Z и релиз при мерже в main
-versionMajor = "0"
-versionMinor = "5"
-versionPatch = "41"
+# Версия приложения здесь НЕ хранится (issue #128): она вычисляется из тегов —
+# CI-релиз берёт GITHUB_REF_NAME, локальные сборки — последний тег + patch+1
+# (см. app/build.gradle.kts). Тег vX.Y.Z создаётся CI при мерже в main.
 agp = "9.1.1"
 kotlin = "2.2.10"
 ksp = "2.2.10-2.0.2"
