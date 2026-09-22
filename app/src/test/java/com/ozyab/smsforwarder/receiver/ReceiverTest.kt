@@ -62,8 +62,8 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79001112233")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
         assertNotNull("пропущенный вызов обнаружен", result)
-        assertEquals("missed", result!!.second)
-        assertTrue("содержит номер звонящего", result.first.contains("+79001112233"))
+        assertEquals("missed", result!!.type)
+        assertTrue("содержит номер звонящего", result.text.contains("+79001112233"))
     }
 
     // ──────────────────────────────────────────────
@@ -76,9 +76,9 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79001112233")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
         assertNotNull("принятый входящий обнаружен", result)
-        assertEquals("incoming", result!!.second)
-        assertTrue("текст отформатирован по шаблону «Входящий»", result.first.contains("Входящий"))
-        assertTrue("текст содержит номер", result.first.contains("+79001112233"))
+        assertEquals("incoming", result!!.type)
+        assertTrue("текст отформатирован по шаблону «Входящий»", result.text.contains("Входящий"))
+        assertTrue("текст содержит номер", result.text.contains("+79001112233"))
     }
 
     @Test
@@ -87,7 +87,7 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79009876543")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79009876543")
         assertNotNull(result)
-        assertTrue("текст содержит номер", result!!.first.contains("+79009876543"))
+        assertTrue("текст содержит номер", result!!.text.contains("+79009876543"))
     }
 
     // ──────────────────────────────────────────────
@@ -99,10 +99,10 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79005556677")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79005556677")
         assertNotNull("исходящий звонок обнаружен", result)
-        assertEquals("outgoing", result!!.second)
-        assertTrue("текст отформатирован по шаблону «Исходящий»", result.first.contains("Исходящий"))
-        assertTrue("текст содержит Кому", result.first.contains("Кому:"))
-        assertTrue("текст содержит номер", result.first.contains("+79005556677"))
+        assertEquals("outgoing", result!!.type)
+        assertTrue("текст отформатирован по шаблону «Исходящий»", result.text.contains("Исходящий"))
+        assertTrue("текст содержит Кому", result.text.contains("Кому:"))
+        assertTrue("текст содержит номер", result.text.contains("+79005556677"))
     }
 
     @Test
@@ -110,7 +110,7 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79001231234")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001231234")
         assertNotNull(result)
-        assertTrue("текст содержит номер", result!!.first.contains("+79001231234"))
+        assertTrue("текст содержит номер", result!!.text.contains("+79001231234"))
     }
 
     // ──────────────────────────────────────────────
@@ -123,8 +123,8 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79004445566")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79004445566")
         assertNotNull("пропущенный второй вызов", result)
-        assertEquals("missed", result!!.second)
-        assertTrue("содержит номер второго звонящего", result.first.contains("+79004445566"))
+        assertEquals("missed", result!!.type)
+        assertTrue("содержит номер второго звонящего", result.text.contains("+79004445566"))
     }
 
     @Test
@@ -132,8 +132,8 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "RINGING", "+79009998877")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79009998877")
         assertNotNull(result)
-        assertEquals("missed", result!!.second)
-        assertTrue("текст содержит номер", result.first.contains("+79009998877"))
+        assertEquals("missed", result!!.type)
+        assertTrue("текст содержит номер", result.text.contains("+79009998877"))
     }
 
     @Test
@@ -142,8 +142,8 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79001112233")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
         assertNotNull(result)
-        assertEquals("incoming", result!!.second)
-        assertTrue("текст содержит номер", result.first.contains("+79001112233"))
+        assertEquals("incoming", result!!.type)
+        assertTrue("текст содержит номер", result.text.contains("+79001112233"))
     }
 
     @Test
@@ -151,8 +151,8 @@ class ReceiverTest {
         CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79005556677")
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79005556677")
         assertNotNull(result)
-        assertEquals("outgoing", result!!.second)
-        assertTrue("текст содержит номер", result.first.contains("+79005556677"))
+        assertEquals("outgoing", result!!.type)
+        assertTrue("текст содержит номер", result.text.contains("+79005556677"))
     }
 
     @Test
