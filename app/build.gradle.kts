@@ -19,7 +19,6 @@ fun parseSemver(tag: String): Triple<Int, Int, Int>? =
     semverRegex.find(tag.trim())?.destructured?.let { (a, b, c) -> Triple(a.toInt(), b.toInt(), c.toInt()) }
 
 fun lastGitTag(): String? = runCatching {
-    val out = java.io.ByteArrayOutputStream()
     providers.exec {
         commandLine("git", "describe", "--tags", "--abbrev=0")
     }.standardOutput.asText.get().trim().takeIf { it.isNotEmpty() }
