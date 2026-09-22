@@ -815,28 +815,6 @@ class MainActivity : AppCompatActivity() {
         logsText.text = sb.toString()
     }
 
-    private fun writeLogsToUri(uri: android.net.Uri): Boolean {
-        return try {
-            val sb = StringBuilder()
-            for (e in LogStore.all()) {
-                val level = when (e.level) {
-                    LogStore.Level.OK -> "OK"
-                    LogStore.Level.WARN -> "WARN"
-                    LogStore.Level.ERROR -> "ERROR"
-                    LogStore.Level.INFO -> "INFO"
-                }
-                sb.appendLine("${e.time}  [$level] ${e.text}")
-            }
-            contentResolver.openOutputStream(uri)?.use { out ->
-                out.write(sb.toString().toByteArray())
-            }
-            true
-        } catch (e: Exception) {
-            LogStore.error("Ошибка экспорта логов: ${e.message}")
-            false
-        }
-    }
-
     /** Загрузка истории из Room в фоне и рендер списка. */
     private fun renderHistory() {
         // Фильтр «Звонки» — все типы звонков (пропущенные/входящие/исходящие)

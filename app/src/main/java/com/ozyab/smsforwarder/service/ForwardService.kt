@@ -173,17 +173,20 @@ class ForwardService : Service() {
     fun enqueue(text: String, type: String = "sms", sender: String = "", eventTime: Long = System.currentTimeMillis()) {
         if (text.isBlank()) return // пустые события не пересылаем
         queue.enqueue(text, type = type, sender = sender, eventTime = eventTime)
-        // Переполнение очереди — не молча: пишем в лог и историю
+        // Переполнение очереди — не молча (запись истории — из воркера, ниже)
         queue.lastDropped?.let { dropped ->
             queue.lastDropped = null
             LogStore.error("Очередь переполнена — отброшено самое старое событие (${dropped.type} от ${dropped.sender})")
-            recordHistory(
-                ev = dropped,
-                status = EventHistory.STATUS_DROPPED,
-                channelName = null,
-                attempts = dropped.attempts,
-                chatId = Prefs.chatId.takeIf { it.isNotBlank() },
-            )
+            // recordHistory — suspend; запись истории делаем в scope воркера
+            workerScope?.launch {
+                recordHistory(
+                    ev = dropped,
+                    status = EventHistory.STATUS_DROPPED,
+                    channelName = null,
+                    attempts = dropped.attempts,
+                    chatId = Prefs.chatId.takeIf { it.isNotBlank() },
+                )
+            }
         }
         persist()
         wake.trySend(Unit)
