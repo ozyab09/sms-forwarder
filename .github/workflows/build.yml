@@ -69,9 +69,14 @@ jobs:
           PATCH=$(echo "$LAST" | sed -E 's/^v?[0-9]+\.[0-9]+\.([0-9]+)$/\1/')
 
           BUMP="patch"
-          if git log "${LAST}..HEAD" --format=%B 2>/dev/null | grep -qiE 'BREAKING CHANGE|^[a-z]+(\([^)]*\))?!:'; then
+          # BREAKING CHANGE ищем только в начале строки (футер conventional commits),
+          # '!' — только в заголовке (первая строка): иначе слово «BREAKING CHANGE»
+          # в теле коммита даёт ложный major bump.
+          if git log "${LAST}..HEAD" --format=%s 2>/dev/null | grep -qE '^[a-z]+(\([^)]*\))?!:'; then
             BUMP="major"
-          elif git log "${LAST}..HEAD" --format=%B 2>/dev/null | grep -qE '^feat(ure)?(\([^)]*\))?:'; then
+          elif git log "${LAST}..HEAD" --format=%B 2>/dev/null | grep -qE '^BREAKING CHANGE[:(]'; then
+            BUMP="major"
+          elif git log "${LAST}..HEAD" --format=%s 2>/dev/null | grep -qE '^feat(ure)?(\([^)]*\))?:'; then
             BUMP="minor"
           fi
 
