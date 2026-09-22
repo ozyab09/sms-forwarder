@@ -23,8 +23,8 @@ interface EventDao {
         """
         SELECT * FROM events
         WHERE (:type IS NULL OR type = :type)
-          AND (:query IS NULL OR sender LIKE '%' || :query || '%'
-               OR body LIKE '%' || :query || '%')
+          AND (:query IS NULL OR sender LIKE '%' || :query || '%' ESCAPE '\'
+               OR body LIKE '%' || :query || '%' ESCAPE '\')
         ORDER BY timestamp DESC
         LIMIT :limit
         """
@@ -33,6 +33,16 @@ interface EventDao {
 
     @Query("SELECT COUNT(*) FROM events WHERE status = 'sent'")
     suspend fun sentCount(): Int
+
+    /** Минимальный timestamp среди MAX_EVENTS самых свежих записей (для обрезки), null если записей меньше лимита. */
+    @Query(
+        """
+        SELECT MIN(timestamp) FROM (
+            SELECT timestamp FROM events ORDER BY timestamp DESC LIMIT :keep
+        )
+        """
+    )
+    suspend fun oldestKeptTimestamp(keep: Int): Long?
 
     @Query("DELETE FROM events WHERE id = :id")
     suspend fun delete(id: Long)

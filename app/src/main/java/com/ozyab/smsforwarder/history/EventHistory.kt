@@ -80,7 +80,13 @@ object EventHistory {
     /** Поиск по типу и тексту/номеру. */
     suspend fun search(context: Context, type: String?, query: String?, limit: Int = 200): List<EventEntity> =
         withContext(Dispatchers.IO) {
-            EventDatabase.get(context).eventDao().search(type, query?.takeIf { it.isNotBlank() }, limit)
+            // Экранируем LIKE-спецсимволы: % и _ в запросе — литералы
+            // (ESCape '\' задан в EventDao.search).
+            val safeQuery = query
+                ?.replace("\\", "\\\\")
+                ?.replace("%", "\\%")
+                ?.replace("_", "\\_")
+            EventDatabase.get(context).eventDao().search(type, safeQuery?.takeIf { it.isNotBlank() }, limit)
         }
 
     /** Сколько всего отправлено (для статуса на главной). */
@@ -98,12 +104,15 @@ object EventHistory {
         EventDatabase.get(context).eventDao().clear()
     }
 
-    /** Обрезка до [MAX_EVENTS] — удаляем самые старые. */
+    /**
+     * Обрезка до [MAX_EVENTS] — одним SQL-запросом (без чтения 1001 строки в память).
+     * Если записей больше лимита, удаляем всё строго старше минимального timestamp
+     * среди MAX_EVENTS самых свежих (равные timestamp остаются — запас на пачку).
+     */
     private suspend fun pruneOld(context: Context, dao: EventDao) {
-        val count = dao.recent(MAX_EVENTS + 1)
-        if (count.size > MAX_EVENTS) {
-            val oldestToKeep = count.last().timestamp
-            dao.deleteOlderThan(oldestToKeep)
+        val cutoffTs = dao.oldestKeptTimestamp(MAX_EVENTS)
+        if (cutoffTs != null) {
+            dao.deleteOlderThan(cutoffTs)
         }
     }
 }

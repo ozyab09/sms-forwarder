@@ -8,51 +8,98 @@ import android.os.Looper
 import android.provider.Telephony
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
+import java.util.concurrent.Executors
 
 /**
  * Наблюдатель за исходящими SMS.
  *
- * Регистрируется на content://sms/sent и при обнаружении нового SMS
+ * Регистрируется на content://sms и при обнаружении нового отправленного SMS
  * отправляет его через ForwardService.
  *
  * Требует READ_SMS permission.
+ *
+ * Потоки: onChange() приходит на main thread — здесь ТОЛЬКО планирование.
+ * Вся тяжёлая работа (запросы к провайдеру, контакты, SIM) выполняется в
+ * фоновом однопоточном executor — иначе риск ANR под пачкой изменений провайдера.
+ *
+ * Дебаунс: строка SMS появляется в провайдере со статусом QUEUED/OUTBOX, и тип
+ * SENT проставляется чуть позже. Планируем проверку с задержкой и, если последнее
+ * сообщение ещё не SENT, перепроверяем — иначе часть исходящих терялась.
  */
 class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.getMainLooper())) {
 
     private val appContext = context.applicationContext
+
+    /** Вся работа с провайдером — здесь (строго по порядку, как в ресиверах). */
+    private val executor = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "outgoing-sms-worker").apply { isDaemon = true }
+    }
+
+    /** Handler main thread — только для планирования дебаунса/ретраев проверки. */
+    private val scheduler = Handler(Looper.getMainLooper())
+
     private var lastSeenId: Long = -1L
+
+    /** Задержка перед проверкой после onChange: сливаем пачку изменений, ждём SENT. */
+    private val debounceMs = 500L
+
+    /** Повторная проверка, если последнее SMS ещё не в статусе SENT. */
+    private val retryMs = 1_000L
+
+    private val checkRunnable = Runnable {
+        executor.execute { checkForNewSentSms() }
+    }
 
     /** Старт наблюдения: запоминаем текущее последнее SMS и подписываемся. */
     fun start() {
         if (!Prefs.outgoingSmsEnabled) return
         // Запоминаем ID последнего отправленного SMS, чтобы не пересылать старые
-        lastSeenId = getLastSentSmsId()
+        executor.execute {
+            lastSeenId = getLastSentSmsId()
+            LogStore.info("OutgoingSmsObserver: наблюдение запущено (lastSeenId=$lastSeenId)")
+        }
         appContext.contentResolver.registerContentObserver(
             Telephony.Sms.CONTENT_URI,
             true,
             this
         )
-        LogStore.info("OutgoingSmsObserver: наблюдение запущено (lastSeenId=$lastSeenId)")
     }
 
     /** Останов наблюдения. */
     fun stop() {
         try {
+            scheduler.removeCallbacks(checkRunnable)
             appContext.contentResolver.unregisterContentObserver(this)
         } catch (_: Exception) { }
     }
 
     override fun onChange(selfChange: Boolean, uri: Uri?) {
+        // Только планирование: тяжёлое — в executor (см. KDoc класса)
+        scheduler.removeCallbacks(checkRunnable)
+        scheduler.postDelayed(checkRunnable, debounceMs)
+    }
+
+    /** Проверка последнего SMS (фоновый поток). */
+    private fun checkForNewSentSms() {
         if (!Prefs.outgoingSmsEnabled) return
         // Читаем последнее SMS из провайдера
         val sms = readLastSentSms() ?: return
         if (sms.id <= lastSeenId) return // уже видели
+
+        if (sms.type != Telephony.Sms.MESSAGE_TYPE_SENT) {
+            // Ещё QUEUED/OUTBOX — статус SENT придёт позже; перепроверяем
+            scheduler.removeCallbacks(checkRunnable)
+            scheduler.postDelayed(checkRunnable, retryMs)
+            return
+        }
         lastSeenId = sms.id
 
         LogStore.info("OutgoingSmsObserver: исходящий SMS → ${sms.address}")
 
         val name = com.ozyab.smsforwarder.util.ContactNames.lookup(appContext, sms.address)
-        val sim = com.ozyab.smsforwarder.util.SimInfo.describe(appContext, null)
+        // SIM, с которой отправлено: sub_id из строки SMS (null → не показываем,
+        // вместо «первая попавшаяся» — неверная атрибуция)
+        val sim = com.ozyab.smsforwarder.util.SimInfo.describe(appContext, sms.subscriptionId)
 
         val formatted = com.ozyab.smsforwarder.util.TemplateFormatter.format(
             template = Prefs.messageTemplateOutgoingSms,
@@ -94,21 +141,23 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
                 Telephony.Sms.ADDRESS,
                 Telephony.Sms.BODY,
                 Telephony.Sms.DATE,
-                Telephony.Sms.TYPE
+                Telephony.Sms.TYPE,
+                Telephony.Sms.SUBSCRIPTION_ID
             )
             val sort = "${Telephony.Sms.DATE} DESC LIMIT 1"
             appContext.contentResolver.query(uri, projection, null, null, sort)?.use { c ->
                 if (c.moveToFirst()) {
-                    val type = c.getInt(c.getColumnIndexOrThrow(Telephony.Sms.TYPE))
-                    // TYPE_SENT = 2
-                    if (type == Telephony.Sms.MESSAGE_TYPE_SENT) {
-                        SentSms(
-                            id = c.getLong(c.getColumnIndexOrThrow(Telephony.Sms._ID)),
-                            address = c.getString(c.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)) ?: "",
-                            body = c.getString(c.getColumnIndexOrThrow(Telephony.Sms.BODY)) ?: "",
-                            date = c.getLong(c.getColumnIndexOrThrow(Telephony.Sms.DATE))
-                        )
-                    } else null
+                    val typeIdx = c.getColumnIndex(Telephony.Sms.TYPE)
+                    val subIdx = c.getColumnIndex(Telephony.Sms.SUBSCRIPTION_ID)
+                    SentSms(
+                        id = c.getLong(c.getColumnIndexOrThrow(Telephony.Sms._ID)),
+                        address = c.getString(c.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)) ?: "",
+                        body = c.getString(c.getColumnIndexOrThrow(Telephony.Sms.BODY)) ?: "",
+                        date = c.getLong(c.getColumnIndexOrThrow(Telephony.Sms.DATE)),
+                        type = if (typeIdx >= 0) c.getInt(typeIdx) else -1,
+                        // INVALID_SUBSCRIPTION_ID = -1 → не показываем SIM
+                        subscriptionId = if (subIdx >= 0) c.getInt(subIdx).takeIf { it != -1 } else null
+                    )
                 } else null
             }
         } catch (_: Exception) {
@@ -120,6 +169,8 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
         val id: Long,
         val address: String,
         val body: String,
-        val date: Long
+        val date: Long,
+        val type: Int,
+        val subscriptionId: Int?,
     )
 }

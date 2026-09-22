@@ -479,34 +479,39 @@ object Prefs {
     private fun setString(key: String, value: String) {
         awaitReady()
         val k = stringPreferencesKey(key)
+        // pendingWrites инкрементируется ДО updateCache: между обновлением кэша и
+        // инкрементом эмиссия DataStore могла бы откатить кэш старым снимком.
+        pendingWrites.incrementAndGet()
         if (::cache.isInitialized) updateCache(k, value)
-        persist(k, value)
+        persistPending(k, value)
     }
 
     private fun setBoolean(key: String, value: Boolean) {
         awaitReady()
         val k = booleanPreferencesKey(key)
+        pendingWrites.incrementAndGet()
         if (::cache.isInitialized) updateCache(k, value)
-        persist(k, value)
+        persistPending(k, value)
     }
 
     private fun setInt(key: String, value: Int) {
         awaitReady()
         val k = intPreferencesKey(key)
+        pendingWrites.incrementAndGet()
         if (::cache.isInitialized) updateCache(k, value)
-        persist(k, value)
+        persistPending(k, value)
     }
 
     private fun setLong(key: String, value: Long) {
         awaitReady()
         val k = longPreferencesKey(key)
+        pendingWrites.incrementAndGet()
         if (::cache.isInitialized) updateCache(k, value)
-        persist(k, value)
+        persistPending(k, value)
     }
 
-    /** Асинхронная запись в DataStore (см. [pendingWrites]). */
-    private fun <T> persist(key: Preferences.Key<T>, value: T) {
-        pendingWrites.incrementAndGet()
+    /** Асинхронная запись в DataStore; счётчик уже увеличен вызывающим сеттером. */
+    private fun <T> persistPending(key: Preferences.Key<T>, value: T) {
         scope.launch {
             try {
                 runCatching { plainStore.edit { it[key] = value } }

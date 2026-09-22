@@ -173,6 +173,21 @@ class ForwardService : Service() {
     fun enqueue(text: String, type: String = "sms", sender: String = "", eventTime: Long = System.currentTimeMillis()) {
         if (text.isBlank()) return // пустые события не пересылаем
         queue.enqueue(text, type = type, sender = sender, eventTime = eventTime)
+        // Переполнение очереди — не молча (запись истории — из воркера, ниже)
+        queue.lastDropped?.let { dropped ->
+            queue.lastDropped = null
+            LogStore.error("Очередь переполнена — отброшено самое старое событие (${dropped.type} от ${dropped.sender})")
+            // recordHistory — suspend; запись истории делаем в scope воркера
+            workerScope?.launch {
+                recordHistory(
+                    ev = dropped,
+                    status = EventHistory.STATUS_DROPPED,
+                    channelName = null,
+                    attempts = dropped.attempts,
+                    chatId = Prefs.chatId.takeIf { it.isNotBlank() },
+                )
+            }
+        }
         persist()
         wake.trySend(Unit)
     }
@@ -248,7 +263,11 @@ class ForwardService : Service() {
             is ChannelSender.Result.Err -> {
                 val joined = result.reasons.joinToString("; ")
                 LogStore.error("Все каналы не вышли: $joined")
-                val isDropped = queue.fail(ev)
+                // Флуд-лимит (429): Telegram просит подождать retry_after — не
+                // ретраим раньше, чем он истечёт (бэк-офф может быть короче).
+                val retryAfterMs = ChannelSender.lastRetryAfterSec * 1000
+                ChannelSender.lastRetryAfterSec = 0
+                val isDropped = queue.failWithMinDelay(ev, retryAfterMs)
                 if (isDropped) {
                     LogStore.error("Событие отброшено после ${SendQueue.MAX_ATTEMPTS} попыток")
                     recordHistory(

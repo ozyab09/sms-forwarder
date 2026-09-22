@@ -186,6 +186,7 @@
     <string name="test_connection_ok">Соединение бота @%1$s через канал «%2$s» успешно</string>
     <string name="test_all_none">❌ Ни один канал не работает</string>
     <string name="warn_call_log_permission">Без разрешения «Журнал вызовов» пропущенные вызовы не будут пересылаться</string>
+    <string name="warn_post_notifications">Без разрешения на уведомления локальные оповещения не будут показываться</string>
 
     <!-- Обновление -->
     <string name="update_dialog_title">Обновление</string>
@@ -198,4 +199,6 @@
     <string name="btn_check_updates">Проверить обновления</string>
     <string name="update_none_available">Установлена актуальная версия</string>
     <string name="update_check_failed">Не удалось проверить обновления: нет сети или GitHub недоступен</string>
+    <string name="update_need_install_permission">Разрешите установку из этого источника, затем повторите «Скачать и установить»</string>
+    <string name="quiet_hours_equal_warning">Начало и конец тихих часов совпадают — период не будет работать</string>
 </resources>

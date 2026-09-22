@@ -33,7 +33,8 @@ object QuietHours {
         val start = startMinutes.coerceIn(0, 1439)
         val end = endMinutes.coerceIn(0, 1439)
         return if (start == end) {
-            // одинаковые — интервал 24ч (всегда тихо)… либо пустой; трактуем как пустой
+            // одинаковые — трактуем как пустой интервал (см. подсказку в UI:
+            // равные start/end ничего не приглушают)
             false
         } else if (start < end) {
             nowMinutes in start until end

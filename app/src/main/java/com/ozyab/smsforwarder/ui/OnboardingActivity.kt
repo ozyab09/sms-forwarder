@@ -19,6 +19,7 @@ import com.ozyab.smsforwarder.util.Prefs
 import com.ozyab.smsforwarder.util.ThemeManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,7 +45,9 @@ class OnboardingActivity : AppCompatActivity() {
     private var etToken: TextInputEditText? = null
     private var etChatId: TextInputEditText? = null
 
-    private val scope = CoroutineScope(Dispatchers.Main)
+    // SupervisorJob: падение одной корутины не убивает весь scope
+    // (иначе кнопка «Определить ID» молча переставала работать)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
