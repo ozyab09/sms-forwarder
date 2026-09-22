@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased]
+(пусто)
+
+## [0.6.0] - 2026-09-22
 ### Added
 - Автоверсионирование: версия вычисляется из тегов (semver), статичные
   versionMajor/Minor/Patch удалены из libs.versions.toml (#128).
