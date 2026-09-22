@@ -146,6 +146,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # fetch-depth: 0 — версия приложения вычисляется из git-тегов
+          # (git describe в app/build.gradle.kts, #128). Shallow-клон без
+          # тегов дал бы versionCode 0 и падение сборки.
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5

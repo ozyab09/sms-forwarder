@@ -28,7 +28,10 @@ val (major, minor, patch) = System.getenv("GITHUB_REF_NAME")
     ?.takeIf { parseSemver(it) != null }
     ?.let { parseSemver(it)!! }
     ?: lastGitTag()?.let { parseSemver(it) }?.let { (a, b, c) -> Triple(a, b, c + 1) }
-    ?: Triple(0, 0, 0)
+    ?: throw IllegalStateException(
+        "Не удалось определить версию: GITHUB_REF_NAME не задан и git-тегов нет " +
+            "(shallow clone без тегов?). Для CI нужен checkout с fetch-depth: 0."
+    )
 
 android {
     namespace = "com.ozyab.smsforwarder"
