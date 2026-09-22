@@ -179,11 +179,12 @@ build:
 
 release-tag:
   if: push to main
-  steps: checkout → читает versionMajor/minor/patch из libs.versions.toml →
+  steps: checkout → вычисляет следующий semver из последнего тега
+         (patch+1; feat: → minor+1; BREAKING CHANGE → major+1, #128) →
          создаёт тег v{major}.{minor}.{patch} через API (push не нужен) →
          workflow_dispatch на теге
   # Бота-пуша в main больше нет: branch protection требует PR для всех
-  # изменений. Версию bump'ит автор в том же PR (#95).
+  # изменений. Номер версии вычисляется CI из последнего тега (#128).
 
 release:
   if: startsWith(github.ref, 'refs/tags/v')
@@ -205,8 +206,12 @@ release:
 - Tags: `v<major>.<minor>.<patch>` (e.g. `v1.2.0`) — создаются **автоматически при мерже в main** из версии в `libs.versions.toml` (только тег, без bump-коммита)
 - `versionName` = tag without `v`
 - `versionCode` = `major*10000 + minor*100 + patch`
-- Source: `gradle/libs.versions.toml` (versionMajor/minor/patch)
-- Bump версии делается **в том же PR**, что и фича/фикс (patch — фиксы, minor — фичи). Забыл bump — тег просто не создастся/переиспользуется существующий
+- Source: git-теги (последний тег + bump по conventional commits, #128);
+  в libs.versions.toml версии приложения НЕТ — только зависимости.
+  Локальные сборки: последний тег + patch+1 (см. app/build.gradle.kts)
+- Версия вычисляется автоматически из последнего тега (#128): patch+1 по умолчанию,
+  `feat:` в коммитах с прошлого тега → minor+1, `BREAKING CHANGE`/`!:` → major+1.
+  Используй conventional commit-префиксы (`feat:`, `fix:`) в squash-заголовке PR
 
 ### Required Secrets (GitHub → Settings → Secrets → Actions)
 | Secret | Description |
@@ -221,10 +226,12 @@ release:
 ## 📦 Release Process
 
 ```bash
-# 1. В ветке с фичей обновить версию + CHANGELOG.md
-#    gradle/libs.versions.toml: versionPatch += 1
+# 1. В ветке с фичей добавить описание в CHANGELOG.md (секция ## [Unreleased]).
+#    ВЕРСИЮ НИГДЕ НЕ ПРАВИМ (issue #128): номер вычисляется из тегов.
+#    Commit-префиксы влияют на bump: fix:/прочее → patch+1, feat: → minor+1,
+#    BREAKING CHANGE/!: → major+1.
 
-# 2. Примержить PR в main — CI сам создаст тег и GitHub Release
+# 2. Примержить PR в main — CI сам вычислит следующий тег и соберёт GitHub Release
 #    (branch protection: direct push в main невозможен, только PR)
 ```
 
@@ -339,7 +346,7 @@ python3 generate_icons.py logo_transparent.png
 
 | Issue | Workaround / Fix |
 |-------|------------------|
-| Branch protection на main | Все изменения — через PR (build+test+lint обязателен). Auto-bump ботом убран (#95): версию bump'ит автор в PR |
+| Branch protection на main | Все изменения — через PR (build+test+lint обязателен). Номер версии из тегов (#128) — bump руками не нужен |
 | FGS-старт из PHONE_STATE на Android 12+ | `ForwardService.start` обёрнут в try/catch; при запрете событие сохраняется в файл очереди и уйдёт при следующем старте сервиса |
 | Без `READ_CALL_LOG` номера пропущенных не приходят (Android 9+) | UI предупреждает: фича «пропущенные» требует разрешения «Журнал вызовов» |
 | «Стоп» сервиса | Очередь отбрасывается (включая файл на диске) — остановка означает остановку пересылки |

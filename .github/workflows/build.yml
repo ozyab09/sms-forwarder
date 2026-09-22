@@ -53,20 +53,40 @@ jobs:
             echo "buildable=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # Версию бампит автор в том же PR (процесс в AGENTS.md) — бот ничего
-      # не пушит в main: branch protection требует PR для всех изменений (#95).
-      - name: Read version
+      # Версия вычисляется из последнего тега (issue #128), править нигде не нужно:
+      #   - по умолчанию patch + 1;
+      #   - feat:/feature: в коммитах с прошлого тега → minor + 1;
+      #   - BREAKING CHANGE / !: → major + 1 (conventional commits).
+      # Bot ничего не пушит в main: branch protection требует PR (#95).
+      - name: Compute next version
         id: version
         if: steps.changes.outputs.buildable == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          FILE="gradle/libs.versions.toml"
-          MAJOR=$(grep -oP 'versionMajor = "\K[0-9]+' "$FILE")
-          MINOR=$(grep -oP 'versionMinor = "\K[0-9]+' "$FILE")
-          PATCH=$(grep -oP 'versionPatch = "\K[0-9]+' "$FILE")
-          echo "tag=v$MAJOR.$MINOR.$PATCH" >> "$GITHUB_OUTPUT"
-          echo "version=v$MAJOR.$MINOR.$PATCH"
+          LAST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Последний тег: $LAST"
+          MAJOR=$(echo "$LAST" | sed -E 's/^v?([0-9]+)\.[0-9]+\.[0-9]+$/\1/')
+          MINOR=$(echo "$LAST" | sed -E 's/^v?[0-9]+\.([0-9]+)\.[0-9]+$/\1/')
+          PATCH=$(echo "$LAST" | sed -E 's/^v?[0-9]+\.[0-9]+\.([0-9]+)$/\1/')
+
+          BUMP="patch"
+          if git log "${LAST}..HEAD" --format=%B 2>/dev/null | grep -qiE 'BREAKING CHANGE|^[a-z]+(\([^)]*\))?!:'; then
+            BUMP="major"
+          elif git log "${LAST}..HEAD" --format=%B 2>/dev/null | grep -qE '^feat(ure)?(\([^)]*\))?:'; then
+            BUMP="minor"
+          fi
+
+          if [ "$BUMP" = "major" ]; then
+            MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0
+          elif [ "$BUMP" = "minor" ]; then
+            MINOR=$((MINOR + 1)); PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
+          TAG="v$MAJOR.$MINOR.$PATCH"
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Следующий тег: $TAG (bump: $BUMP)"
 
       - name: Create tag
         if: steps.changes.outputs.buildable == 'true'
@@ -126,6 +146,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # fetch-depth: 0 — версия приложения вычисляется из git-тегов
+          # (git describe в app/build.gradle.kts, #128). Shallow-клон без
+          # тегов дал бы versionCode 0 и падение сборки.
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -189,8 +214,13 @@ jobs:
         run: |
           VER="${{ github.ref_name }}"
           VER_NUM="${VER#v}"
-          # Извлекаем секцию из CHANGELOG.md между заголовком версии и следующим заголовком
-          BODY=$(awk "/^## \\[${VER_NUM}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
+          # 1) Секция Unreleased (версия в CHANGELOG не правится руками, issue #128);
+          # 2) секция [X.Y.Z] (legacy-формат);
+          # 3) git log с прошлого тега.
+          BODY=$(awk '/^## \[Unreleased\]/{found=1; next} /^## \[/{if(found) exit} found{print}' CHANGELOG.md)
+          if [ -z "$BODY" ]; then
+            BODY=$(awk "/^## \\[${VER_NUM}\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
+          fi
           if [ -z "$BODY" ]; then
             # Нет записи в CHANGELOG — генерируем из git log с предыдущего тега
             # Получаем предыдущий тег (исключая текущий)
