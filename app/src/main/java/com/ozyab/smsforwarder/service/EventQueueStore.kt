@@ -75,6 +75,9 @@ object EventQueueStore {
      * События, добавленные в файл через [persistSingle] (сервис не мог стартовать
      * из фона), в памяти очереди отсутствуют — они подмешиваются в снимок, чтобы
      * не теряться при перезаписи файла.
+     *
+     * Пустой снимок — специальный случай: очередь осознанно очищена (отправлено
+     * всё или «Стоп»), ничего с диска не подмешиваем — файл перезаписывается пустым.
      */
     fun saveAsync(context: Context, events: List<QueuedEvent>) {
         pendingSave = events
@@ -82,6 +85,10 @@ object EventQueueStore {
             val snapshot = pendingSave ?: return@execute
             pendingSave = null
             try {
+                if (snapshot.isEmpty()) {
+                    write(context, emptyList())
+                    return@execute
+                }
                 val f = file(context)
                 val onDisk = if (f.exists()) {
                     runCatching { parse(f.readText()) }.getOrElse { emptyList() }
