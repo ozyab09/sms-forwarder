@@ -395,8 +395,31 @@ class MainActivity : AppCompatActivity() {
                 launch {
                     viewModel.events.collect { e -> handleUiEvent(e) }
                 }
+                launch {
+                    // История: рендер по состоянию из ViewModel (MVVM, без гонок)
+                    viewModel.history.collect { h -> renderHistoryList(h.events) }
+                }
             }
         }
+    }
+
+    /** Рендер списка истории из состояния ViewModel (без запросов к Room). */
+    private fun renderHistoryList(events: List<EventEntity>) {
+        historyList.removeAllViews()
+        if (events.isEmpty()) {
+            historyList.addView(emptyHistoryView())
+            return
+        }
+        for (e in events) {
+            historyList.addView(buildHistoryRow(e))
+        }
+    }
+
+    private fun emptyHistoryView(): TextView = TextView(this).apply {
+        text = getString(R.string.history_empty)
+        setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.darker_gray))
+        textSize = 14f
+        setPadding(4, 24, 4, 8)
     }
 
     private fun handleUiEvent(e: UiEvent) {
@@ -815,52 +838,21 @@ class MainActivity : AppCompatActivity() {
         logsText.text = sb.toString()
     }
 
-    /** Загрузка истории из Room в фоне и рендер списка. */
+    /**
+     * Запрос истории через ViewModel: предыдущий запрос отменяется — гонки
+     * фильтров нет (медленный запрос не может перезаписать быстрый).
+     * Рендер — по подписке на viewModel.history (collectViewModel).
+     */
     private fun renderHistory() {
-        // Фильтр «Звонки» — все типы звонков (пропущенные/входящие/исходящие)
         val type = when (chipGroupHistory.checkedChipId) {
             R.id.chip_history_sms -> EventHistory.TYPE_SMS
-            R.id.chip_history_calls -> null // фильтрация по типам звонков ниже
+            R.id.chip_history_calls -> null // фильтрация по типам звонков в VM
             else -> null
         }
         val callsOnly = chipGroupHistory.checkedChipId == R.id.chip_history_calls
         val query = etHistorySearch.text?.toString()?.trim().orEmpty()
-        lifecycleScope.launch {
-            try {
-                var events = EventHistory.search(this@MainActivity, type, query)
-                if (callsOnly) {
-                    events = events.filter {
-                        it.type == EventHistory.TYPE_MISSED ||
-                            it.type == EventHistory.TYPE_INCOMING ||
-                            it.type == EventHistory.TYPE_OUTGOING
-                    }
-                }
-                historyList.removeAllViews()
-                if (events.isEmpty()) {
-                    val empty = TextView(this@MainActivity).apply {
-                        text = getString(R.string.history_empty)
-                        setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.darker_gray))
-                        textSize = 14f
-                        setPadding(4, 24, 4, 8)
-                    }
-                    historyList.addView(empty)
-                    return@launch
-                }
-                for (e in events) {
-                    historyList.addView(buildHistoryRow(e))
-                }
-            } catch (e: Exception) {
-                LogStore.error("Ошибка загрузки истории: ${e.message}")
-                historyList.removeAllViews()
-                val empty = TextView(this@MainActivity).apply {
-                    text = getString(R.string.history_empty)
-                    setTextColor(ContextCompat.getColor(this@MainActivity, android.R.color.darker_gray))
-                    textSize = 14f
-                    setPadding(4, 24, 4, 8)
-                }
-                historyList.addView(empty)
-            }
-        }
+        viewModel.setHistoryFilter(type, query, callsOnly)
+        viewModel.loadHistory(type, query, callsOnly)
     }
 
     private fun buildHistoryRow(e: EventEntity): View {
@@ -1018,14 +1010,8 @@ class MainActivity : AppCompatActivity() {
         android.app.AlertDialog.Builder(this)
             .setMessage(R.string.history_clear_confirm)
             .setPositiveButton(R.string.ok) { _, _ ->
-                lifecycleScope.launch {
-                    try {
-                        EventHistory.clear(this@MainActivity)
-                    } catch (e: Exception) {
-                        LogStore.error("Ошибка очистки истории: ${e.message}")
-                    }
-                    renderHistory()
-                }
+                // Запрос и перезагрузка — во ViewModel (MVVM)
+                viewModel.clearHistory()
             }
             .setNegativeButton(R.string.cancel, null)
             .show()

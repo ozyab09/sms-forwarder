@@ -256,4 +256,105 @@ class MainViewModelTest {
         assertEquals("нет сообщений", failed[0].reason)
         assertEquals("my_bot", failed[0].botUsername)
     }
+
+    // ===== история (MVVM, #139-A1) =====
+
+    /**
+     * Ждёт реального завершения загрузки истории: EventHistory внутри использует
+     * настоящий Dispatchers.IO; резюме после IO постится в тестовый планировщик,
+     * поэтому в цикле ожидания его нужно прокручивать (runCurrent), иначе
+     * корутина загрузки навсегда застрянет с loading=true.
+     */
+    private fun TestScope.awaitHistory(timeoutMs: Long = 10_000, condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            testScheduler.runCurrent()
+            if (condition()) return
+            Thread.sleep(25)
+        }
+        testScheduler.runCurrent()
+        assertTrue("не дождались истории", condition())
+    }
+
+    @Test
+    fun `loadHistory returns recorded events newest first`() = runTest {
+        vm = buildVm()
+        // Запись напрямую в Room (тот же файл БД, что увидит VM)
+        kotlinx.coroutines.runBlocking {
+            com.ozyab.smsforwarder.history.EventHistory.record(
+                ApplicationProvider.getApplicationContext(),
+                sender = "+7900", body = "older", timestamp = 100,
+                type = com.ozyab.smsforwarder.history.EventHistory.TYPE_SMS,
+                status = com.ozyab.smsforwarder.history.EventHistory.STATUS_SENT,
+                channelName = "direct", attempts = 1, formattedText = "older",
+            )
+            com.ozyab.smsforwarder.history.EventHistory.record(
+                ApplicationProvider.getApplicationContext(),
+                sender = "+7916", body = "newer", timestamp = 200,
+                type = com.ozyab.smsforwarder.history.EventHistory.TYPE_MISSED,
+                status = com.ozyab.smsforwarder.history.EventHistory.STATUS_DROPPED,
+                channelName = null, attempts = 8, formattedText = "newer",
+            )
+        }
+
+        vm.loadHistory(null, "")
+        advanceUntilIdle() // запускает корутину загрузки до точки реального IO
+        // Ждём конкретные записи: БД — синглтон на процесс, из параллельных
+        // тестов в ней могут быть чужие строки (счётчик ненадёжен)
+        awaitHistory { vm.history.value.events.any { it.sender == "+7916" } &&
+                       vm.history.value.events.any { it.sender == "+7900" } }
+
+        val events = vm.history.value.events
+        // Наши записи на месте; "newest first" проверяем на своих же данных
+        val ours = events.filter { it.sender == "+7900" || it.sender == "+7916" }
+        assertEquals(2, ours.size)
+        assertEquals("+7916", ours[0].sender) // newest first
+        assertFalse(vm.history.value.loading)
+    }
+
+    @Test
+    fun `loadHistory with callsOnly filters calls types`() = runTest {
+        vm = buildVm()
+        kotlinx.coroutines.runBlocking {
+            val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
+            val eh = com.ozyab.smsforwarder.history.EventHistory
+            eh.record(ctx, sender = "1", body = "sms", timestamp = 1, type = eh.TYPE_SMS, status = eh.STATUS_SENT, channelName = null, attempts = 1, formattedText = "")
+            eh.record(ctx, sender = "2", body = "missed", timestamp = 2, type = eh.TYPE_MISSED, status = eh.STATUS_DROPPED, channelName = null, attempts = 1, formattedText = "")
+            eh.record(ctx, sender = "3", body = "incoming", timestamp = 3, type = eh.TYPE_INCOMING, status = eh.STATUS_SENT, channelName = null, attempts = 1, formattedText = "")
+        }
+
+        vm.loadHistory(null, "", callsOnly = true)
+        advanceUntilIdle()
+        // Важно: Room-записи и запрос идут на реальном IO; резюме после IO
+        // постится в тестовый планировщик — прокручиваем его в awaitHistory.
+        // В отличие от первого теста, записи были сделаны из runBlocking ДО
+        // loadHistory, поэтому ждать нужно только ответа запроса.
+        awaitHistory { vm.history.value.events.any { it.type == "missed" } &&
+                       vm.history.value.events.any { it.type == "incoming" } }
+
+        val types = vm.history.value.events.map { it.type }.toSet()
+        assertEquals(setOf("missed", "incoming"), types)
+    }
+
+    @Test
+    fun `clearHistory empties the list`() = runTest {
+        vm = buildVm()
+        kotlinx.coroutines.runBlocking {
+            com.ozyab.smsforwarder.history.EventHistory.record(
+                ApplicationProvider.getApplicationContext(),
+                sender = "x", body = "y", timestamp = 5,
+                type = com.ozyab.smsforwarder.history.EventHistory.TYPE_SMS,
+                status = com.ozyab.smsforwarder.history.EventHistory.STATUS_SENT,
+                channelName = null, attempts = 1, formattedText = "y",
+            )
+        }
+        vm.loadHistory(null, "")
+        advanceUntilIdle()
+        awaitHistory { vm.history.value.events.any { it.sender == "x" } }
+
+        vm.clearHistory()
+        awaitHistory { vm.history.value.events.none { it.sender == "x" } }
+
+        assertTrue(vm.history.value.events.isEmpty())
+    }
 }
