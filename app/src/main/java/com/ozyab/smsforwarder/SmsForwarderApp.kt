@@ -1,6 +1,8 @@
 package com.ozyab.smsforwarder
 
 import android.app.Application
+import android.app.NotificationManager
+import android.content.Context
 import com.ozyab.smsforwarder.util.Prefs
 import timber.log.Timber
 
@@ -17,5 +19,16 @@ class SmsForwarderApp : Application() {
         // создаются в фоне, холодный старт не блокируется. Первый доступ к
         // настройкам из любого компонента дождётся завершения инициализации.
         Prefs.init(this)
+        deleteOrphanNotificationChannel()
+    }
+
+    /**
+     * Канал «Входящие сообщения» остался у существующих установок после
+     * удаления фичи «Уведомления на телефоне» (#151-аудит-3) — убираем его
+     * из системных настроек, чтобы не висел мёртвым.
+     */
+    private fun deleteOrphanNotificationChannel() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        runCatching { nm.deleteNotificationChannel("local_notifications") }
     }
 }

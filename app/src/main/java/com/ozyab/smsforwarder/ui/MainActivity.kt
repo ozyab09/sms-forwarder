@@ -414,12 +414,16 @@ class MainActivity : AppCompatActivity() {
             }
             // Сервис запускаем сразу; затем проверяем связь по каналам (без отправки)
             startServiceAfterTest = true
+            Prefs.forwardingEnabled = true
             ForwardService.start(this)
             Toast.makeText(this, R.string.status_running, Toast.LENGTH_SHORT).show()
             requestBatteryExemption()
             viewModel.testConnection()
         }
         btnStop.setOnClickListener {
+            // Мастер-выключатель (#151-аудит-3): «Стоп» = пересылка остановлена
+            // до следующего «Запустить» — новые SMS/звонки не возобновят её
+            Prefs.forwardingEnabled = false
             ForwardService.stop(this)
             Toast.makeText(this, R.string.status_stopped, Toast.LENGTH_SHORT).show()
         }

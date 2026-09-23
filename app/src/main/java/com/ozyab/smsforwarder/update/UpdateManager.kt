@@ -112,9 +112,6 @@ object UpdateManager {
         }
     }
 
-    private fun canInstallPackages(context: Context): Boolean {
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            context.packageManager.canRequestPackageInstalls()
-        } else true
-    }
+    private fun canInstallPackages(context: Context): Boolean =
+        context.packageManager.canRequestPackageInstalls()
 }

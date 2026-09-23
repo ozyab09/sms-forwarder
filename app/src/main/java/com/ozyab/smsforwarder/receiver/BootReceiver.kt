@@ -15,8 +15,9 @@ class BootReceiver : BroadcastReceiver() {
         when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED -> ReceiverExecutor.goAsync(this) {
-                // Prefs.isConfigured() читает secure prefs/DataStore — не на main thread
-                if (Prefs.isConfigured()) {
+                // Prefs читает secure prefs/DataStore — не на main thread
+                // Мастер-выключатель: после «Стоп» автозапуск не возобновляет пересылку
+                if (Prefs.forwardingEnabled && Prefs.isConfigured()) {
                     ForwardService.start(context)
                 }
             }

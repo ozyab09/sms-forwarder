@@ -390,21 +390,20 @@ class ForwardService : Service() {
     private fun startAsForeground() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.notification_channel_name),
-                // IMPORTANCE_MIN — невидимое уведомление (без звука/вибрации/иконки в шторке)
-                NotificationManager.IMPORTANCE_MIN,
-            ).apply {
-                description = getString(R.string.notification_channel_desc)
-                setShowBadge(false)
-                enableLights(false)
-                enableVibration(false)
-                setSound(null, null)
-            }
-            nm.createNotificationChannel(channel)
+        // NotificationChannel доступен с API 26, minSdk 29 — проверка не нужна
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            getString(R.string.notification_channel_name),
+            // IMPORTANCE_MIN — невидимое уведомление (без звука/вибрации/иконки в шторке)
+            NotificationManager.IMPORTANCE_MIN,
+        ).apply {
+            description = getString(R.string.notification_channel_desc)
+            setShowBadge(false)
+            enableLights(false)
+            enableVibration(false)
+            setSound(null, null)
         }
+        nm.createNotificationChannel(channel)
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.notification_title))
