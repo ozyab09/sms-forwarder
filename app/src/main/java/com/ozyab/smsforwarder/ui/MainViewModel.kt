@@ -3,6 +3,8 @@ package com.ozyab.smsforwarder.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ozyab.smsforwarder.history.EventEntity
+import com.ozyab.smsforwarder.history.EventHistory
 import com.ozyab.smsforwarder.telegram.Channel
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.telegram.ChannelSender
@@ -11,6 +13,7 @@ import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -25,6 +28,12 @@ import kotlinx.coroutines.withContext
  * UI подписывается на [MainViewModel.state] и рендерит его — логика отделена
  * от Activity и переживает поворот экрана.
  */
+/** Состояние вкладки «История» (загрузка/данные/действия). */
+data class HistoryUiState(
+    val loading: Boolean = false,
+    val events: List<EventEntity> = emptyList(),
+)
+
 data class SettingsUiState(
     val botToken: String = "",
     val chatId: String = "",
@@ -77,6 +86,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _events = MutableSharedFlow<UiEvent>(extraBufferCapacity = 8)
     val events: SharedFlow<UiEvent> = _events.asSharedFlow()
+
+    private val _history = MutableStateFlow(HistoryUiState())
+    val history: StateFlow<HistoryUiState> = _history.asStateFlow()
+
+    /** Текущая загрузка истории (отменяется новым запросом — без гонок фильтров). */
+    private var historyJob: Job? = null
 
     // Инжектируемые точки для тестов (internal — виден из test-сетовета через friend module).
     // В проде — реальные реализации (сеть, каналы); в тестах подменяются фейками.
@@ -223,4 +238,66 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun emit(e: UiEvent) {
         _events.tryEmit(e)
     }
+
+    // --- История (вкладка «История») ---
+
+    /**
+     * Загружает историю с фильтром. Предыдущий запрос отменяется —
+     * быстрый запрос не может быть перезаписан медленным (гонка фильтров #138-аудит).
+     *
+     * @param type тип из EventHistory.TYPE_* или null (все; либо только звонки —
+     *   см. [callsOnly])
+     * @param callsOnly true — фильтр «Звонки»: пропущенные + входящие + исходящие
+     */
+    fun loadHistory(type: String?, query: String, callsOnly: Boolean = false) {
+        historyJob?.cancel()
+        _history.value = _history.value.copy(loading = true)
+        historyJob = viewModelScope.launch {
+            val events = try {
+                withContext(ioDispatcher) {
+                    var list = EventHistory.search(getApplication(), type, query)
+                    if (callsOnly) {
+                        list = list.filter {
+                            it.type == EventHistory.TYPE_MISSED ||
+                                it.type == EventHistory.TYPE_INCOMING ||
+                                it.type == EventHistory.TYPE_OUTGOING
+                        }
+                    }
+                    list
+                }
+            } catch (e: Exception) {
+                LogStore.error("Ошибка загрузки истории: ${e.message}")
+                emptyList()
+            }
+            _history.value = HistoryUiState(loading = false, events = events)
+        }
+    }
+
+    /** Очистить всю историю (после подтверждения в UI). */
+    fun clearHistory() {
+        viewModelScope.launch {
+            try {
+                EventHistory.clear(getApplication())
+            } catch (e: Exception) {
+                LogStore.error("Ошибка очистки истории: ${e.message}")
+            }
+            reloadHistory()
+        }
+    }
+
+    /** Перезагрузка с текущими фильтрами (после очистки/импорта). */
+    fun reloadHistory() {
+        val f = historyFilter
+        loadHistory(f.type, f.query, f.callsOnly)
+    }
+
+    /** Последние применённые фильтры истории (для перезагрузки). */
+    var historyFilter: HistoryFilter = HistoryFilter()
+        private set
+
+    fun setHistoryFilter(type: String?, query: String, callsOnly: Boolean) {
+        historyFilter = HistoryFilter(type, query, callsOnly)
+    }
+
+    data class HistoryFilter(val type: String? = null, val query: String = "", val callsOnly: Boolean = false)
 }
