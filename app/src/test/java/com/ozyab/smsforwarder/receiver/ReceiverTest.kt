@@ -197,6 +197,24 @@ class ReceiverTest {
     }
 
     @Test
+    fun `CallReceiver ignores when forwarding disabled (master switch)`() {
+        // T1 (аудит-3): «Стоп» = пересылка остановлена до «Запустить» —
+        // новый PHONE_STATE не должен возобновлять пересылку
+        Prefs.forwardingEnabled = false
+        Prefs.callsEnabled = true
+        val receiver = CallReceiver()
+        val intent = Intent(android.telephony.TelephonyManager.ACTION_PHONE_STATE_CHANGED).apply {
+            putExtra(android.telephony.TelephonyManager.EXTRA_STATE, "RINGING")
+            putExtra(android.telephony.TelephonyManager.EXTRA_INCOMING_NUMBER, "+79001112233")
+        }
+        receiver.onReceive(context, intent)
+        receiver.onReceive(context, Intent(android.telephony.TelephonyManager.ACTION_PHONE_STATE_CHANGED).apply {
+            putExtra(android.telephony.TelephonyManager.EXTRA_STATE, "IDLE")
+            putExtra(android.telephony.TelephonyManager.EXTRA_INCOMING_NUMBER, "+79001112233")
+        })
+    }
+
+    @Test
     fun `CallReceiver ignores when calls disabled`() {
         Prefs.callsEnabled = false
         val receiver = CallReceiver()

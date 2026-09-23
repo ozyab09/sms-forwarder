@@ -32,6 +32,8 @@ class SmsReceiver : BroadcastReceiver() {
         ReceiverExecutor.goAsync(this) {
             // Настройки читаем в фоне: awaitReady() в Prefs может блокировать
             // до 5 c — на main thread это риск ANR.
+            // Мастер-выключатель: «Стоп» означает остановку пересылки до «Запустить»
+            if (!Prefs.forwardingEnabled) return@goAsync
             if (!Prefs.smsEnabled) return@goAsync
 
             // Тихие часы: не пересылаем в указанный период

@@ -56,6 +56,7 @@ object Prefs {
 
     // Ключи (secure)
     const val KEY_BOT_TOKEN = "bot_token"
+    const val KEY_FORWARDING_ENABLED = "forwarding_enabled"
     const val KEY_PROXY_PASS = "proxy_pass"
 
     // Ключи (plain)
@@ -368,6 +369,18 @@ object Prefs {
         awaitReady()
         return botToken.isNotBlank() && chatId.isNotBlank()
     }
+
+    /**
+     * Мастер-выключатель пересылки (кнопки «Запустить»/«Стоп», #151-аудит-3).
+     *
+     * «Стоп» раньше только чистил очередь — но новое SMS/звонок снова запускали
+     * сервис, и пересылка возобновлялась без ведома пользователя. Теперь ресиверы
+     * проверяют этот флаг ДО постановки события: остановка означает остановку
+     * пересылки до явного «Запустить».
+     */
+    var forwardingEnabled: Boolean
+        get() = getBoolean(KEY_FORWARDING_ENABLED, false)
+        set(v) = setBoolean(KEY_FORWARDING_ENABLED, v)
 
     // --- Миграция старого одиночного прокси (v0.4.x) в канал ---
 
