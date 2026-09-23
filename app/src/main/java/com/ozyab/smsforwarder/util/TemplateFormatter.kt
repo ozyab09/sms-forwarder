@@ -1,5 +1,7 @@
 package com.ozyab.smsforwarder.util
 
+import android.content.Context
+import com.ozyab.smsforwarder.R
 import java.util.Calendar
 import java.util.Locale
 
@@ -78,7 +80,8 @@ object TemplateFormatter {
      * @param durationMs Длительность звонка в миллисекундах (null = нет данных,
      *        напр. для пропущенных)
      * @param durationFormatter локализованное «X мин Y сек» (инжектится из UI-
-     *        слоя, т.к. util не знает про ресурсы; по умолчанию — русская форма)
+     *        слоя, т.к. util не знает про ресурсы; [localizedDuration] — готовая
+     *        реализация через строковые ресурсы).
      * @return Отформатированный текст
      */
     fun format(
@@ -149,13 +152,34 @@ object TemplateFormatter {
     }
 
     /**
+     * Локализованный форматтер длительности через строковые ресурсы
+     * (duration_min_sec / duration_min / duration_sec, ru + en).
+     * Вызывать из UI/ресиверов, где есть Context.
+     */
+    fun localizedDuration(context: Context): (min: Int, sec: Int) -> String =
+        { min, sec ->
+            when {
+                min > 0 && sec > 0 -> context.getString(R.string.duration_min_sec, min, sec)
+                min > 0 -> context.getString(R.string.duration_min, min)
+                else -> context.getString(R.string.duration_sec, sec)
+            }
+        }
+
+    /**
      * Предпросмотр сообщения по шаблону с демонстрационными данными
      * (кнопка «Проверить» рядом с шаблонами). Пустой шаблон → дефолтный формат
      * — то же поведение, что и при реальной отправке.
      *
      * @param type Тип события
+     * @param durationFormatter локализованная форма длительности (по умолчанию
+     *        русская; из UI передавайте [localizedDuration])
      */
-    fun preview(template: String, type: String, timestamp: Long = System.currentTimeMillis()): String =
+    fun preview(
+        template: String,
+        type: String,
+        timestamp: Long = System.currentTimeMillis(),
+        durationFormatter: (min: Int, sec: Int) -> String = { min, sec -> formatDurationRu(min, sec) },
+    ): String =
         format(
             template = template,
             sender = PREVIEW_SENDER,
@@ -164,6 +188,7 @@ object TemplateFormatter {
             timestamp = timestamp,
             type = type,
             sim = PREVIEW_SIM,
+            durationFormatter = durationFormatter,
             // Демонстрационная длительность — только для звонков
             durationMs = if (type == "incoming" || type == "outgoing") PREVIEW_DURATION_MS else null,
         )
