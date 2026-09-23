@@ -135,6 +135,9 @@
     <string name="onboarding_resolving">Detecting…</string>
     <string name="onboarding_chat_ok">✅ Chat ID detected</string>
     <string name="onboarding_chat_try_again">⚠ Send /start to the bot, then try again</string>
+    <string name="toast_chat_id_resolved">Chat ID: %1$d</string>
+    <string name="toast_chat_id_failed">%1$s%2$s — write /start to the bot</string>
+    <string name="toast_chat_id_failed_bot"> (t.me/%1$s)</string>
 
     <!-- Hardcoded strings from code (now localized) -->
     <string name="toast_enter_token">Enter the bot token</string>

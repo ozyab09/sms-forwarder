@@ -136,6 +136,9 @@
     <string name="onboarding_resolving">Определение…</string>
     <string name="onboarding_chat_ok">✅ Chat ID определён</string>
     <string name="onboarding_chat_try_again">⚠ Напиши боту /start, затем нажми ещё раз</string>
+    <string name="toast_chat_id_resolved">Chat ID: %1$d</string>
+    <string name="toast_chat_id_failed">%1$s%2$s — напиши боту /start</string>
+    <string name="toast_chat_id_failed_bot"> (t.me/%1$s)</string>
 
     <!-- Строки из кода (локализованы) -->
     <string name="toast_enter_token">Укажи токен бота</string>

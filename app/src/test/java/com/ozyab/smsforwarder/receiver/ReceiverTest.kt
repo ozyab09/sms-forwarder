@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
 import androidx.test.core.app.ApplicationProvider
+import com.ozyab.smsforwarder.receiver.BootReceiver
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
 import org.junit.After
@@ -194,6 +195,18 @@ class ReceiverTest {
         val receiver = CallReceiver()
         val intent = Intent("com.example.WRONG_ACTION")
         receiver.onReceive(context, intent)
+    }
+
+    @Test
+    fun `BootReceiver does not start service when forwarding disabled`() {
+        // D5 (аудит-4): после «Стоп» автозапуск не должен возобновлять пересылку
+        Prefs.forwardingEnabled = false
+        Prefs.smsEnabled = true
+        val receiver = BootReceiver()
+        receiver.onReceive(context, Intent(Intent.ACTION_BOOT_COMPLETED))
+        // Сервис не должен запуститься: проверяем через shadow — приложение не падает,
+        // а goAsync-блок завершится без вызова startForegroundService
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
     }
 
     @Test

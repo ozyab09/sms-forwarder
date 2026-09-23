@@ -324,12 +324,13 @@ class MainActivity : AppCompatActivity() {
         when (e) {
             is UiEvent.ToastRes -> Toast.makeText(this, e.resId, Toast.LENGTH_LONG).show()
             is UiEvent.TestFinished -> showTestResult(e.channels, e.okCount, toastOnSuccess = !startServiceAfterTest)
-            is UiEvent.ChatIdResolved -> Toast.makeText(this, "Chat ID: ${e.id}", Toast.LENGTH_LONG).show()
+            is UiEvent.ChatIdResolved ->
+                Toast.makeText(this, getString(R.string.toast_chat_id_resolved, e.id), Toast.LENGTH_LONG).show()
             is UiEvent.ChatIdFailed -> {
                 // Ссылку на бота показываем текстом, но НЕ открываем автоматически —
                 // неожиданный уход из приложения раздражает.
-                val botHint = e.botUsername?.let { " (t.me/$it)" } ?: ""
-                Toast.makeText(this, "${e.reason}$botHint — напиши боту /start", Toast.LENGTH_LONG).show()
+                val botHint = e.botUsername?.let { getString(R.string.toast_chat_id_failed_bot, it) } ?: ""
+                Toast.makeText(this, getString(R.string.toast_chat_id_failed, e.reason, botHint), Toast.LENGTH_LONG).show()
             }
         }
     }
