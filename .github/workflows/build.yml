@@ -195,10 +195,9 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      # Unit-тесты перед сборкой релиза: тег не должен собираться
-      # из непротестированного кода (см. issue #91).
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --parallel --build-cache
+      # Тесты НЕ запускаются здесь: main защищён branch protection, любой код
+      # попадает в тег только через PR с обязательным зелёным CI (build+тесты+lint).
+      # Повторный прогон на теге дублировал проверку и замедлял релиз (#159).
 
       - name: Build signed release APK
         run: ./gradlew assembleRelease --parallel --build-cache
