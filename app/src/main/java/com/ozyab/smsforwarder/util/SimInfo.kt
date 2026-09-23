@@ -18,7 +18,10 @@ object SimInfo {
     fun describe(context: Context, subscriptionId: Int?): String? {
         return try {
             val sm = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
-            val sub = subscriptionId?.takeIf { it > 0 }
+            // ВАЖНО: 0 — валидный subscriptionId первой SIM (INVALID = -1).
+            // Раньше фильтр `> 0` отбрасывал первую SIM на dual-SIM и всегда
+            // срабатывал fallback «первая активная» — неверная атрибуция (#137).
+            val sub = subscriptionId?.takeIf { it >= 0 }
                 ?.let { id -> runCatching { sm.getActiveSubscriptionInfo(id) }.getOrNull() }
                 ?: runCatching { sm.activeSubscriptionInfoList?.firstOrNull() }.getOrNull()
             if (sub == null) return null

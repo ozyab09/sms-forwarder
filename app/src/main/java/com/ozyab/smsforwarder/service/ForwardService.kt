@@ -179,7 +179,7 @@ class ForwardService : Service() {
             LogStore.error("Очередь переполнена — отброшено самое старое событие (${dropped.type} от ${dropped.sender})")
             // recordHistory — suspend; запись истории делаем в scope воркера
             workerScope?.launch {
-                recordHistory(
+                recordHistorySafe(
                     ev = dropped,
                     status = EventHistory.STATUS_DROPPED,
                     channelName = null,
@@ -196,7 +196,20 @@ class ForwardService : Service() {
         while (coroutineContext.isActive) {
             val ev = queue.pollReady()
             if (ev != null) {
-                process(ev)
+                try {
+                    process(ev)
+                } catch (e: Exception) {
+                    // Воркер не должен умирать от разового сбоя (парсинг ответа,
+                    // RuntimeException в канал-слое и т.п.): логируем и продолжаем —
+                    // иначе очередь молча останавливалась до рестарта процесса
+                    // (фикс B2, #137).
+                    //
+                    // ВАЖНО: событие НЕ реqueue'им — место сбоя неизвестно: если
+                    // исключение произошло ПОСЛЕ успешной отправки (например, при
+                    // записи истории), повтор приведёт к дубликату в Telegram.
+                    // Лучше потерять запись истории, чем задублировать сообщение.
+                    LogStore.error("Сбой обработки события: ${e.message ?: e.javaClass.simpleName}")
+                }
                 persist()
                 continue
             }
@@ -217,7 +230,7 @@ class ForwardService : Service() {
             LogStore.warn("Не задан токен/chatId — событие отложено")
             if (queue.fail(ev)) {
                 LogStore.error("Событие отброшено после ${SendQueue.MAX_ATTEMPTS} попыток (не задан токен/chatId)")
-                recordHistory(
+                recordHistorySafe(
                     ev = ev,
                     status = EventHistory.STATUS_DROPPED,
                     channelName = null,
@@ -251,7 +264,7 @@ class ForwardService : Service() {
             is ChannelSender.Result.Ok -> {
                 Prefs.sentCount = Prefs.sentCount + 1
                 LogStore.ok("Отправлено через «${result.channelName}» (id ${result.messageId})")
-                recordHistory(
+                recordHistorySafe(
                     ev = ev,
                     status = EventHistory.STATUS_SENT,
                     channelName = result.channelName,
@@ -270,7 +283,7 @@ class ForwardService : Service() {
                 val isDropped = queue.failWithMinDelay(ev, retryAfterMs)
                 if (isDropped) {
                     LogStore.error("Событие отброшено после ${SendQueue.MAX_ATTEMPTS} попыток")
-                    recordHistory(
+                    recordHistorySafe(
                         ev = ev,
                         status = EventHistory.STATUS_DROPPED,
                         channelName = null,
@@ -280,6 +293,25 @@ class ForwardService : Service() {
                 }
                 // Если не отброшено — событие вернётся в ретрай, история не пишется
             }
+        }
+    }
+
+    /**
+     * Безопасная запись истории: сбой БД (Room) НЕ должен ронять воркер и
+     * влиять на судьбу отправленного/отброшенного события (см. фикс B2, #137).
+     */
+    private suspend fun recordHistorySafe(
+        ev: QueuedEvent,
+        status: String,
+        channelName: String?,
+        attempts: Int,
+        chatId: String?,
+        botUsername: String? = null,
+    ) {
+        try {
+            recordHistory(ev, status, channelName, attempts, chatId, botUsername)
+        } catch (e: Exception) {
+            LogStore.error("Не удалось записать историю (${e.message ?: e.javaClass.simpleName}) — событие обработано, записи нет")
         }
     }
 
