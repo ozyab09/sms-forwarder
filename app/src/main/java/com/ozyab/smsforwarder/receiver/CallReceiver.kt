@@ -36,6 +36,8 @@ object CallReceiverLogic {
     private var outgoingNumber: String? = null
     private var callAnswered = false
     private var callConnectTimeMs: Long = 0L
+    /** SIM звонка (subscriptionId из интента) — для верной атрибуции {sim}. */
+    private var lastSubId: Int? = null
 
     /** Окно «свежести» для fallback-поиска пропущенного в CallLog. */
     private const val RECENT_WINDOW_MS = 2 * 60_000L
@@ -43,6 +45,7 @@ object CallReceiverLogic {
     /** Сброс состояния (для тестов). */
     @Synchronized
     fun reset() {
+        lastSubId = null
         ringingNumber = null
         outgoingNumber = null
         callAnswered = false
@@ -61,8 +64,17 @@ object CallReceiverLogic {
     fun onPhoneStateChanged(
         context: Context,
         state: String?,
-        number: String?
+        number: String?,
+        subId: Int? = null
     ): CallEvent? {
+        // subId запоминается на RINGING/OFFHOOK и используется при формировании
+        // события на IDLE (SIM, на которой был звонок)
+        if (subId != null) {
+            when (state) {
+                TelephonyManager.EXTRA_STATE_RINGING,
+                TelephonyManager.EXTRA_STATE_OFFHOOK -> lastSubId = subId
+            }
+        }
         when (state) {
             TelephonyManager.EXTRA_STATE_RINGING -> {
                 if (!number.isNullOrBlank()) ringingNumber = number
@@ -87,6 +99,8 @@ object CallReceiverLogic {
                 outgoingNumber = null
                 callAnswered = false
                 callConnectTimeMs = 0L
+                val simSubId = lastSubId
+                lastSubId = null
 
                 // Длительность: от OFFHOOK до IDLE (только для принятых/исходящих)
                 val durationMs = if (connectTime > 0L) {
@@ -96,7 +110,7 @@ object CallReceiverLogic {
                 return when {
                     // Входящий вызов был (RINGING) и принят
                     numberAtRinging != null && wasAnswered -> {
-                        val text = buildEvent(context, numberAtRinging, "incoming", durationMs)
+                        val text = buildEvent(context, numberAtRinging, "incoming", durationMs, simSubId)
                         CallEvent(text, "incoming", context.getString(com.ozyab.smsforwarder.R.string.call_label_incoming), numberAtRinging)
                     }
                     // Входящ��й вызов был, но не принят — пропущенный
@@ -106,18 +120,18 @@ object CallReceiverLogic {
                         } else {
                             numberAtRinging
                         }
-                        candidate?.let { CallEvent(buildEvent(context, it, "missed"), "missed", context.getString(com.ozyab.smsforwarder.R.string.call_label_missed), it) }
+                        candidate?.let { CallEvent(buildEvent(context, it, "missed", null, simSubId), "missed", context.getString(com.ozyab.smsforwarder.R.string.call_label_missed), it) }
                     }
                     // Исходящий вызов (OFFHOOK без RINGING) — длительность тоже считается:
                     // callConnectTimeMs ставится при OFFHOOK и для исходящих
                     numberOutgoing != null -> {
-                        val text = buildEvent(context, numberOutgoing, "outgoing", durationMs)
+                        val text = buildEvent(context, numberOutgoing, "outgoing", durationMs, simSubId)
                         CallEvent(text, "outgoing", context.getString(com.ozyab.smsforwarder.R.string.call_label_outgoing), numberOutgoing)
                     }
                     // RINGING потерян — ищем свежий пропущенный в CallLog
                     else -> {
                         val recent = findRecentMissed(context)
-                        recent?.let { CallEvent(buildEvent(context, it, "missed"), "missed", context.getString(com.ozyab.smsforwarder.R.string.call_label_missed), it) }
+                        recent?.let { CallEvent(buildEvent(context, it, "missed", null, simSubId), "missed", context.getString(com.ozyab.smsforwarder.R.string.call_label_missed), it) }
                     }
                 }
             }
@@ -185,11 +199,13 @@ object CallReceiverLogic {
         context: Context,
         number: String,
         type: String,
-        durationMs: Long? = null
+        durationMs: Long? = null,
+        subId: Int? = null
     ): String {
         val name = ContactNames.lookup(context, number)
         val now = System.currentTimeMillis()
-        val sim = SimInfo.describe(context, null)
+        // T2 (аудит-3): SIM из интента звонка, а не «первая активная»
+        val sim = SimInfo.describe(context, subId)
         return TemplateFormatter.format(
             sender = number,
             name = name,
@@ -212,14 +228,19 @@ class CallReceiver : android.content.BroadcastReceiver() {
         val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
         @Suppress("DEPRECATION")
         val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+        // SIM, на которой звонили (dual-SIM, #151-аудит-3): раньше всегда брали
+        // «первую активную» — неверная атрибуция для второй SIM.
+        val subId = intent.getIntExtra("subscription", -1).takeIf { it != -1 }
 
         ReceiverExecutor.goAsync(this) {
             // Настройки читаем в фоновом потоке: awaitReady() в Prefs может
             // блокировать до 5 c — на main thread это риск ANR.
+            // Мастер-выключатель: «Стоп» означает остановку пересылки до «Запустить»
+            if (!Prefs.forwardingEnabled) return@goAsync
             if (!Prefs.callsEnabled) return@goAsync
             if (QuietHours.isActiveNow()) return@goAsync
 
-            val result = CallReceiverLogic.onPhoneStateChanged(context, state, number)
+            val result = CallReceiverLogic.onPhoneStateChanged(context, state, number, subId)
                 ?: return@goAsync
 
             // Проверяем, включена ли пересылка для данного типа

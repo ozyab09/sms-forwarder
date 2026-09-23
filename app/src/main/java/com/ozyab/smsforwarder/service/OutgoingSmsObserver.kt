@@ -95,6 +95,8 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
 
     /** Проверка последнего отправленного SMS (фоновый поток). */
     private fun checkForNewSentSms() {
+        // Мастер-выключатель: «Стоп» означает остановку пересылки до «Запустить»
+        if (!Prefs.forwardingEnabled) return
         if (!Prefs.outgoingSmsEnabled) return
         // Читаем последнее SMS из провайдера
         val sms = readLastSentSms() ?: return

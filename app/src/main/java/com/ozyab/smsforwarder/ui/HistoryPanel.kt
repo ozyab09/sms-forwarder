@@ -167,6 +167,9 @@ class HistoryPanel(
         }
         val typeText = when (e.type) {
             EventHistory.TYPE_SMS -> activity.getString(R.string.history_detail_type_sms)
+            EventHistory.TYPE_OUTGOING_SMS -> activity.getString(R.string.history_detail_type_outgoing_sms)
+            EventHistory.TYPE_INCOMING -> activity.getString(R.string.history_detail_type_incoming)
+            EventHistory.TYPE_OUTGOING -> activity.getString(R.string.history_detail_type_outgoing)
             else -> activity.getString(R.string.history_detail_type_call)
         }
         val dash = activity.getString(R.string.history_detail_none)
