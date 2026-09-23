@@ -558,6 +558,7 @@ class MainActivity : AppCompatActivity() {
         val outgoingCall = TemplateFormatter.preview(
             etTemplateOutgoingCall.text?.toString().orEmpty(),
             EventHistory.TYPE_OUTGOING,
+            durationFormatter = TemplateFormatter.localizedDuration(this),
         )
         val message = buildString {
             append(getString(R.string.preview_sms_label)).append(":\n").append(sms)

@@ -203,7 +203,9 @@ object CallReceiverLogic {
             timestamp = now,
             type = type,
             sim = sim,
-            durationMs = durationMs
+            durationMs = durationMs,
+            // {duration} по локали устройства, а не всегда по-русски (#139)
+            durationFormatter = TemplateFormatter.localizedDuration(context)
         )
     }
 }

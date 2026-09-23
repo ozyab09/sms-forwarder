@@ -66,7 +66,7 @@ class HistoryPanel(
             historyList.addView(emptyHistoryView())
             return
         }
-        for (e in events) buildHistoryRow(e)
+        for (e in events) historyList.addView(buildHistoryRow(e))
     }
 
     private fun emptyHistoryView(): TextView = TextView(activity).apply {
