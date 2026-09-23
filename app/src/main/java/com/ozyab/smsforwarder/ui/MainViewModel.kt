@@ -42,12 +42,6 @@ data class SettingsUiState(
     val callsEnabled: Boolean = true,
     val incomingCallsEnabled: Boolean = false,
     val outgoingCallsEnabled: Boolean = false,
-    val localNotificationsEnabled: Boolean = false,
-    val templateSms: String = "",
-    val templateOutgoingSms: String = "",
-    val templateCall: String = "",
-    val templateIncomingCall: String = "",
-    val templateOutgoingCall: String = "",
     val quietHoursEnabled: Boolean = false,
     val quietHoursStart: Int = 23 * 60,
     val quietHoursEnd: Int = 8 * 60,
@@ -115,12 +109,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             callsEnabled = Prefs.callsEnabled,
             incomingCallsEnabled = Prefs.incomingCallsEnabled,
             outgoingCallsEnabled = Prefs.outgoingCallsEnabled,
-            localNotificationsEnabled = Prefs.localNotificationsEnabled,
-            templateSms = Prefs.messageTemplateSms,
-            templateOutgoingSms = Prefs.messageTemplateOutgoingSms,
-            templateCall = Prefs.messageTemplateCall,
-            templateIncomingCall = Prefs.messageTemplateIncomingCall,
-            templateOutgoingCall = Prefs.messageTemplateOutgoingCall,
             quietHoursEnabled = Prefs.quietHoursEnabled,
             quietHoursStart = Prefs.quietHoursStart,
             quietHoursEnd = Prefs.quietHoursEnd,
@@ -136,12 +124,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setCallsEnabled(v: Boolean) { _state.value = _state.value.copy(callsEnabled = v) }
     fun setIncomingCallsEnabled(v: Boolean) { _state.value = _state.value.copy(incomingCallsEnabled = v) }
     fun setOutgoingCallsEnabled(v: Boolean) { _state.value = _state.value.copy(outgoingCallsEnabled = v) }
-    fun setLocalNotificationsEnabled(v: Boolean) { _state.value = _state.value.copy(localNotificationsEnabled = v) }
-    fun setTemplateSms(v: String) { _state.value = _state.value.copy(templateSms = v) }
-    fun setTemplateOutgoingSms(v: String) { _state.value = _state.value.copy(templateOutgoingSms = v) }
-    fun setTemplateCall(v: String) { _state.value = _state.value.copy(templateCall = v) }
-    fun setTemplateIncomingCall(v: String) { _state.value = _state.value.copy(templateIncomingCall = v) }
-    fun setTemplateOutgoingCall(v: String) { _state.value = _state.value.copy(templateOutgoingCall = v) }
     fun setQuietHoursEnabled(v: Boolean) { _state.value = _state.value.copy(quietHoursEnabled = v) }
     fun setQuietHoursStart(v: Int) { _state.value = _state.value.copy(quietHoursStart = v) }
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
@@ -156,12 +138,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.callsEnabled = s.callsEnabled
         Prefs.incomingCallsEnabled = s.incomingCallsEnabled
         Prefs.outgoingCallsEnabled = s.outgoingCallsEnabled
-        Prefs.localNotificationsEnabled = s.localNotificationsEnabled
-        Prefs.messageTemplateSms = s.templateSms
-        Prefs.messageTemplateOutgoingSms = s.templateOutgoingSms
-        Prefs.messageTemplateCall = s.templateCall
-        Prefs.messageTemplateIncomingCall = s.templateIncomingCall
-        Prefs.messageTemplateOutgoingCall = s.templateOutgoingCall
         Prefs.quietHoursEnabled = s.quietHoursEnabled
         Prefs.quietHoursStart = s.quietHoursStart
         Prefs.quietHoursEnd = s.quietHoursEnd

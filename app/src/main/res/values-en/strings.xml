@@ -108,28 +108,7 @@
     <string name="pref_calls_enabled">Forward missed calls</string>
     <string name="pref_incoming_calls_enabled">Forward answered incoming calls</string>
     <string name="pref_outgoing_calls_enabled">Forward outgoing calls</string>
-    <string name="pref_local_notifications">Phone notifications</string>
 
-    <!-- Message templates -->
-    <string name="pref_templates_section">Message templates</string>
-    <string name="pref_template_sms_hint">Incoming SMS template</string>
-    <string name="pref_template_outgoing_sms_hint">Outgoing SMS template</string>
-    <string name="pref_template_call_hint">Missed call template</string>
-    <string name="pref_template_incoming_call_hint">Answered incoming call template</string>
-    <string name="pref_template_outgoing_call_hint">Outgoing call template</string>
-    <string name="pref_template_placeholders">Available: {sender} {name} {text} {time} {date} {type} {sim} {number}. Empty = default format.</string>
-    <string name="btn_preview_templates">Preview</string>
-    <string name="btn_save_templates">Save</string>
-    <string name="btn_reset_templates">Reset</string>
-    <string name="toast_templates_saved">Templates saved</string>
-    <string name="toast_templates_reset">Templates reset — default format is used</string>
-    <string name="preview_dialog_title">Message preview</string>
-    <string name="preview_sms_label">Incoming SMS</string>
-    <string name="preview_outgoing_sms_label">Outgoing SMS</string>
-    <string name="preview_call_label">Missed call</string>
-    <string name="preview_incoming_call_label">Answered incoming call</string>
-    <string name="preview_outgoing_call_label">Outgoing call</string>
-    <string name="preview_sample_note">Sample data: number +7 900 123-45-67, contact "Ivan", text "Sample SMS text", SIM "Sim1 beeline".</string>
 
     <!-- Quiet hours -->
     <string name="pref_quiet_hours_section">Quiet hours</string>
@@ -186,7 +165,6 @@
     <string name="test_connection_ok">Connected to bot @%1$s via \u00ab%2$s\u00bb channel</string>
     <string name="test_all_none">❌ No channel works</string>
     <string name="warn_call_log_permission">Without the \u00abCall log\u00bb permission missed calls won\'t be forwarded</string>
-    <string name="warn_post_notifications">Without the notification permission, local alerts won\'t be shown</string>
 
     <!-- Update -->
     <string name="update_dialog_title">Update</string>
@@ -203,17 +181,12 @@
     <string name="quiet_hours_equal_warning">Quiet hours start and end are the same — the period won\'t work</string>
 
     <!-- Local notifications -->
-    <string name="local_notif_channel_name">Incoming messages</string>
-    <string name="sms_unknown_sender">Unknown</string>
-    <string name="sms_notif_title">📩 SMS from %1$s</string>
-    <string name="local_notif_channel_desc">Notifications about incoming SMS and calls</string>
 
     <!-- Call type labels (notifications, history) -->
     <string name="call_label_incoming">Incoming</string>
     <string name="call_label_outgoing">Outgoing</string>
     <string name="call_label_missed">Missed</string>
 
-    <!-- Call duration (in forwarded text) -->
     <string name="duration_min_sec">%1$d min %2$d sec</string>
     <string name="duration_min">%1$d min</string>
     <string name="duration_sec">%1$d sec</string>

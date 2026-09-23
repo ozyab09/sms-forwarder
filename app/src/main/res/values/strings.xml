@@ -108,28 +108,8 @@
     <string name="pref_calls_enabled">Пересылать пропущенные</string>
     <string name="pref_incoming_calls_enabled">Пересылать принятые входящие</string>
     <string name="pref_outgoing_calls_enabled">Пересылать исходящие звонки</string>
-    <string name="pref_local_notifications">Уведомления на телефоне</string>
 
     <!-- Шаблоны сообщений -->
-    <string name="pref_templates_section">Шаблоны сообщений</string>
-    <string name="pref_template_sms_hint">Шаблон входящих SMS</string>
-    <string name="pref_template_outgoing_sms_hint">Шаблон исходящих SMS</string>
-    <string name="pref_template_call_hint">Шаблон пропущенного вызова</string>
-    <string name="pref_template_incoming_call_hint">Шаблон принятого входящего</string>
-    <string name="pref_template_outgoing_call_hint">Шаблон исходящего звонка</string>
-    <string name="pref_template_placeholders">Доступно: {sender} {name} {text} {time} {date} {type} {sim} {number}. Пусто — стандартный формат.</string>
-    <string name="btn_preview_templates">Проверить</string>
-    <string name="btn_save_templates">Сохранить</string>
-    <string name="btn_reset_templates">Сбросить</string>
-    <string name="toast_templates_saved">Шаблоны сохранены</string>
-    <string name="toast_templates_reset">Шаблоны сброшены — используется стандартный формат</string>
-    <string name="preview_dialog_title">Предпросмотр сообщения</string>
-    <string name="preview_sms_label">Входящий SMS</string>
-    <string name="preview_outgoing_sms_label">Исходящий SMS</string>
-    <string name="preview_call_label">Пропущенный вызов</string>
-    <string name="preview_incoming_call_label">Принятый входящий</string>
-    <string name="preview_outgoing_call_label">Исходящий звонок</string>
-    <string name="preview_sample_note">Пример данных: номер +7 900 123-45-67, контакт «Иван», текст «Пример текста SMS-сообщения», SIM «Sim1 beeline».</string>
 
     <!-- Тихие часы -->
     <string name="pref_quiet_hours_section">Тихие часы</string>
@@ -186,7 +166,6 @@
     <string name="test_connection_ok">Соединение бота @%1$s через канал «%2$s» успешно</string>
     <string name="test_all_none">❌ Ни один канал не работает</string>
     <string name="warn_call_log_permission">Без разрешения «Журнал вызовов» пропущенные вызовы не будут пересылаться</string>
-    <string name="warn_post_notifications">Без разрешения на уведомления локальные оповещения не будут показываться</string>
 
     <!-- Обновление -->
     <string name="update_dialog_title">Обновление</string>
@@ -203,10 +182,6 @@
     <string name="quiet_hours_equal_warning">Начало и конец тихих часов совпадают — период не будет работать</string>
 
     <!-- Локальные уведомления -->
-    <string name="local_notif_channel_name">Входящие сообщения</string>
-    <string name="sms_unknown_sender">Неизвестный</string>
-    <string name="sms_notif_title">📩 SMS от %1$s</string>
-    <string name="local_notif_channel_desc">Уведомления о входящих SMS и звонках</string>
 
     <!-- Метки типов звонков (уведомления, история) -->
     <string name="call_label_incoming">Входящий</string>
