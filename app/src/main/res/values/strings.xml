@@ -114,8 +114,8 @@
 
     <!-- Статус -->
     <string name="status_service">Статус сервиса</string>
-    <string name="status_running">Работает</string>
-    <string name="status_stopped">Остановлен</string>
+    <string name="status_running">Пересылка работает</string>
+    <string name="status_stopped">Пересылка остановлена</string>
     <string name="btn_start">Запустить</string>
     <string name="btn_stop">Остановить</string>
 

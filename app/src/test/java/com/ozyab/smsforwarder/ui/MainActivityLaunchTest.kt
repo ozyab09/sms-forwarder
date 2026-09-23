@@ -203,6 +203,27 @@ class MainActivityLaunchTest {
     }
 
     @Test(timeout = 20_000)
+    fun `service toggle button reflects forwarding state`() {
+        // Одна кнопка «Запустить/Остановить»: текст по факту forwardingEnabled
+        warmUp()
+        Prefs.forwardingEnabled = false
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val activity = controller.get()
+
+        val btn = activity.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_service_toggle)
+        assertNotNull("кнопка toggle должна существовать", btn)
+        assertEquals("остановлено — текст «Запустить»", activity.getString(R.string.btn_start), btn.text.toString())
+
+        // Включаем пересылку напрямую в Prefs и пересоздаём Activity: кнопка — «Остановить»
+        Prefs.forwardingEnabled = true
+        val recreated = controller.recreate().get()
+        val btn2 = recreated.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_service_toggle)
+        assertEquals("запущено — текст «Остановить»", activity.getString(R.string.btn_stop), btn2.text.toString())
+
+        controller.pause().stop().destroy()
+    }
+
+    @Test(timeout = 20_000)
     fun `about tab shows current app version`() {
         warmUp()
         val controller = Robolectric.buildActivity(MainActivity::class.java).setup()

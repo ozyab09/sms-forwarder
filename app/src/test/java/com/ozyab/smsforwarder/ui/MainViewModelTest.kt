@@ -353,4 +353,35 @@ class MainViewModelTest {
 
         assertTrue(vm.history.value.events.isEmpty())
     }
+
+    // ===== toggle сервиса («Запустить/Остановить») =====
+
+    @Test
+    fun `setForwardingEnabled updates state and prefs`() = runTest {
+        vm = buildVm()
+        Prefs.forwardingEnabled = false
+        vm.load()
+        assertFalse(vm.state.value.forwardingEnabled)
+
+        vm.setForwardingEnabled(true)
+        assertTrue(vm.state.value.forwardingEnabled)
+        assertTrue(Prefs.forwardingEnabled)
+
+        vm.setForwardingEnabled(false)
+        assertFalse(vm.state.value.forwardingEnabled)
+        assertFalse(Prefs.forwardingEnabled)
+    }
+
+    @Test
+    fun `load reflects forwardingEnabled from prefs`() = runTest {
+        Prefs.forwardingEnabled = true
+        vm = buildVm()
+        vm.load()
+        assertTrue(vm.state.value.forwardingEnabled)
+
+        Prefs.forwardingEnabled = false
+        vm = buildVm()
+        vm.load()
+        assertFalse(vm.state.value.forwardingEnabled)
+    }
 }

@@ -47,6 +47,8 @@ data class SettingsUiState(
     val quietHoursEnd: Int = 8 * 60,
     val testing: Boolean = false,
     val resolvingChatId: Boolean = false,
+    /** Мастер-выключатель пересылки: кнопка «Запустить/Остановить». */
+    val forwardingEnabled: Boolean = false,
 )
 
 /** Результат проверки одного канала (для форматирования в UI). */
@@ -112,6 +114,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             quietHoursEnabled = Prefs.quietHoursEnabled,
             quietHoursStart = Prefs.quietHoursStart,
             quietHoursEnd = Prefs.quietHoursEnd,
+            forwardingEnabled = Prefs.forwardingEnabled,
         )
     }
 
@@ -125,6 +128,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setIncomingCallsEnabled(v: Boolean) { _state.value = _state.value.copy(incomingCallsEnabled = v) }
     fun setOutgoingCallsEnabled(v: Boolean) { _state.value = _state.value.copy(outgoingCallsEnabled = v) }
     fun setQuietHoursEnabled(v: Boolean) { _state.value = _state.value.copy(quietHoursEnabled = v) }
+
+    /**
+     * Toggle сервиса (кнопка «Запустить/Остановить»):
+     * обновляет forwardingEnabled и возвращает новое состояние.
+     */
+    fun setForwardingEnabled(v: Boolean) {
+        Prefs.forwardingEnabled = v
+        _state.value = _state.value.copy(forwardingEnabled = v)
+    }
     fun setQuietHoursStart(v: Int) { _state.value = _state.value.copy(quietHoursStart = v) }
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
 

@@ -351,7 +351,7 @@ python3 generate_icons.py logo_transparent.png
 | Branch protection на main | Все изменения — через PR (build+test+lint обязателен). Номер версии из тегов (#128) — bump руками не нужен |
 | FGS-старт из PHONE_STATE на Android 12+ | `ForwardService.start` обёрнут в try/catch; при запрете событие сохраняется в файл очереди и уйдёт при следующем старте сервиса |
 | Без `READ_CALL_LOG` номера пропущенных не приходят (Android 9+) | UI предупреждает: фича «пропущенные» требует разрешения «Журнал вызовов» |
-| «Стоп» сервиса | Мастер-выключатель: очередь отбрасывается + ресиверы не ставят новые события до «Запустить» (`Prefs.forwardingEnabled`) |
+| «Стоп» сервиса | Одна toggle-кнопка в UI (btn_service_toggle, состояние `Prefs.forwardingEnabled`): очередь отбрасывается + ресиверы не ставят новые события до «Запустить» |
 | Vendor autostart (MIUI, EMUI, OneUI) | Onboarding shows vendor-specific instructions; `START_STICKY` helps but not 100% |
 | Android 13+ notification permission | Not requested — channel is `IMPORTANCE_MIN`, user can disable in system settings |
 | CallLog permission revoked on some OEMs | OFFHOOK-трекинг: без READ_CALL_LOG пропущенным считается RINGING→IDLE без OFFHOOK; принятые вызовы не пересылаются |
