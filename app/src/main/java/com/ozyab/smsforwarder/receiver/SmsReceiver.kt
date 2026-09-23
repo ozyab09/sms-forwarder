@@ -6,7 +6,6 @@ import android.content.Intent
 import android.provider.Telephony
 import com.ozyab.smsforwarder.service.ForwardService
 import com.ozyab.smsforwarder.util.ContactNames
-import com.ozyab.smsforwarder.util.LocalNotifier
 import com.ozyab.smsforwarder.util.Prefs
 import com.ozyab.smsforwarder.util.QuietHours
 import com.ozyab.smsforwarder.util.ReceiverExecutor
@@ -42,8 +41,7 @@ class SmsReceiver : BroadcastReceiver() {
             for (m in messages) sb.append(m.messageBody ?: "")
             val body = sb.toString()
 
-            val sender = messages.firstOrNull()?.originatingAddress
-                ?: context.getString(com.ozyab.smsforwarder.R.string.sms_unknown_sender)
+            val sender = messages.firstOrNull()?.originatingAddress ?: ""
             val ts = messages.firstOrNull()?.timestampMillis ?: System.currentTimeMillis()
 
             val name = ContactNames.lookup(context, sender)
@@ -53,7 +51,6 @@ class SmsReceiver : BroadcastReceiver() {
             val sim = SimInfo.describe(context, subId)
 
             val text = TemplateFormatter.format(
-                template = Prefs.messageTemplateSms,
                 sender = sender,
                 name = name,
                 text = body,
@@ -62,12 +59,6 @@ class SmsReceiver : BroadcastReceiver() {
                 sim = sim
             )
 
-            // Локальное уведомление на телефоне (если включено)
-            LocalNotifier.notify(
-                context,
-                title = context.getString(com.ozyab.smsforwarder.R.string.sms_notif_title, sender),
-                text = body.take(200),
-            )
 
             ForwardService.start(context, text, type = "sms", sender = sender, eventTime = ts)
         }

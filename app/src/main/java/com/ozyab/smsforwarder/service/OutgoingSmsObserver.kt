@@ -121,7 +121,6 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
         val sim = com.ozyab.smsforwarder.util.SimInfo.describe(appContext, sms.subscriptionId)
 
         val formatted = com.ozyab.smsforwarder.util.TemplateFormatter.format(
-            template = Prefs.messageTemplateOutgoingSms,
             sender = sms.address,
             name = name,
             text = sms.body,

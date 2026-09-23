@@ -105,7 +105,6 @@ class MainViewModelTest {
         Prefs.chatId = "12345"
         Prefs.smsEnabled = false
         Prefs.callsEnabled = true
-        Prefs.messageTemplateSms = "[{time}] {text}"
         Prefs.quietHoursEnabled = true
         Prefs.quietHoursStart = 23 * 60
         Prefs.quietHoursEnd = 8 * 60
@@ -117,7 +116,6 @@ class MainViewModelTest {
         assertEquals("12345", s.chatId)
         assertFalse(s.smsEnabled)
         assertTrue(s.callsEnabled)
-        assertEquals("[{time}] {text}", s.templateSms)
         assertTrue(s.quietHoursEnabled)
         assertEquals(23 * 60, s.quietHoursStart)
         assertEquals(8 * 60, s.quietHoursEnd)
@@ -129,13 +127,11 @@ class MainViewModelTest {
         vm.setBotToken("tok")
         vm.setChatId("777")
         vm.setSmsEnabled(false)
-        vm.setTemplateCall("📵 {number}")
 
         val s = vm.state.value
         assertEquals("tok", s.botToken)
         assertEquals("777", s.chatId)
         assertFalse(s.smsEnabled)
-        assertEquals("📵 {number}", s.templateCall)
     }
 
     @Test

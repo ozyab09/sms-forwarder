@@ -50,7 +50,6 @@ import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
 import com.ozyab.smsforwarder.util.QuietHours
 import com.ozyab.smsforwarder.util.SettingsBackup
-import com.ozyab.smsforwarder.util.TemplateFormatter
 import com.ozyab.smsforwarder.util.ThemeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -77,7 +76,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swCalls: SwitchMaterial
     private lateinit var swIncomingCalls: SwitchMaterial
     private lateinit var swOutgoingCalls: SwitchMaterial
-    private lateinit var swLocalNotifications: SwitchMaterial
     private lateinit var btnStart: MaterialButton
     private lateinit var btnStop: MaterialButton
 
@@ -85,11 +83,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var channelsPanel: ChannelsPanel
 
     // Шаблоны сообщений
-    private lateinit var etTemplateSms: TextInputEditText
-    private lateinit var etTemplateOutgoingSms: TextInputEditText
-    private lateinit var etTemplateCall: TextInputEditText
-    private lateinit var etTemplateIncomingCall: TextInputEditText
-    private lateinit var etTemplateOutgoingCall: TextInputEditText
     private lateinit var swQuietHours: SwitchMaterial
     private lateinit var layoutQuietTimes: View
     private lateinit var btnQuietStart: MaterialButton
@@ -134,16 +127,6 @@ class MainActivity : AppCompatActivity() {
             // Без READ_CALL_LOG номера пропущенных не приходят (EXTRA_INCOMING_NUMBER)
             LogStore.warn(getString(R.string.warn_call_log_permission))
             Toast.makeText(this, R.string.warn_call_log_permission, Toast.LENGTH_LONG).show()
-        }
-    }
-
-    // POST_NOTIFICATIONS (Android 13+): запрос при включении локальных уведомлений
-    private val notificationsPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (!granted) {
-            LogStore.warn(getString(R.string.warn_post_notifications))
-            Toast.makeText(this, R.string.warn_post_notifications, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -240,54 +223,11 @@ class MainActivity : AppCompatActivity() {
         swCalls = findViewById(R.id.sw_calls)
         swIncomingCalls = findViewById(R.id.sw_incoming_calls)
         swOutgoingCalls = findViewById(R.id.sw_outgoing_calls)
-        swLocalNotifications = findViewById(R.id.sw_local_notifications)
         btnStart = findViewById(R.id.btn_start)
         btnStop = findViewById(R.id.btn_stop)
 
         channelsPanel = ChannelsPanel(this, findViewById(R.id.channels_container))
         findViewById<MaterialButton>(R.id.btn_add_proxy).setOnClickListener { channelsPanel.showProxyDialog(null) }
-
-        etTemplateSms = findViewById(R.id.et_template_sms)
-        etTemplateCall = findViewById(R.id.et_template_call)
-        etTemplateOutgoingSms = findViewById(R.id.et_template_outgoing_sms)
-        etTemplateIncomingCall = findViewById(R.id.et_template_incoming_call)
-        etTemplateOutgoingCall = findViewById(R.id.et_template_outgoing_call)
-        etTemplateSms.addTextChangedListener(textWatcher {
-            viewModel.setTemplateSms(etTemplateSms.text?.toString() ?: "")
-        })
-        etTemplateCall.addTextChangedListener(textWatcher {
-            viewModel.setTemplateCall(etTemplateCall.text?.toString() ?: "")
-        })
-        etTemplateOutgoingSms.addTextChangedListener(textWatcher {
-            viewModel.setTemplateOutgoingSms(etTemplateOutgoingSms.text?.toString() ?: "")
-        })
-        etTemplateIncomingCall.addTextChangedListener(textWatcher {
-            viewModel.setTemplateIncomingCall(etTemplateIncomingCall.text?.toString() ?: "")
-        })
-        etTemplateOutgoingCall.addTextChangedListener(textWatcher {
-            viewModel.setTemplateOutgoingCall(etTemplateOutgoingCall.text?.toString() ?: "")
-        })
-        findViewById<MaterialButton>(R.id.btn_preview_templates).setOnClickListener {
-            showTemplatePreview()
-        }
-        findViewById<MaterialButton>(R.id.btn_save_templates).setOnClickListener {
-            savePrefs()
-            Toast.makeText(this, R.string.toast_templates_saved, Toast.LENGTH_SHORT).show()
-        }
-        findViewById<MaterialButton>(R.id.btn_reset_templates).setOnClickListener {
-            etTemplateSms.setText("")
-            etTemplateOutgoingSms.setText("")
-            etTemplateCall.setText("")
-            etTemplateIncomingCall.setText("")
-            etTemplateOutgoingCall.setText("")
-            viewModel.setTemplateSms("")
-            viewModel.setTemplateOutgoingSms("")
-            viewModel.setTemplateCall("")
-            viewModel.setTemplateIncomingCall("")
-            viewModel.setTemplateOutgoingCall("")
-            viewModel.save()
-            Toast.makeText(this, R.string.toast_templates_reset, Toast.LENGTH_SHORT).show()
-        }
 
         swQuietHours = findViewById(R.id.sw_quiet_hours)
         layoutQuietTimes = findViewById(R.id.layout_quiet_hours_times)
@@ -347,13 +287,6 @@ class MainActivity : AppCompatActivity() {
         swCalls.isChecked = s.callsEnabled
         swIncomingCalls.isChecked = s.incomingCallsEnabled
         swOutgoingCalls.isChecked = s.outgoingCallsEnabled
-        swLocalNotifications.isChecked = s.localNotificationsEnabled
-
-        etTemplateSms.setText(s.templateSms)
-        etTemplateOutgoingSms.setText(s.templateOutgoingSms)
-        etTemplateCall.setText(s.templateCall)
-        etTemplateIncomingCall.setText(s.templateIncomingCall)
-        etTemplateOutgoingCall.setText(s.templateOutgoingCall)
 
         // Тихие часы
         swQuietHours.isChecked = s.quietHoursEnabled
@@ -473,15 +406,6 @@ class MainActivity : AppCompatActivity() {
         swCalls.setOnCheckedChangeListener { _, v -> viewModel.setCallsEnabled(v) }
         swIncomingCalls.setOnCheckedChangeListener { _, v -> viewModel.setIncomingCallsEnabled(v) }
         swOutgoingCalls.setOnCheckedChangeListener { _, v -> viewModel.setOutgoingCallsEnabled(v) }
-        swLocalNotifications.setOnCheckedChangeListener { _, v ->
-            viewModel.setLocalNotificationsEnabled(v)
-            if (v && Build.VERSION.SDK_INT >= 33 &&
-                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                notificationsPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
         btnStart.setOnClickListener {
             viewModel.save()
             if (!Prefs.isConfigured()) {
@@ -525,60 +449,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun savePrefs() {
-        // Шаблоны вводились в EditText — синхронизируем в состояние и сохраняем
-        viewModel.setTemplateSms(etTemplateSms.text?.toString() ?: "")
-        viewModel.setTemplateOutgoingSms(etTemplateOutgoingSms.text?.toString() ?: "")
-        viewModel.setTemplateCall(etTemplateCall.text?.toString() ?: "")
-        viewModel.setTemplateIncomingCall(etTemplateIncomingCall.text?.toString() ?: "")
-        viewModel.setTemplateOutgoingCall(etTemplateOutgoingCall.text?.toString() ?: "")
         viewModel.save()
     }
 
-    /**
-     * Предпросмотр шаблонов: как будет выглядеть пересылаемое SMS и
-     * пропущенный вызов при текущих шаблонах (демо-данные, ничего не отправляется).
-     */
-    private fun showTemplatePreview() {
-        val sms = TemplateFormatter.preview(
-            etTemplateSms.text?.toString().orEmpty(),
-            EventHistory.TYPE_SMS,
-        )
-        val outgoingSms = TemplateFormatter.preview(
-            etTemplateOutgoingSms.text?.toString().orEmpty(),
-            EventHistory.TYPE_OUTGOING_SMS,
-        )
-        val call = TemplateFormatter.preview(
-            etTemplateCall.text?.toString().orEmpty(),
-            EventHistory.TYPE_MISSED,
-        )
-        val incomingCall = TemplateFormatter.preview(
-            etTemplateIncomingCall.text?.toString().orEmpty(),
-            EventHistory.TYPE_INCOMING,
-        )
-        val outgoingCall = TemplateFormatter.preview(
-            etTemplateOutgoingCall.text?.toString().orEmpty(),
-            EventHistory.TYPE_OUTGOING,
-            durationFormatter = TemplateFormatter.localizedDuration(this),
-        )
-        val message = buildString {
-            append(getString(R.string.preview_sms_label)).append(":\n").append(sms)
-            append("\n\n")
-            append(getString(R.string.preview_outgoing_sms_label)).append(":\n").append(outgoingSms)
-            append("\n\n")
-            append(getString(R.string.preview_call_label)).append(":\n").append(call)
-            append("\n\n")
-            append(getString(R.string.preview_incoming_call_label)).append(":\n").append(incomingCall)
-            append("\n\n")
-            append(getString(R.string.preview_outgoing_call_label)).append(":\n").append(outgoingCall)
-            append("\n\n")
-            append(getString(R.string.preview_sample_note))
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.preview_dialog_title)
-            .setMessage(message)
-            .setPositiveButton(R.string.ok, null)
-            .show()
-    }
 
     private fun renderLogs() {
         val query = etLogsSearch.text?.toString()?.trim().orEmpty()
