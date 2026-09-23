@@ -208,21 +208,13 @@
                     android:layout_marginTop="4dp"
                     android:orientation="horizontal">
 
+                    <!-- Одна toggle-кнопка: «Запустить» ↔ «Остановить»
+                         по факту пересылки (Prefs.forwardingEnabled) -->
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_start"
-                        android:layout_width="0dp"
+                        android:id="@+id/btn_service_toggle"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
                         android:text="@string/btn_start" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btn_stop"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:layout_weight="1"
-                        android:text="@string/btn_stop" />
                 </LinearLayout>
 
                 <TextView

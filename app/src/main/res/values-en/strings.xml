@@ -113,8 +113,8 @@
 
     <!-- Status -->
     <string name="status_service">Service status</string>
-    <string name="status_running">Running</string>
-    <string name="status_stopped">Stopped</string>
+    <string name="status_running">Forwarding is running</string>
+    <string name="status_stopped">Forwarding is stopped</string>
     <string name="btn_start">Start</string>
     <string name="btn_stop">Stop</string>
 

@@ -76,8 +76,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swCalls: SwitchMaterial
     private lateinit var swIncomingCalls: SwitchMaterial
     private lateinit var swOutgoingCalls: SwitchMaterial
-    private lateinit var btnStart: MaterialButton
-    private lateinit var btnStop: MaterialButton
+    private lateinit var btnServiceToggle: MaterialButton
 
     // Каналы отправки (рендер и диалоги — в ChannelsPanel)
     private lateinit var channelsPanel: ChannelsPanel
@@ -223,8 +222,7 @@ class MainActivity : AppCompatActivity() {
         swCalls = findViewById(R.id.sw_calls)
         swIncomingCalls = findViewById(R.id.sw_incoming_calls)
         swOutgoingCalls = findViewById(R.id.sw_outgoing_calls)
-        btnStart = findViewById(R.id.btn_start)
-        btnStop = findViewById(R.id.btn_stop)
+        btnServiceToggle = findViewById(R.id.btn_service_toggle)
 
         channelsPanel = ChannelsPanel(this, findViewById(R.id.channels_container))
         findViewById<MaterialButton>(R.id.btn_add_proxy).setOnClickListener { channelsPanel.showProxyDialog(null) }
@@ -289,6 +287,7 @@ class MainActivity : AppCompatActivity() {
         swOutgoingCalls.isChecked = s.outgoingCallsEnabled
 
         // Тихие часы
+        renderServiceToggle(s)
         swQuietHours.isChecked = s.quietHoursEnabled
         layoutQuietTimes.visibility = if (s.quietHoursEnabled) View.VISIBLE else View.GONE
         btnQuietStart.text = formatTime(s.quietHoursStart)
@@ -304,6 +303,7 @@ class MainActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.state.collect { s ->
+                        renderServiceToggle(s)
                         btnTest.isEnabled = !s.testing
                         btnTest.text = getString(if (s.testing) R.string.testing else R.string.btn_test_connection)
                         btnGetMyId.isEnabled = !s.resolvingChatId
@@ -407,26 +407,29 @@ class MainActivity : AppCompatActivity() {
         swCalls.setOnCheckedChangeListener { _, v -> viewModel.setCallsEnabled(v) }
         swIncomingCalls.setOnCheckedChangeListener { _, v -> viewModel.setIncomingCallsEnabled(v) }
         swOutgoingCalls.setOnCheckedChangeListener { _, v -> viewModel.setOutgoingCallsEnabled(v) }
-        btnStart.setOnClickListener {
-            viewModel.save()
-            if (!Prefs.isConfigured()) {
-                Toast.makeText(this, R.string.toast_enter_token_and_chatid, Toast.LENGTH_LONG).show()
-                return@setOnClickListener
+        btnServiceToggle.setOnClickListener {
+            // Одна кнопка: «Запустить» ↔ «Остановить» по факту forwardingEnabled
+            val willRun = !viewModel.state.value.forwardingEnabled
+            viewModel.setForwardingEnabled(willRun)
+            if (willRun) {
+                viewModel.save()
+                if (!Prefs.isConfigured()) {
+                    viewModel.setForwardingEnabled(false)
+                    Toast.makeText(this, R.string.toast_enter_token_and_chatid, Toast.LENGTH_LONG).show()
+                    return@setOnClickListener
+                }
+                // Сервис запускаем сразу; затем проверяем связь по каналам (без отправки)
+                startServiceAfterTest = true
+                ForwardService.start(this)
+                Toast.makeText(this, R.string.status_running, Toast.LENGTH_SHORT).show()
+                requestBatteryExemption()
+                viewModel.testConnection()
+            } else {
+                // Мастер-выключатель (#151-аудит-3): «Стоп» = пересылка остановлена
+                // до следующего «Запустить» — новые SMS/звонки не возобновят её
+                ForwardService.stop(this)
+                Toast.makeText(this, R.string.status_stopped, Toast.LENGTH_SHORT).show()
             }
-            // Сервис запускаем сразу; затем проверяем связь по каналам (без отправки)
-            startServiceAfterTest = true
-            Prefs.forwardingEnabled = true
-            ForwardService.start(this)
-            Toast.makeText(this, R.string.status_running, Toast.LENGTH_SHORT).show()
-            requestBatteryExemption()
-            viewModel.testConnection()
-        }
-        btnStop.setOnClickListener {
-            // Мастер-выключатель (#151-аудит-3): «Стоп» = пересылка остановлена
-            // до следующего «Запустить» — новые SMS/звонки не возобновят её
-            Prefs.forwardingEnabled = false
-            ForwardService.stop(this)
-            Toast.makeText(this, R.string.status_stopped, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -548,6 +551,14 @@ class MainActivity : AppCompatActivity() {
                 // не критично — можно через настройки вручную
             }
         }
+    }
+
+    /**
+     * Кнопка «Запустить/Остановить» + подпись состояния: рендер по факту
+     * forwardingEnabled (мастер-выключатель пересылки).
+     */
+    private fun renderServiceToggle(s: SettingsUiState) {
+        btnServiceToggle.text = getString(if (s.forwardingEnabled) R.string.btn_stop else R.string.btn_start)
     }
 
     /** Заполнение панели «О приложении»: версия и выбранная тема. */
