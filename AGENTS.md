@@ -141,7 +141,7 @@
 > Для локального прогона нужен Android SDK (`ANDROID_HOME` или `local.properties`
 > с `sdk.dir`). Без SDK проверка — через CI (PR: build + test + lint).
 
-### Test Coverage Areas (~155 тестов; 16 пропускаются — @Ignore)
+### Test Coverage Areas (~182 теста; 0 пропускаются — последний @Ignore расконсервирован в #139)
 - `MainViewModel` — load/save, testConnection (успех/ошибки/нет токена), resolveChatId
 - `SendQueue` — порядок FIFO/ретраев, per-event backoff, отброс после попыток
 - `ChannelStore` / `ChannelSender` / `ChannelClientFactory` — приоритет, promote, testAll, прокси-конфиг
@@ -154,9 +154,7 @@
 - `ForwardServiceNotificationTest` — FGS-канал IMPORTANCE_MIN, без heads-up
 - `ReceiverTest` — state machine вызовов (missed/incoming/outgoing) + guards
 
-Не покрыто (пропускаются, @Ignore — см. ROADMAP):
-- `ForwardServiceTest` (интеграционный) — Robolectric не отменяет корутину сервиса
-- `EventDaoTest` (Room) — Robolectric+Room ClassNotFoundException (нужен robolectric-sqlite или androidTest)
+Не покрыто: интеграционные сценарии на реальном устройстве (FGS-старт из фона, OEM-поведение PHONE_STATE) — только ручная проверка.
 
 ---
 

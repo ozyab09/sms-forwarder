@@ -16,7 +16,6 @@ object EventHistory {
     const val STATUS_SENT = "sent"
     const val STATUS_FAILED = "failed"
     const val STATUS_DROPPED = "dropped"
-    const val STATUS_QUEUED = "queued"
 
     /** Типы события. */
     const val TYPE_SMS = "sms"
@@ -88,11 +87,6 @@ object EventHistory {
                 ?.replace("_", "\\_")
             EventDatabase.get(context).eventDao().search(type, safeQuery?.takeIf { it.isNotBlank() }, limit)
         }
-
-    /** Сколько всего отправлено (для статуса на главной). */
-    suspend fun sentCount(context: Context): Int = withContext(Dispatchers.IO) {
-        EventDatabase.get(context).eventDao().sentCount()
-    }
 
     /** Удалить запись по id. */
     suspend fun delete(context: Context, id: Long) = withContext(Dispatchers.IO) {

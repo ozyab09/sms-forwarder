@@ -57,6 +57,7 @@ object EventQueueStore {
                 // nextRetryAt сбрасывается при restore — события отправляются сразу после рестарта
                 add(
                     QueuedEvent(
+                        id = o.optString("id", ""),
                         text = text,
                         attempts = o.optInt("attempts", 0),
                         type = o.optString("type", "sms"),
@@ -94,10 +95,11 @@ object EventQueueStore {
                     runCatching { parse(f.readText()) }.getOrElse { emptyList() }
                 } else emptyList()
                 // Мержим: события с диска, которых нет в снимке, добавляем в конец
-                // (это append'ы persistSingle — свежие, для них текст уникален в рамках
-                // очереди; точных дедуп-ключей нет, сравнение по тексту+sender+time).
-                val seen = snapshot.map { Triple(it.text, it.sender, it.eventTime) }.toHashSet()
-                val merged = snapshot + onDisk.filter { Triple(it.text, it.sender, it.eventTime) !in seen }
+                // (это append'ы persistSingle — свежие). Дедуп по uid (#139): раньше
+                // сравнивали по тексту+sender+time — два одинаковых SMS в одну
+                // секунду сливались в одно.
+                val seenIds = snapshot.map { it.id }.toHashSet()
+                val merged = snapshot + onDisk.filter { it.id !in seenIds }
                 write(context, merged.takeLast(MAX_EVENTS))
             } catch (e: Exception) {
                 // Не критично: при следующем изменении очереди попробуем снова
@@ -120,6 +122,7 @@ object EventQueueStore {
                 }
                 existing.put(
                     JSONObject()
+                        .put("id", java.util.UUID.randomUUID().toString())
                         .put("text", text)
                         .put("attempts", 0)
                         .put("nextRetryAt", System.currentTimeMillis())
@@ -155,6 +158,7 @@ object EventQueueStore {
         for (e in events) {
             arr.put(
                 JSONObject()
+                    .put("id", e.id)
                     .put("text", e.text)
                     .put("attempts", e.attempts)
                     .put("nextRetryAt", e.nextRetryAt)

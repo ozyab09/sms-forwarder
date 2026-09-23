@@ -201,4 +201,18 @@
     <string name="update_check_failed">Не удалось проверить обновления: нет сети или GitHub недоступен</string>
     <string name="update_need_install_permission">Разрешите установку из этого источника, затем повторите «Скачать и установить»</string>
     <string name="quiet_hours_equal_warning">Начало и конец тихих часов совпадают — период не будет работать</string>
+
+    <!-- Локальные уведомления -->
+    <string name="local_notif_channel_name">Входящие сообщения</string>
+    <string name="local_notif_channel_desc">Уведомления о входящих SMS и звонках</string>
+
+    <!-- Метки типов звонков (уведомления, история) -->
+    <string name="call_label_incoming">Входящий</string>
+    <string name="call_label_outgoing">Исходящий</string>
+    <string name="call_label_missed">Пропущенный</string>
+
+    <!-- Длительность звонка (в тексте пересылки) -->
+    <string name="duration_min_sec">%1$d мин %2$d сек</string>
+    <string name="duration_min">%1$d мин</string>
+    <string name="duration_sec">%1$d сек</string>
 </resources>
