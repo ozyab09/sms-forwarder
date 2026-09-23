@@ -42,7 +42,8 @@ class SmsReceiver : BroadcastReceiver() {
             for (m in messages) sb.append(m.messageBody ?: "")
             val body = sb.toString()
 
-            val sender = messages.firstOrNull()?.originatingAddress ?: "Неизвестный"
+            val sender = messages.firstOrNull()?.originatingAddress
+                ?: context.getString(com.ozyab.smsforwarder.R.string.sms_unknown_sender)
             val ts = messages.firstOrNull()?.timestampMillis ?: System.currentTimeMillis()
 
             val name = ContactNames.lookup(context, sender)
@@ -64,7 +65,7 @@ class SmsReceiver : BroadcastReceiver() {
             // Локальное уведомление на телефоне (если включено)
             LocalNotifier.notify(
                 context,
-                title = "📩 SMS от $sender",
+                title = context.getString(com.ozyab.smsforwarder.R.string.sms_notif_title, sender),
                 text = body.take(200),
             )
 
