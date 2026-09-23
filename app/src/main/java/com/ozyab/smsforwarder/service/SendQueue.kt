@@ -154,6 +154,16 @@ class SendQueue(
         pending.toList() + retries.sortedBy { it.nextRetryAt }
     }
 
+    /**
+     * Полная очистка (память): pending + ретраи. Вызывается при «Стоп» сервиса —
+     * остановка означает остановку пересылки: и файл на диске, и память (#137).
+     */
+    fun clear() = synchronized(lock) {
+        pending.clear()
+        retries.clear()
+        lastDropped = null
+    }
+
     /** Бэк-офф: initialDelay × 2^(attempt-1), кап maxDelay. */
     private fun nextDelayMs(attempt: Int): Long {
         val shift = (attempt - 1).coerceIn(0, 40)

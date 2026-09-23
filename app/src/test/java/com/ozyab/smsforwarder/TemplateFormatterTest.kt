@@ -228,4 +228,46 @@ class TemplateFormatterTest {
         )
         assertEquals("""{"sender":"12345","text":"hi","time":"$expectedTime"}""", result)
     }
+
+    // ──────────────────────────────────────────────
+    //  B4 (#137): потокобезопасность {time}/{date}
+    // ──────────────────────────────────────────────
+
+    @Test
+    fun `time and date placeholders match expected format`() {
+        val result = TemplateFormatter.format(
+            template = "{time}|{date}", sender = "1", name = null,
+            text = "", timestamp = ts, type = "sms", sim = null
+        )
+        assertEquals("$expectedTime|$expectedDate", result)
+    }
+
+    @Test
+    fun `format is thread-safe under concurrent use`() {
+        // SimpleDateFormat (до фикса) при конкурентном format() искажал вывод.
+        // DateTimeFormatter — иммутабелен; прогон из многих потоков + повторы:
+        // каждый результат обязан быть корректным.
+        val threads = 8
+        val iterations = 200
+        val expected = "$expectedTime|$expectedDate"
+        val errors = java.util.concurrent.atomic.AtomicInteger(0)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(threads)
+        try {
+            repeat(threads) {
+                pool.execute {
+                    repeat(iterations) {
+                        val r = TemplateFormatter.format(
+                            template = "{time}|{date}", sender = "1", name = null,
+                            text = "", timestamp = ts, type = "sms", sim = null
+                        )
+                        if (r != expected) errors.incrementAndGet()
+                    }
+                }
+            }
+        } finally {
+            pool.shutdown()
+            pool.awaitTermination(30, java.util.concurrent.TimeUnit.SECONDS)
+        }
+        assertEquals("Конкурентный format() исказил {time}/{date}", 0, errors.get())
+    }
 }
