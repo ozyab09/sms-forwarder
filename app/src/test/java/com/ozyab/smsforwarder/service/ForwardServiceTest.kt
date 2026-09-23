@@ -123,7 +123,7 @@ class ForwardServiceTest {
     }
 
     @Test
-    fun `successful send increments sentCount and logs OK`() {
+    fun `successful send logs OK and writes history`() {
         configurePrefs()
         configureDirectChannel()
         mockServer.enqueue(MockResponse().setBody("""{"ok":true,"result":{"message_id":42}}"""))
@@ -135,7 +135,6 @@ class ForwardServiceTest {
         assertEquals("/bottest-token-123/sendMessage", request!!.path)
         val body = java.net.URLDecoder.decode(request.body.readUtf8(), "UTF-8")
         assertTrue("текст должен содержать сообщение: $body", body.contains("Test message"))
-        await("sentCount инкрементирован") { Prefs.sentCount > 0 }
         await("лог об успешной отправке") { LogStore.all().any { it.text.contains("Отправлено") } }
 
         ctrl.destroy()
@@ -198,7 +197,6 @@ class ForwardServiceTest {
         ctrl2.destroy()
     }
 
-    @org.junit.Ignore("флакий: Robolectric не отменяет корутину сервиса — падал 1/2 прогонов релиза v0.5.37 (#119)")
     @Test
     fun `queue persists to file when token missing`() {
         Prefs.botToken = ""

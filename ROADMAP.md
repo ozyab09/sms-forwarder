@@ -37,6 +37,7 @@
 - [x] **Исходящие звонки** — `OFFHOOK без RINGING → IDLE` → `type = "outgoing"`. ✅ 2026-09-14
 - [x] **Динамическая сортировка каналов (#123)** — demote-on-failure (неудачный канал — в конец, в т.ч. «Без прокси»), promote-on-success расширен на direct, авто-отключение каналов исключено регрессионными тестами. ✅ 2026-09-21
 - [x] [2026-09-23] **Аудит надёжности, итерация 1 (#137)** — B1: наблюдатель исходящих SMS только на `content://sms/sent` + лимит перепроверок SENT (устранён бесконечный цикл опроса); B2: try/catch вокруг process() в воркере сервиса (разовый сбой не останавливает очередь); B3: subId=0 первой SIM валиден на dual-SIM; B4: DateTimeFormatter вместо SimpleDateFormat (гонка {time}/{date}). + тест потокобезопасности format()
+- [x] [2026-09-23] **Чистки и полировка (#139)** — расконсервирован последний @Ignore-тест (фикс стрэгглера #137 устранил первопричину #119); удалён мёртвый код (Prefs.sentCount, EventDao/EventHistory.sentCount, STATUS_QUEUED); 429 retry_after — колбэк вместо глобальной переменной; дедуп очереди по uid (одинаковые тексты за секунду не сливаются); локализованы имя канала уведомлений/метки звонков/{duration} (ru/en); priority=999 убран из манифеста (док — no priority)
 
 ---
 
@@ -91,7 +92,7 @@
 
 ---
 
-## 📊 Карта покрытия тестами (2026-09-14, ~155 тестов; 16 пропускаются — @Ignore)
+## 📊 Карта покрытия тестами (2026-09-23, ~182 теста; 0 пропускаются)
 
 | Класс | Тест | Статус |
 |-------|------|--------|
@@ -107,8 +108,8 @@
 | SettingsBackup | SettingsBackupTest (11: новые настройки + шаблоны + звонки) | ✅ (2026-09-14) |
 | MainViewModel | MainViewModelTest (9) | ✅ (2026-09-13) |
 | TelegramClient | TelegramClientTest (10, MockWebServer) | ✅ (2026-09-13) |
-| EventQueueStore | EventQueueStoreTest (9) | ✅ (2026-09-13) |
+| EventQueueStore | EventQueueStoreTest (5+: дедуп по uid, совместимость без id) | ✅ (обновлено в #139) |
 | SmsReceiver/CallReceiver | ReceiverTest (18: state machine + guards) | ✅ (2026-09-14) |
 | FGS-уведомление | ForwardServiceNotificationTest (3) | ✅ (2026-09-13) |
-| ForwardService | ForwardServiceTest (8) | ⏸️ @Ignore — Robolectric не отменяет корутину сервиса (нужен TestDispatcher) |
-| EventDao (Room) | EventDaoTest (8) | ⏸️ @Ignore — Robolectric+Room ClassNotFoundException (нужен robolectric-sqlite или перенос в androidTest) |
+| ForwardService | ForwardServiceTest (8, @Ignore снят в #139 — фикс стрэгглера устранил флейк #119) | ✅ |
+| EventDao (Room) | EventDaoTest (8) | ✅ (зелёный с robolectric 4.16.1 / room 2.8.4) |

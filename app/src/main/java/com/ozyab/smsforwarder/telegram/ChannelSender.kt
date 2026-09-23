@@ -57,7 +57,8 @@ object ChannelSender {
         channels: List<Channel>,
         onSuccess: (Channel) -> Unit = {},
         onFailure: (Channel) -> Unit = {},
-        sender: suspend (Channel) -> ChannelOutcome = { realSender(text, token, chatId, it) },
+        onRateLimit: (retryAfterSec: Long) -> Unit = {},
+        sender: suspend (Channel) -> ChannelOutcome = { realSender(text, token, chatId, it, onRateLimit) },
     ): Result = withContext(Dispatchers.IO) {
         if (channels.isEmpty()) return@withContext Result.Err(listOf("Нет включённых каналов"))
         sendCascade(text, token, chatId, channels, onSuccess, onFailure, sender)
@@ -184,6 +185,7 @@ object ChannelSender {
         token: String,
         chatId: String,
         channel: Channel,
+        onRateLimit: (retryAfterSec: Long) -> Unit = {},
     ): ChannelOutcome {
         val (client, buildErr) = ChannelClientFactory.build(channel)
         if (buildErr != null) return ChannelOutcome.Failed(buildErr)
@@ -210,7 +212,9 @@ object ChannelSender {
                     if (resp.code == 429) {
                         val retryAfter = json.optJSONObject("parameters")?.optLong("retry_after", 0L) ?: 0L
                         LogStore.warn("Флуд-лимит Telegram: retry_after=${retryAfter}с («${channel.name}»)")
-                        lastRetryAfterSec = retryAfter
+                        // Колбэк вместо глобальной переменной: стейт 429 принадлежит
+                        // конкретной отправке, а не процессу (#139)
+                        onRateLimit(retryAfter)
                         return ChannelOutcome.Failed("Флуд-лимит, повтор через ${retryAfter}с")
                     }
                     ChannelOutcome.Failed(desc)
@@ -220,8 +224,4 @@ object ChannelSender {
             ChannelOutcome.Failed(e.message ?: e.javaClass.simpleName)
         }
     }
-
-    /** retry_after последнего 429 (сек); 0 — не было. Читается сервисом при планировании ретрая, обнуляется после чтения. */
-    @Volatile
-    var lastRetryAfterSec: Long = 0
 }

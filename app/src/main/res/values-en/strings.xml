@@ -201,4 +201,18 @@
     <string name="update_check_failed">Couldn\'t check for updates: no network or GitHub unavailable</string>
     <string name="update_need_install_permission">Allow installs from this source, then tap “Download and install” again</string>
     <string name="quiet_hours_equal_warning">Quiet hours start and end are the same — the period won\'t work</string>
+
+    <!-- Local notifications -->
+    <string name="local_notif_channel_name">Incoming messages</string>
+    <string name="local_notif_channel_desc">Notifications about incoming SMS and calls</string>
+
+    <!-- Call type labels (notifications, history) -->
+    <string name="call_label_incoming">Incoming</string>
+    <string name="call_label_outgoing">Outgoing</string>
+    <string name="call_label_missed">Missed</string>
+
+    <!-- Call duration (in forwarded text) -->
+    <string name="duration_min_sec">%1$d min %2$d sec</string>
+    <string name="duration_min">%1$d min</string>
+    <string name="duration_sec">%1$d sec</string>
 </resources>

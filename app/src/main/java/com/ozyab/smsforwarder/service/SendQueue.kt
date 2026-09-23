@@ -4,6 +4,10 @@ import java.util.PriorityQueue
 
 /** Событие, ожидающее отправки. */
 data class QueuedEvent(
+    /** Уникальный ключ события: дедуп при мерже снимка с файлом очереди (#139).
+     *  Для старых записей без id — "" (дедуп по тексту не восстановить, событие
+     *  просто остаётся в обоих списках — не критично, takeLast(MAX_EVENTS)). */
+    val id: String = "",
     val text: String,
     /** Сколько раз уже пытались отправить. */
     val attempts: Int = 0,
@@ -75,6 +79,7 @@ class SendQueue(
             }
             pending.addLast(
                 QueuedEvent(
+                    id = java.util.UUID.randomUUID().toString(),
                     text = text,
                     nextRetryAt = now(),
                     type = type,

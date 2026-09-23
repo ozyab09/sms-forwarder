@@ -1,8 +1,7 @@
 package com.ozyab.smsforwarder.util
 
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Calendar
+import java.util.Locale
 
 /**
  * Форматирование сообщений по шаблону.
@@ -63,8 +62,8 @@ object TemplateFormatter {
     // DateTimeFormatter потокобезопасен: format() зовётся параллельно из
     // receiver-worker, outgoing-sms-worker и UI (фикс B4, #137 — SimpleDateFormat
     // при гонке искажал {time}/{date} в пересланных сообщениях).
-    private val timeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
-    private val dateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+    private val timeFormat: java.time.format.DateTimeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")
+    private val dateFormat: java.time.format.DateTimeFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
     /**
      * Форматирует сообщение по шаблону.
@@ -78,6 +77,8 @@ object TemplateFormatter {
      * @param sim Описание SIM (может быть null)
      * @param durationMs Длительность звонка в миллисекундах (null = нет данных,
      *        напр. для пропущенных)
+     * @param durationFormatter локализованное «X мин Y сек» (инжектится из UI-
+     *        слоя, т.к. util не знает про ресурсы; по умолчанию — русская форма)
      * @return Отформатированный текст
      */
     fun format(
@@ -88,7 +89,8 @@ object TemplateFormatter {
         timestamp: Long,
         type: String,
         sim: String? = null,
-        durationMs: Long? = null
+        durationMs: Long? = null,
+        durationFormatter: (min: Int, sec: Int) -> String = { min, sec -> formatDurationRu(min, sec) },
     ): String {
         val cal = Calendar.getInstance()
         cal.timeInMillis = timestamp
@@ -103,7 +105,7 @@ object TemplateFormatter {
             }
         } else template
 
-        val zoned = cal.toInstant().atZone(ZoneId.systemDefault())
+        val zoned = cal.toInstant().atZone(java.time.ZoneId.systemDefault())
         var result = t
             .replace("{sender}", sender)
             .replace("{number}", sender)
@@ -113,7 +115,7 @@ object TemplateFormatter {
             .replace("{date}", dateFormat.format(zoned))
             .replace("{type}", type)
             .replace("{sim}", sim ?: "")
-            .replace("{duration}", formatDuration(durationMs))
+            .replace("{duration}", formatDuration(durationMs, durationFormatter))
 
         return result
     }
@@ -122,20 +124,28 @@ object TemplateFormatter {
      * Форматирует длительность звонка в человекочитаемый вид.
      *
      * @param durationMs Длительность в миллисекундах или null (null = нет данных)
+     * @param durationFormatter локализованные формы (см. [format])
      * @return «5 мин 23 сек», «45 сек» или пустая строка (для пропущенных)
      */
-    private fun formatDuration(durationMs: Long?): String {
+    private fun formatDuration(durationMs: Long?, durationFormatter: (Int, Int) -> String): String {
         val ms = durationMs ?: return ""
         if (ms <= 0) return ""
-        val totalSec = ms / 1000
+        val totalSec = (ms / 1000).toInt()
         val min = totalSec / 60
         val sec = totalSec % 60
         return when {
-            min > 0 && sec > 0 -> "$min мин $sec сек"
-            min > 0 -> "$min мин"
-            sec > 0 -> "$sec сек"
-            else -> "0 сек"
+            min > 0 && sec > 0 -> durationFormatter(min, sec)
+            min > 0 -> durationFormatter(min, 0)
+            sec > 0 -> durationFormatter(0, sec)
+            else -> durationFormatter(0, 0)
         }
+    }
+
+    /** Дефолтная (русская) форма длительности — используется, если локаль не передана. */
+    private fun formatDurationRu(min: Int, sec: Int): String = when {
+        min > 0 && sec > 0 -> "$min мин $sec сек"
+        min > 0 -> "$min мин"
+        else -> "$sec сек"
     }
 
     /**

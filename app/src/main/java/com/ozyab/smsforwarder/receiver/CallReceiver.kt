@@ -97,7 +97,7 @@ object CallReceiverLogic {
                     // Входящий вызов был (RINGING) и принят
                     numberAtRinging != null && wasAnswered -> {
                         val text = buildEvent(context, numberAtRinging, "incoming", durationMs)
-                        CallEvent(text, "incoming", "Входящий", numberAtRinging)
+                        CallEvent(text, "incoming", context.getString(com.ozyab.smsforwarder.R.string.call_label_incoming), numberAtRinging)
                     }
                     // Входящ��й вызов был, но не принят — пропущенный
                     numberAtRinging != null && !wasAnswered -> {
@@ -106,18 +106,18 @@ object CallReceiverLogic {
                         } else {
                             numberAtRinging
                         }
-                        candidate?.let { CallEvent(buildEvent(context, it, "missed"), "missed", "Пропущенный", it) }
+                        candidate?.let { CallEvent(buildEvent(context, it, "missed"), "missed", context.getString(com.ozyab.smsforwarder.R.string.call_label_missed), it) }
                     }
                     // Исходящий вызов (OFFHOOK без RINGING) — длительность тоже считается:
                     // callConnectTimeMs ставится при OFFHOOK и для исходящих
                     numberOutgoing != null -> {
                         val text = buildEvent(context, numberOutgoing, "outgoing", durationMs)
-                        CallEvent(text, "outgoing", "Исходящий", numberOutgoing)
+                        CallEvent(text, "outgoing", context.getString(com.ozyab.smsforwarder.R.string.call_label_outgoing), numberOutgoing)
                     }
                     // RINGING потерян — ищем свежий пропущенный в CallLog
                     else -> {
                         val recent = findRecentMissed(context)
-                        recent?.let { CallEvent(buildEvent(context, it, "missed"), "missed", "Пропущенный", it) }
+                        recent?.let { CallEvent(buildEvent(context, it, "missed"), "missed", context.getString(com.ozyab.smsforwarder.R.string.call_label_missed), it) }
                     }
                 }
             }

@@ -31,9 +31,6 @@ interface EventDao {
     )
     suspend fun search(type: String?, query: String?, limit: Int): List<EventEntity>
 
-    @Query("SELECT COUNT(*) FROM events WHERE status = 'sent'")
-    suspend fun sentCount(): Int
-
     /** Минимальный timestamp среди MAX_EVENTS самых свежих записей (для обрезки), null если записей меньше лимита. */
     @Query(
         """

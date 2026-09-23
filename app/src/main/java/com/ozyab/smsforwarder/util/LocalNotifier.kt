@@ -26,8 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger
 object LocalNotifier {
 
     private const val CHANNEL_ID = "local_notifications"
-    private const val CHANNEL_NAME = "Входящие сообщения"
-    private const val CHANNEL_DESC = "Уведомления о входящих SMS и звонках"
     private val notificationId = AtomicInteger(1000)
 
     /** Main handler: notify() может вызываться из фоновых потоков ресиверов. */
@@ -49,10 +47,11 @@ object LocalNotifier {
             // пользователь менял сам, их не перетираем.
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                CHANNEL_NAME,
+                // Имя канала видно в системных настройках — локализуем (#139)
+                context.getString(R.string.local_notif_channel_name),
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
-                description = CHANNEL_DESC
+                description = context.getString(R.string.local_notif_channel_desc)
                 enableLights(true)
                 enableVibration(true)
             }
