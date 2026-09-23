@@ -65,6 +65,10 @@ class ForwardService : Service() {
     @Volatile
     private var destroyed = false
 
+    /** retry_after из 429 последней отправки (сек); 0 — не было. См. onRateLimit. */
+    @Volatile
+    private var rateLimitRetryAfterSec: Long = 0
+
     companion object {
         private const val CHANNEL_ID = "forward_service"
         private const val NOTIFICATION_ID = 1
@@ -274,9 +278,11 @@ class ForwardService : Service() {
                     LogStore.info("Канал «${ch.name}» перемещён в конец списка")
                 }
             },
+            onRateLimit = { retryAfterSec ->
+                rateLimitRetryAfterSec = retryAfterSec
+            },
         )) {
             is ChannelSender.Result.Ok -> {
-                Prefs.sentCount = Prefs.sentCount + 1
                 LogStore.ok("Отправлено через «${result.channelName}» (id ${result.messageId})")
                 recordHistorySafe(
                     ev = ev,
@@ -292,8 +298,9 @@ class ForwardService : Service() {
                 LogStore.error("Все каналы не вышли: $joined")
                 // Флуд-лимит (429): Telegram просит подождать retry_after — не
                 // ретраим раньше, чем он истечёт (бэк-офф может быть короче).
-                val retryAfterMs = ChannelSender.lastRetryAfterSec * 1000
-                ChannelSender.lastRetryAfterSec = 0
+                // Стейт принадлежит этой отправке (колбэк), а не процессу.
+                val retryAfterMs = rateLimitRetryAfterSec * 1000
+                rateLimitRetryAfterSec = 0
                 val isDropped = queue.failWithMinDelay(ev, retryAfterMs)
                 if (isDropped) {
                     LogStore.error("Событие отброшено после ${SendQueue.MAX_ATTEMPTS} попыток")

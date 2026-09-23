@@ -124,8 +124,8 @@ class SendQueueTest {
     fun `restored events become ready immediately`() {
         queue.restore(
             listOf(
-                QueuedEvent("A", attempts = 3, nextRetryAt = 999_999_999L),
-                QueuedEvent("B", attempts = 0, nextRetryAt = 999_999_999L),
+                QueuedEvent(text = "A", attempts = 3, nextRetryAt = 999_999_999L),
+                QueuedEvent(text = "B", attempts = 0, nextRetryAt = 999_999_999L),
             )
         )
         assertEquals("A", queue.pollReady()?.text)

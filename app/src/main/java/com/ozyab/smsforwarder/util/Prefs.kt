@@ -71,7 +71,6 @@ object Prefs {
     const val KEY_PROXY_HOST = "proxy_host"
     const val KEY_PROXY_PORT = "proxy_port"
     const val KEY_PROXY_USER = "proxy_user"
-    const val KEY_SENT_COUNT = "sent_count"
     const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     const val KEY_LAST_UPDATE_CHECK = "last_update_check"
 
@@ -327,9 +326,8 @@ object Prefs {
         get() = getString(KEY_PROXY_USER, "")
         set(v) = setString(KEY_PROXY_USER, v)
 
-    var sentCount: Int
-        get() = getInt(KEY_SENT_COUNT, 0)
-        set(v) = setInt(KEY_SENT_COUNT, v)
+    // KEY_SENT_COUNT удалён (#139): счётчик инкрементировался, но нигде не читался;
+    // фактические числа — в истории (Room), которая и показывается в UI.
 
     /** Прошёл ли пользователь онбординг. */
     var onboardingComplete: Boolean
