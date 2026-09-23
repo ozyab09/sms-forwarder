@@ -35,6 +35,15 @@ class HistoryPanel(
     private val historySearchRunnable = Runnable { renderHistory() }
 
     init {
+        // N6 (аудит-2): снять незавершённый debounce-колбэк при уничтожении
+        // Activity — иначе Runnable выстрелит в никуда после destroy.
+        activity.lifecycle.addObserver(
+            androidx.lifecycle.LifecycleEventObserver { _, event ->
+                if (event == androidx.lifecycle.Lifecycle.Event.ON_DESTROY) {
+                    historySearchHandler.removeCallbacks(historySearchRunnable)
+                }
+            }
+        )
         container.findViewById<MaterialButton>(R.id.btn_clear_history).setOnClickListener {
             confirmClearHistory()
         }

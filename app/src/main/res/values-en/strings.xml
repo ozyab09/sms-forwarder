@@ -204,6 +204,8 @@
 
     <!-- Local notifications -->
     <string name="local_notif_channel_name">Incoming messages</string>
+    <string name="sms_unknown_sender">Unknown</string>
+    <string name="sms_notif_title">📩 SMS from %1$s</string>
     <string name="local_notif_channel_desc">Notifications about incoming SMS and calls</string>
 
     <!-- Call type labels (notifications, history) -->

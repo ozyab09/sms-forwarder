@@ -78,7 +78,7 @@ object SettingsBackup {
         return JSONObject()
             .put("version", FORMAT_VERSION)
             .put("app", "sms-forwarder")
-            .put("exportedAt", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date()))
+            .put("exportedAt", java.time.format.DateTimeFormatter.ISO_INSTANT.format(java.time.Instant.now()))
             .put("settings", settings)
             .put("channels", channels)
     }

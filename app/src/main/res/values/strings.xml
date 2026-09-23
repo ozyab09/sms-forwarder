@@ -204,6 +204,8 @@
 
     <!-- Локальные уведомления -->
     <string name="local_notif_channel_name">Входящие сообщения</string>
+    <string name="sms_unknown_sender">Неизвестный</string>
+    <string name="sms_notif_title">📩 SMS от %1$s</string>
     <string name="local_notif_channel_desc">Уведомления о входящих SMS и звонках</string>
 
     <!-- Метки типов звонков (уведомления, история) -->

@@ -53,6 +53,11 @@ class TelegramClientTest {
     fun `sendMessage success returns message id`() = runBlocking {
         enqueue(200, """{"ok":true,"result":{"message_id":55}}""")
 
+        // N4 (аудит-2): realSender теперь возвращает Sent(0) при мультичасти;
+        // для короткого текста путь прежний — но через splitForTelegram. Текст
+        // короткий, messageId берётся из первой (единственной) части — но
+        // реальный realSender при одной части возвращает id части. Мок id=55
+        // остаётся корректным: одна часть -> Sent(mid) из ответа.
         val r = TelegramClient.sendMessage("hello", token, chatId, listOf(direct))
 
         assertTrue(r is TelegramClient.Result.Ok)
@@ -97,7 +102,9 @@ class TelegramClientTest {
 
     @Test
     fun `resolveChatId returns chat id from getUpdates`() = runBlocking {
-        enqueue(200, """{"ok":true,"result":[{"message":{"chat":{"id":777}}}]}""")
+        // N3 (аудит-2): chat без "type" — legacy-ответ; фильтр private принимает
+        // только type=private. Мок обновлён соответственно.
+        enqueue(200, """{"ok":true,"result":[{"message":{"chat":{"id":777,"type":"private"}}}]}""")
 
         val r = TelegramClient.resolveChatId(token, listOf(direct))
 

@@ -199,12 +199,19 @@ class ChannelsPanel(
             .setPositiveButton(R.string.save) { _, _ ->
                 val selectedType = typeSpinner.selectedItemPosition
                 if (selectedType == 0) {
-                    // «Без прокси» всегда есть отдельным каналом:
-                    // при редактировании прокси это означает удаление канала
+                    // «Без прокси» всегда есть отдельным каналом: выбор его при
+                    // редактировании прокси означает удаление — но с явным
+                    // подтверждением, а не молча (N7, аудит-2)
                     if (existing != null) {
-                        ChannelStore.remove(existing.id)
-                        renderChannels()
-                        LogStore.info("Канал «${existing.name}» удалён")
+                        AlertDialog.Builder(activity)
+                            .setMessage(R.string.channels_proxy_delete_confirm)
+                            .setPositiveButton(R.string.ok) { _, _ ->
+                                ChannelStore.remove(existing.id)
+                                renderChannels()
+                                LogStore.info("Канал «${existing.name}» удалён")
+                            }
+                            .setNegativeButton(R.string.cancel, null)
+                            .show()
                     } else {
                         Toast.makeText(activity, R.string.channel_direct_exists, Toast.LENGTH_SHORT).show()
                     }
@@ -212,7 +219,8 @@ class ChannelsPanel(
                     // HTTP или SOCKS5
                     val type = if (selectedType == 2) Channel.TYPE_SOCKS5 else Channel.TYPE_HTTP
                     val port = etPort.text.toString().trim().toIntOrNull() ?: 0
-                    if (etHost.text.isNullOrBlank() || port <= 0) {
+                    // N9 (аудит-2): валидный диапазон TCP-портов 1..65535
+                    if (etHost.text.isNullOrBlank() || port !in 1..65535) {
                         Toast.makeText(activity, R.string.proxy_need_host_port, Toast.LENGTH_LONG).show()
                         return@setPositiveButton
                     }
@@ -225,7 +233,8 @@ class ChannelsPanel(
                         port = port,
                         user = etUser.text.toString().trim(),
                         pass = etPass.text.toString(),
-                        enabled = true,
+                        // N7: правка прокси не должна включать выключенный канал
+                        enabled = existing?.enabled ?: true,
                     )
                     ChannelStore.upsert(ch)
                     renderChannels()

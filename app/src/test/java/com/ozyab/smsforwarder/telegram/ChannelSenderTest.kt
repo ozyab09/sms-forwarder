@@ -233,4 +233,44 @@ class ChannelSenderTest {
         assertTrue(!r[0].ok)
         assertTrue(r[0].error!!.contains("пустой username"))
     }
+
+    // ──────────────────────────────────────────────
+    //  N4 (аудит-2): нарезка сообщений > 4096 символов
+    // ──────────────────────────────────────────────
+
+    @Test
+    fun `splitForTelegram keeps short text intact`() {
+        val text = "привет"
+        val parts = ChannelSender.splitForTelegram(text)
+        assertEquals(listOf(text), parts)
+    }
+
+    @Test
+    fun `splitForTelegram splits long text by line boundaries`() {
+        // 3 строки по 2000 символов -> каждая часть <= 4096
+        val line = "a".repeat(2000)
+        val text = "$line\n$line\n$line"
+        val parts = ChannelSender.splitForTelegram(text)
+        assertTrue("должно быть больше одной части", parts.size >= 2)
+        for (p in parts) {
+            assertTrue("часть длиннее лимита: ${p.length}", p.length <= 4096)
+        }
+        // Ничего не потеряно
+        assertEquals(text, parts.joinToString(""))
+    }
+
+    @Test
+    fun `splitForTelegram hard-splits a line longer than limit`() {
+        val text = "b".repeat(10_000)
+        val parts = ChannelSender.splitForTelegram(text)
+        assertTrue(parts.size >= 2)
+        for (p in parts) assertTrue(p.length <= 4096)
+        assertEquals(text, parts.joinToString(""))
+    }
+
+    @Test
+    fun `splitForTelegram handles exactly limit`() {
+        val text = "c".repeat(4096)
+        assertEquals(listOf(text), ChannelSender.splitForTelegram(text))
+    }
 }
