@@ -86,12 +86,25 @@ object TelegramClient {
                                 failures += "«${ch.name}»: нет сообщений"
                                 return@use
                             }
-                            val u = arr.optJSONObject(0) ?: run { failures += "«${ch.name}»: нет данных"; return@use }
-                            val msg = u.optJSONObject("message") ?: u.optJSONObject("edited_message") ?: run {
-                                failures += "«${ch.name}»: нет сообщения"; return@use
+                            // Берём самое СВЕЖЕЕ личное сообщение боту: result[0] —
+                            // старейшее обновление; личные чаты бота могут идти после
+                            // групповых, где бот когда-то побывал (см. N3 аудита-2).
+                            var candidate: Long? = null
+                            for (i in arr.length() - 1 downTo 0) {
+                                val u = arr.optJSONObject(i) ?: continue
+                                val msg = u.optJSONObject("message") ?: u.optJSONObject("edited_message") ?: continue
+                                val chat = msg.optJSONObject("chat") ?: continue
+                                // Только private: ID группы/канала не подходит для
+                                // персональной пересылки
+                                if (chat.optString("type") != "private") continue
+                                val id = chat.optLong("id")
+                                if (id != 0L) { candidate = id; break }
                             }
-                            val chat = msg.optJSONObject("chat") ?: run { failures += "«${ch.name}»: нет chat"; return@use }
-                            foundChatId = chat.optLong("id")
+                            if (candidate == null) {
+                                failures += "«${ch.name}»: личных сообщений боту нет"
+                                return@use
+                            }
+                            foundChatId = candidate
                         }
                         if (foundChatId != null) break
                     } catch (e: Exception) {

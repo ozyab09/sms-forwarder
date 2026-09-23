@@ -7,6 +7,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.Request
@@ -186,6 +187,59 @@ object ChannelSender {
         chatId: String,
         channel: Channel,
         onRateLimit: (retryAfterSec: Long) -> Unit = {},
+    ): ChannelOutcome {
+        val (client, buildErr) = ChannelClientFactory.build(channel)
+        if (buildErr != null) return ChannelOutcome.Failed(buildErr)
+        // N4 (аудит-2): Telegram режет сообщения >4096 символов ошибкой 400.
+        // Длинный SMS/шаблон раньше ретраился 8 раз и отбрасывался — теперь
+        // нарезаем на части по границам строк и шлём последовательно.
+        val parts = splitForTelegram(text)
+        var firstMessageId = 0L
+        for ((idx, part) in parts.withIndex()) {
+            val outcome = sendSingle(part, token, chatId, channel, onRateLimit)
+            if (outcome is ChannelOutcome.Failed) return outcome
+            if (idx == 0 && outcome is ChannelOutcome.Sent) firstMessageId = outcome.messageId
+            if (parts.size > 1 && idx < parts.size - 1) {
+                // небольшая пауза между частями — не триггерим флуд-лимит
+                delay(RATE_LIMIT_PAUSE_MS)
+            }
+        }
+        // messageId первой части (у истории событий он только информационный)
+        return ChannelOutcome.Sent(firstMessageId)
+    }
+
+    /** Пауза между частями длинного сообщения, мс. */
+    private const val RATE_LIMIT_PAUSE_MS = 300L
+
+    /** Лимит Telegram на одно сообщение. */
+    private const val TELEGRAM_MAX_LENGTH = 4096
+
+    /**
+     * Нарезает текст на части <= [TELEGRAM_MAX_LENGTH] по границам строк
+     * (если строка сама длиннее лимита — жёстко по символам).
+     */
+    internal fun splitForTelegram(text: String, max: Int = TELEGRAM_MAX_LENGTH): List<String> {
+        if (text.length <= max) return listOf(text)
+        val parts = mutableListOf<String>()
+        var rest = text
+        while (rest.length > max) {
+            // Ищем ближайший перенос строки не дальше лимита
+            val cut = rest.lastIndexOf('\n', max - 1)
+            val chunkEnd = if (cut > 0) cut + 1 else max
+            parts += rest.substring(0, chunkEnd)
+            rest = rest.substring(chunkEnd)
+        }
+        if (rest.isNotEmpty()) parts += rest
+        return parts
+    }
+
+    /** Одна sendMessage-операция (после нарезки). */
+    private suspend fun sendSingle(
+        text: String,
+        token: String,
+        chatId: String,
+        channel: Channel,
+        onRateLimit: (retryAfterSec: Long) -> Unit,
     ): ChannelOutcome {
         val (client, buildErr) = ChannelClientFactory.build(channel)
         if (buildErr != null) return ChannelOutcome.Failed(buildErr)
