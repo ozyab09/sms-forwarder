@@ -57,6 +57,14 @@ class ForwardService : Service() {
     @Volatile
     private var workerStarted = false
 
+    /**
+     * Сервис уничтожен: воркер в текущей итерации не должен делать persist() —
+     * иначе стрэгглер (корутина доделывает цикл после onDestroy) пересоздаёт
+     * файл очереди после «Стоп»/clear — гонка с очисткой (#137, #119).
+     */
+    @Volatile
+    private var destroyed = false
+
     companion object {
         private const val CHANNEL_ID = "forward_service"
         private const val NOTIFICATION_ID = 1
@@ -111,10 +119,13 @@ class ForwardService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 // «Стоп» — пользователь хочет остановить пересылку: очередь не держим
+                // НИ в файле, НИ в памяти (стрэгглер-воркер не должен отправить
+                // «остановленные» события при рестарте сервиса) (#137)
                 if (::outgoingSmsObserver.isInitialized) {
                     outgoingSmsObserver.stop()
                 }
                 val dropped = queue.size
+                queue.clear()
                 EventQueueStore.clear(this)
                 LogStore.info("Сервис остановлен${if (dropped > 0) " (отброшено неотправленных событий: $dropped)" else ""}")
                 stopSelf()
@@ -210,6 +221,9 @@ class ForwardService : Service() {
                     // Лучше потерять запись истории, чем задублировать сообщение.
                     LogStore.error("Сбой обработки события: ${e.message ?: e.javaClass.simpleName}")
                 }
+                // После onDestroy диск не трогаем: persist() стрэгглера
+                // пересоздавал файл очереди после «Стоп»/очистки (#137)
+                if (destroyed) break
                 persist()
                 continue
             }
@@ -406,6 +420,8 @@ class ForwardService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // ДО cancel(): воркер в текущей итерации увидит флаг и выйдет без persist()
+        destroyed = true
         if (::outgoingSmsObserver.isInitialized) {
             outgoingSmsObserver.stop()
         }
