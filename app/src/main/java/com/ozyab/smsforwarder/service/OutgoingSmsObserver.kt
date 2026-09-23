@@ -13,7 +13,7 @@ import java.util.concurrent.Executors
 /**
  * Наблюдатель за исходящими SMS.
  *
- * Регистрируется на content://sms и при обнаружении нового отправленного SMS
+ * Регистрируется на `content://sms/sent` и при обнаружении нового отправленного SMS
  * отправляет его через ForwardService.
  *
  * Требует READ_SMS permission.
@@ -24,9 +24,15 @@ import java.util.concurrent.Executors
  *
  * Дебаунс: строка SMS появляется в провайдере со статусом QUEUED/OUTBOX, и тип
  * SENT проставляется чуть позже. Планируем проверку с задержкой и, если последнее
- * сообщение ещё не SENT, перепроверяем — иначе часть исходящих терялась.
+ * сообщение ещё не SENT, перепроверяем — с ограничением числа перепроверок
+ * ([MAX_SENT_CHECKS]): перепроверки заканчиваются, а не крутятся бесконечно
+ * (см. фикс B1 в issue #137: раньше наблюдение висло на входящем SMS из-за
+ * запроса без фильтра по типу).
  */
 class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.getMainLooper())) {
+
+    /** Только таблица Sent: входящие SMS не дёргают onChange (фикс B1, #137). */
+    private val SENT_URI = Telephony.Sms.Sent.CONTENT_URI
 
     private val appContext = context.applicationContext
 
@@ -46,23 +52,14 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
     /** Повторная проверка, если последнее SMS ещё не в статусе SENT. */
     private val retryMs = 1_000L
 
+    /** Сколько раз подряд перепроверяем статус SENT, прежде чем сдаться. */
+    private val maxSentChecks = 5
+
+    /** Сколько перепроверок статуса осталось в текущей серии. */
+    private var sentChecksLeft = 0
+
     private val checkRunnable = Runnable {
         executor.execute { checkForNewSentSms() }
-    }
-
-    /** Старт наблюдения: запоминаем текущее последнее SMS и подписываемся. */
-    fun start() {
-        if (!Prefs.outgoingSmsEnabled) return
-        // Запоминаем ID последнего отправленного SMS, чтобы не пересылать старые
-        executor.execute {
-            lastSeenId = getLastSentSmsId()
-            LogStore.info("OutgoingSmsObserver: наблюдение запущено (lastSeenId=$lastSeenId)")
-        }
-        appContext.contentResolver.registerContentObserver(
-            Telephony.Sms.CONTENT_URI,
-            true,
-            this
-        )
     }
 
     /** Останов наблюдения. */
@@ -74,12 +71,29 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
     }
 
     override fun onChange(selfChange: Boolean, uri: Uri?) {
-        // Только планирование: тяжёлое — в executor (см. KDoc класса)
+        // Только планирование: тяжёлое — в executor (см. KDoc класса).
+        // Новый цикл дебаунса — новый бюджет перепроверок статуса SENT.
+        sentChecksLeft = maxSentChecks
         scheduler.removeCallbacks(checkRunnable)
         scheduler.postDelayed(checkRunnable, debounceMs)
     }
 
-    /** Проверка последнего SMS (фоновый поток). */
+    /** Старт наблюдения: запоминаем текущее последнее SMS и подписываемся. */
+    fun start() {
+        if (!Prefs.outgoingSmsEnabled) return
+        // Запоминаем ID последнего отправленного SMS, чтобы не пересылать старые
+        executor.execute {
+            lastSeenId = getLastSentSmsId()
+            LogStore.info("OutgoingSmsObserver: наблюдение запущено (lastSeenId=$lastSeenId)")
+        }
+        appContext.contentResolver.registerContentObserver(
+            SENT_URI,
+            true,
+            this
+        )
+    }
+
+    /** Проверка последнего отправленного SMS (фоновый поток). */
     private fun checkForNewSentSms() {
         if (!Prefs.outgoingSmsEnabled) return
         // Читаем последнее SMS из провайдера
@@ -87,12 +101,17 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
         if (sms.id <= lastSeenId) return // уже видели
 
         if (sms.type != Telephony.Sms.MESSAGE_TYPE_SENT) {
-            // Ещё QUEUED/OUTBOX — статус SENT придёт позже; перепроверяем
+            // Ещё QUEUED/OUTBOX — статус SENT проставится позже; перепроверяем
+            // с лимитом: если SENT так и не наступил (сбой отправки), серия
+            // перепроверок заканчивается, а не крутится бесконечно (#137).
+            if (sentChecksLeft <= 0) return
+            sentChecksLeft--
             scheduler.removeCallbacks(checkRunnable)
             scheduler.postDelayed(checkRunnable, retryMs)
             return
         }
         lastSeenId = sms.id
+        sentChecksLeft = 0
 
         LogStore.info("OutgoingSmsObserver: исходящий SMS → ${sms.address}")
 
@@ -122,10 +141,9 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
 
     private fun getLastSentSmsId(): Long {
         return try {
-            val uri = Telephony.Sms.CONTENT_URI
             val projection = arrayOf(Telephony.Sms._ID)
             val sort = "${Telephony.Sms.DATE} DESC LIMIT 1"
-            appContext.contentResolver.query(uri, projection, null, null, sort)?.use { c ->
+            appContext.contentResolver.query(SENT_URI, projection, null, null, sort)?.use { c ->
                 if (c.moveToFirst()) c.getLong(0) else -1L
             } ?: -1L
         } catch (_: Exception) {
@@ -133,9 +151,9 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
         }
     }
 
+    /** Последняя строка из content://sms/sent (таблица Sent — фильтр по типу не нужен). */
     private fun readLastSentSms(): SentSms? {
         return try {
-            val uri = Telephony.Sms.CONTENT_URI
             val projection = arrayOf(
                 Telephony.Sms._ID,
                 Telephony.Sms.ADDRESS,
@@ -145,7 +163,7 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
                 Telephony.Sms.SUBSCRIPTION_ID
             )
             val sort = "${Telephony.Sms.DATE} DESC LIMIT 1"
-            appContext.contentResolver.query(uri, projection, null, null, sort)?.use { c ->
+            appContext.contentResolver.query(SENT_URI, projection, null, null, sort)?.use { c ->
                 if (c.moveToFirst()) {
                     val typeIdx = c.getColumnIndex(Telephony.Sms.TYPE)
                     val subIdx = c.getColumnIndex(Telephony.Sms.SUBSCRIPTION_ID)

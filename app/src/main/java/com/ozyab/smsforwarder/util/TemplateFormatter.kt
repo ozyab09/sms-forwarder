@@ -1,8 +1,8 @@
 package com.ozyab.smsforwarder.util
 
-import java.text.SimpleDateFormat
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
-import java.util.Locale
 
 /**
  * Форматирование сообщений по шаблону.
@@ -60,8 +60,11 @@ object TemplateFormatter {
     /** Демонстрационная длительность звонка для предпросмотра (5 мин 23 сек). */
     const val PREVIEW_DURATION_MS = 323_000L
 
-    private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    private val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+    // DateTimeFormatter потокобезопасен: format() зовётся параллельно из
+    // receiver-worker, outgoing-sms-worker и UI (фикс B4, #137 — SimpleDateFormat
+    // при гонке искажал {time}/{date} в пересланных сообщениях).
+    private val timeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
+    private val dateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
     /**
      * Форматирует сообщение по шаблону.
@@ -100,13 +103,14 @@ object TemplateFormatter {
             }
         } else template
 
+        val zoned = cal.toInstant().atZone(ZoneId.systemDefault())
         var result = t
             .replace("{sender}", sender)
             .replace("{number}", sender)
             .replace("{name}", name?.let { " ($it)" } ?: "")
             .replace("{text}", text)
-            .replace("{time}", timeFormat.format(cal.time))
-            .replace("{date}", dateFormat.format(cal.time))
+            .replace("{time}", timeFormat.format(zoned))
+            .replace("{date}", dateFormat.format(zoned))
             .replace("{type}", type)
             .replace("{sim}", sim ?: "")
             .replace("{duration}", formatDuration(durationMs))

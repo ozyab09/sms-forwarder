@@ -39,11 +39,7 @@ class ForwardServiceTest {
         Prefs.chatId
         ChannelStore.invalidate()
         LogStore.clear()
-        EventQueueStore.clear(context)
-        // Синхронизируемся с асинхронным clear() из setUp и предыдущего tearDown
-        await("очередь чиста перед тестом") {
-            !java.io.File(context.filesDir, "event_queue.json").exists()
-        }
+        clearQueueStable("очередь чиста перед тестом")
         mockServer = MockWebServer()
         mockServer.start()
         ChannelClientFactory.apiBase = mockServer.url("/").toString().trimEnd('/')
@@ -58,9 +54,24 @@ class ForwardServiceTest {
         // ВАЖНО: clear() асинхронный (executor 'queue-store'); если не дождаться
         // удаления, следующий тест загрузит файл с событием прошлого теста и
         // воркер отправит его — загрязнение MockWebServer (флейки).
-        EventQueueStore.clear(context)
-        await("файл очереди удалён в tearDown") {
-            !java.io.File(context.filesDir, "event_queue.json").exists()
+        clearQueueStable("файл очереди удалён в tearDown")
+    }
+
+    /**
+     * Очистка очереди «до стабильности»: воркер-стрэггер (корутина доделывает
+     * текущий цикл обработки после onDestroy — блокирующий OkHttp-вызов не
+     * прерывается отменой) может один раз пересоздать файл сразу после clear()
+     * (см. #119, #137). Чистим повторно, пока файл не останется удалённым
+     * в течение окна — стрэггер одноразовый (бэк-офф не продолжится после
+     * отмены на ближайшей точке_suspend).
+     */
+    private fun clearQueueStable(what: String) {
+        val f = { java.io.File(context.filesDir, "event_queue.json") }
+        repeat(4) { pass ->
+            EventQueueStore.clear(context)
+            await("$what (проход ${pass + 1})") { !f().exists() }
+            Thread.sleep(300)
+            if (!f().exists()) return
         }
     }
 
