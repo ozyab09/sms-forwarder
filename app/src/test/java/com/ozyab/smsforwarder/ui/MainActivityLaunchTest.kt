@@ -1,12 +1,15 @@
 package com.ozyab.smsforwarder.ui
 
 import android.view.View
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.ozyab.smsforwarder.BuildConfig
 import com.ozyab.smsforwarder.R
+import com.ozyab.smsforwarder.history.EventHistory
 import com.ozyab.smsforwarder.util.Prefs
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -148,6 +151,53 @@ class MainActivityLaunchTest {
                 panel.visibility == View.VISIBLE,
             )
         }
+
+        controller.pause().stop().destroy()
+    }
+
+    @Test(timeout = 20_000)
+    fun `history tab renders recorded events into list`() {
+        // Регрессия #144 (декомпозиция): HistoryPanel.renderHistoryList строил
+        // строки, но не добавлял их в контейнер — вкладка «История» всегда
+        // показывала пустой список. Записываем события в Room и убеждаемся,
+        // что они реально отображаются.
+        warmUp()
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        runBlocking {
+            EventHistory.record(
+                context, sender = "+79001234567", body = "test body",
+                timestamp = System.currentTimeMillis(), type = EventHistory.TYPE_SMS,
+                status = EventHistory.STATUS_SENT, channelName = "direct",
+                attempts = 1, formattedText = "formatted"
+            )
+        }
+
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val activity = controller.get()
+        val nav = activity.findViewById<BottomNavigationView>(R.id.bottom_nav)
+        nav.selectedItemId = R.id.nav_history
+
+        // Ждём, пока ViewModel выполнит запрос Room (Dispatchers.IO) и state
+        // дойдёт до подписки: крутим main looper с паузами до результата.
+        val historyList = activity.findViewById<LinearLayout>(R.id.history_list)
+        assertNotNull("контейнер history_list должен существовать", historyList)
+        var attempts = 0
+        while (historyList.childCount == 0 && attempts < 100) {
+            ShadowLooper.idleMainLooper()
+            Thread.sleep(20)
+            attempts++
+        }
+        assertTrue(
+            "записанное событие должно отобразиться в списке истории (регрессия #144)",
+            historyList.childCount > 0,
+        )
+        // Строка события — вертикальный LinearLayout с несколькими TextView
+        val row = historyList.getChildAt(0) as LinearLayout
+        val rowTexts = (0 until row.childCount).mapNotNull { (row.getChildAt(it) as? TextView)?.text?.toString() }
+        assertTrue(
+            "в строке должен быть номер отправителя",
+            rowTexts.any { it.contains("+79001234567") },
+        )
 
         controller.pause().stop().destroy()
     }
