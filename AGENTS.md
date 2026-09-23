@@ -47,7 +47,9 @@
 
 | Package | Class | Responsibility |
 |---------|-------|----------------|
-| `ui` | `MainActivity` | Тонкий View: вкладки, SAF, разрешения, рендер состояния |
+| `ui` | `MainActivity` | Тонкая склейка панелей: вкладки, SAF, разрешения, рендер состояния |
+| `ui` | `ChannelsPanel` | Панель «Каналы»: список, порядок, диалоги прокси (выделена из MainActivity) |
+| `ui` | `HistoryPanel` | Панель «История»: фильтры, список, детали события (выделена из MainActivity) |
 | `ui` | `MainViewModel` | Состояние экрана + операции (тест каналов, getMyId), MVVM |
 | `ui` | `OnboardingActivity` | Первый запуск: приветствие → токен → Chat ID → готово |
 | `receiver` | `SmsReceiver` | Входящие SMS, формат по шаблону |
@@ -247,7 +249,9 @@ sms-forwarder/
 │   │   │   ├── java/com/ozyab/smsforwarder/
 │   │   │   │   ├── SmsForwarderApp.kt      # Application: Prefs.init, Timber
 │   │   │   │   ├── ui/
-│   │   │   │   │   ├── MainActivity.kt     # 4 вкладки, тонкий View
+│   │   │   │   │   ├── MainActivity.kt     # 4 вкладки, тонкая склейка панелей
+│   │   │   │   │   ├── ChannelsPanel.kt    # Панель «Каналы» (делегат)
+│   │   │   │   │   ├── HistoryPanel.kt     # Панель «История» (делегат)
 │   │   │   │   │   ├── MainViewModel.kt    # Состояние + операции
 │   │   │   │   │   └── OnboardingActivity.kt
 │   │   │   │   ├── receiver/
