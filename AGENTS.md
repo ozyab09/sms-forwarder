@@ -67,7 +67,7 @@
 | `update` | `UpdateChecker` / `UpdateManager` | Проверка GitHub Releases, диалог, загрузка APK |
 | `util` | `Prefs` | DataStore (plain) + EncryptedSharedPreferences; **async init** |
 | `util` | `LogStore` | Кольцевой буфер логов (последние 200 записей, in-memory) |
-| `util` | `TemplateFormatter` | Шаблоны сообщений + предпросмотр |
+| `util` | `TemplateFormatter` | Стандартный формат пересылаемых сообщений (шаблоны удалены) |
 | `util` | `QuietHours` | Тихие часы (интервалы, в т.ч. через полночь) |
 | `util` | `SettingsBackup` | Экспорт/импорт настроек (JSON, без секретов) |
 | `util` | `ThemeManager` | Светлая/тёмная/системная тема |
@@ -81,7 +81,7 @@
 |------|---------|------------|
 | Bot token | `EncryptedSharedPreferences` | AES256-GCM (MasterKey) |
 | Proxy password, channels JSON | `EncryptedSharedPreferences` | AES256-GCM |
-| Chat ID, proxy host/port, toggles, templates | DataStore (plain) | None (not secret) |
+| Chat ID, proxy host/port, toggles | DataStore (plain) | None (not secret) |
 | Bot username (кэш для истории) | DataStore (plain) | None (не секрет) |
 | Event log | In-memory ring buffer (200) | Never persisted |
 | История событий | Room (`event_history.db`, локально) | SQLite, не шифруется — секретов нет |
@@ -362,7 +362,7 @@ python3 generate_icons.py logo_transparent.png
 | OkHttp-клиенты | Кэшируются в `ChannelClientFactory` по конфигурации канала, `invalidate()` при изменении каналов; НЕ закрывать клиенты после использования (в отличие от старого кода с shutdown) |
 | Room-история | `EventDatabase` версия 2 (`MIGRATION_1_2` — chatId/botUsername); `fallbackToDestructiveMigration` как страховка: история не критична, при сбое миграции она просто очищается |
 | Node.js 20 deprecation в CI | Warning от `upload-artifact@v4`, `setup-gradle@v4`, `action-gh-release@v2` — они принудительно работают на Node 24; обновление до node24-версий (upload-artifact@v6, setup-gradle@v5+, gh-release v3) — отдельный PR. До 16.09.2026 Node 20 удалят с раннеров — тогда станет ошибкой |
-| Шаблоны сообщений | Сохраняются автоматически при уходе с экрана (`savePrefs`), плюс явные кнопки «Сохранить»/«Сбросить»; пустое значение = стандартный формат |
+| Шаблоны сообщений | Удалены (рефакторинг): пересылка всегда в стандартном формате (TemplateFormatter.DEFAULT_*) |
 | Username бота в истории | Кэш `Prefs.botUsername` (обновляется при успешной проверке связи); если пусто — один `getMe` при первой успешной отправке |
 
 ---

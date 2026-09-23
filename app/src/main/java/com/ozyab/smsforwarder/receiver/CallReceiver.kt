@@ -190,13 +190,7 @@ object CallReceiverLogic {
         val name = ContactNames.lookup(context, number)
         val now = System.currentTimeMillis()
         val sim = SimInfo.describe(context, null)
-        val template = when (type) {
-            "incoming" -> Prefs.messageTemplateIncomingCall
-            "outgoing" -> Prefs.messageTemplateOutgoingCall
-            else -> Prefs.messageTemplateCall
-        }
         return TemplateFormatter.format(
-            template = template,
             sender = number,
             name = name,
             text = "",
@@ -235,18 +229,6 @@ class CallReceiver : android.content.BroadcastReceiver() {
                 else -> Prefs.callsEnabled // missed
             }
             if (!enabled) return@goAsync
-
-            // Локальное уведомление: иконка по типу звонка, номер — resolved
-            val icon = when (result.type) {
-                "incoming" -> "📞"
-                "outgoing" -> "📞"
-                else -> "📵"
-            }
-            com.ozyab.smsforwarder.util.LocalNotifier.notify(
-                context,
-                title = "$icon ${result.label}: ${result.number}",
-                text = result.label,
-            )
 
             com.ozyab.smsforwarder.service.ForwardService.start(
                 context, result.text, type = result.type, sender = result.number

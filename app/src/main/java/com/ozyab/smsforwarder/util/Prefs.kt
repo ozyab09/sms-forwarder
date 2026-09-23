@@ -65,7 +65,6 @@ object Prefs {
     const val KEY_OUTGOING_SMS_ENABLED = "outgoing_sms_enabled"
     const val KEY_INCOMING_CALLS_ENABLED = "incoming_calls_enabled"
     const val KEY_OUTGOING_CALLS_ENABLED = "outgoing_calls_enabled"
-    const val KEY_LOCAL_NOTIFICATIONS = "local_notifications"
     const val KEY_PROXY_ENABLED = "proxy_enabled"
     const val KEY_PROXY_TYPE = "proxy_type" // "http" | "socks5"
     const val KEY_PROXY_HOST = "proxy_host"
@@ -87,11 +86,6 @@ object Prefs {
     const val KEY_BOT_USERNAME = "bot_username"
 
     // Шаблоны сообщений (plain)
-    const val KEY_MESSAGE_TEMPLATE_SMS = "message_template_sms"
-    const val KEY_MESSAGE_TEMPLATE_CALL = "message_template_call"
-    const val KEY_MESSAGE_TEMPLATE_OUTGOING_SMS = "message_template_outgoing_sms"
-    const val KEY_MESSAGE_TEMPLATE_INCOMING_CALL = "message_template_incoming_call"
-    const val KEY_MESSAGE_TEMPLATE_OUTGOING_CALL = "message_template_outgoing_call"
 
     // Тихие часы (plain)
     const val KEY_QUIET_HOURS_ENABLED = "quiet_hours_enabled"
@@ -301,11 +295,6 @@ object Prefs {
         get() = getBoolean(KEY_OUTGOING_CALLS_ENABLED, false)
         set(v) = setBoolean(KEY_OUTGOING_CALLS_ENABLED, v)
 
-    /** Локальные уведомления на телефоне (при входящем SMS/звонке). */
-    var localNotificationsEnabled: Boolean
-        get() = getBoolean(KEY_LOCAL_NOTIFICATIONS, false)
-        set(v) = setBoolean(KEY_LOCAL_NOTIFICATIONS, v)
-
     var proxyEnabled: Boolean
         get() = getBoolean(KEY_PROXY_ENABLED, false)
         set(v) = setBoolean(KEY_PROXY_ENABLED, v)
@@ -358,30 +347,9 @@ object Prefs {
         get() = getString(KEY_BOT_USERNAME, "")
         set(v) = setString(KEY_BOT_USERNAME, v)
 
-    /** Шаблон для SMS (plain). Пусто = дефолтный формат. */
-    var messageTemplateSms: String
-        get() = getString(KEY_MESSAGE_TEMPLATE_SMS, "")
-        set(v) = setString(KEY_MESSAGE_TEMPLATE_SMS, v)
-
-    /** Шаблон для пропущенных вызовов (plain). Пусто = дефолтный формат. */
-    var messageTemplateCall: String
-        get() = getString(KEY_MESSAGE_TEMPLATE_CALL, "")
-        set(v) = setString(KEY_MESSAGE_TEMPLATE_CALL, v)
-
-    /** Шаблон для исходящих SMS. Пусто = дефолтный формат. */
-    var messageTemplateOutgoingSms: String
-        get() = getString(KEY_MESSAGE_TEMPLATE_OUTGOING_SMS, "")
-        set(v) = setString(KEY_MESSAGE_TEMPLATE_OUTGOING_SMS, v)
-
-    /** Шаблон для принятых (входящих) звонков. Пусто = дефолтный формат. */
-    var messageTemplateIncomingCall: String
-        get() = getString(KEY_MESSAGE_TEMPLATE_INCOMING_CALL, "")
-        set(v) = setString(KEY_MESSAGE_TEMPLATE_INCOMING_CALL, v)
-
-    /** Шаблон для исходящих звонков. Пусто = дефолтный формат. */
-    var messageTemplateOutgoingCall: String
-        get() = getString(KEY_MESSAGE_TEMPLATE_OUTGOING_CALL, "")
-        set(v) = setString(KEY_MESSAGE_TEMPLATE_OUTGOING_CALL, v)
+    // Шаблоны сообщений удалены (рефакторинг): пересылка всегда в стандартном
+    // формате (см. TemplateFormatter.DEFAULT_*). Старые ключи в DataStore
+    // остаются, но больше не читаются и не пишутся.
 
     // --- Тихие часы (минуты от полуночи) ---
     var quietHoursEnabled: Boolean

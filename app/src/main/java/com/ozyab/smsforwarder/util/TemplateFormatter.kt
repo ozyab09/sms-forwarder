@@ -6,59 +6,53 @@ import java.util.Calendar
 import java.util.Locale
 
 /**
- * Форматирование сообщений по шаблону.
+ * Форматирование пересылаемых сообщений (стандартный формат).
  *
- * Поддерживаемые плейсхолдеры:
- * - {sender} — номер отправителя (для SMS) / номер звонящего (для звонка)
- * - {name} — имя из контактов (если найдено)
- * - {text} — текст SMS / пусто для звонка
- * - {time} — время в формате HH:mm:ss
- * - {date} — дата в формате dd.MM.yyyy
- * - {type} — "sms" | "missed" | "incoming" | "outgoing" | "outgoing_sms"
- * - {sim} — описание SIM-карты (оператор/слот), если доступно
- * - {number} — синоним {sender} для звонков
- * - {duration} — длительность звонка («5 мин 23 сек»; пусто для пропущенных)
+ * Пользовательские шаблоны удалены (рефакторинг: функционал признан лишним) —
+ * формат фиксирован константами DEFAULT_* ниже и одинаков для всех событий
+ * одного типа. Внутренние плейсхолдеры по-прежнему подставляются здесь:
+ * {sender}/{name}/{text}/{time}/{date}/{sim}/{duration}.
  */
 object TemplateFormatter {
 
-    /** Дефолтный шаблон для SMS (сохраняет текущее поведение). */
+    /** Формат входящего SMS. */
     val DEFAULT_SMS_TEMPLATE = """📩 SMS [{time}]
 {sim}
 От: {sender}{name}
 ──────────────────
 {text}""".trimIndent()
 
-    /** Дефолтный шаблон для пропущенных вызовов. */
+    /** Формат пропущенного вызова. */
     val DEFAULT_CALL_TEMPLATE = """📵 Пропущенный [{time}]
 {sim}
 От: {number}{name}""".trimIndent()
 
-    /** Дефолтный шаблон для исходящих SMS. */
+    /** Формат исходящего SMS. */
     val DEFAULT_OUTGOING_SMS_TEMPLATE = """📤 SMS [{time}]
 {sim}
 Кому: {sender}{name}
 ──────────────────
 {text}""".trimIndent()
 
-    /** Дефолтный шаблон для принятых (входящих) звонков. */
+    /** Формат принятого (входящего) звонка. */
     val DEFAULT_INCOMING_CALL_TEMPLATE = """📞 Входящий [{time}]
 {sim}
 От: {number}{name}
 Длительность: {duration}""".trimIndent()
 
-    /** Дефолтный шаблон для исходящих звонков. */
+    /** Формат исходящего звонка. */
     val DEFAULT_OUTGOING_CALL_TEMPLATE = """📞 Исходящий [{time}]
 {sim}
 Кому: {number}{name}
 Длительность: {duration}""".trimIndent()
 
-    /** Демонстрационные данные для предпросмотра (реальные SMS не используются). */
+    /** Демонстрационные данные (использовались превью; оставлены для тестов). */
     const val PREVIEW_SENDER = "+7 900 123-45-67"
     const val PREVIEW_NAME = "Иван"
     const val PREVIEW_TEXT = "Пример текста SMS-сообщения"
     const val PREVIEW_SIM = "Sim1 beeline"
 
-    /** Демонстрационная длительность звонка для предпросмотра (5 мин 23 сек). */
+    /** Демонстрационная длительность звонка (5 мин 23 сек). */
     const val PREVIEW_DURATION_MS = 323_000L
 
     // DateTimeFormatter потокобезопасен: format() зовётся параллельно из
@@ -68,9 +62,8 @@ object TemplateFormatter {
     private val dateFormat: java.time.format.DateTimeFormatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
     /**
-     * Форматирует сообщение по шаблону.
+     * Форматирует сообщение в стандартном формате для типа события.
      *
-     * @param template Строка шаблона (пустая = дефолт)
      * @param sender Номер отправителя/звонящего
      * @param name Имя из контактов (может быть null)
      * @param text Текст сообщения (для SMS)
@@ -79,13 +72,11 @@ object TemplateFormatter {
      * @param sim Описание SIM (может быть null)
      * @param durationMs Длительность звонка в миллисекундах (null = нет данных,
      *        напр. для пропущенных)
-     * @param durationFormatter локализованное «X мин Y сек» (инжектится из UI-
-     *        слоя, т.к. util не знает про ресурсы; [localizedDuration] — готовая
-     *        реализация через строковые ресурсы).
+     * @param durationFormatter локализованное «X мин Y сек» ([localizedDuration] —
+     *        готовая реализация через строковые ресурсы).
      * @return Отформатированный текст
      */
     fun format(
-        template: String,
         sender: String,
         name: String?,
         text: String,
@@ -98,18 +89,16 @@ object TemplateFormatter {
         val cal = Calendar.getInstance()
         cal.timeInMillis = timestamp
 
-        val t = if (template.isBlank()) {
-            when (type) {
-                "sms" -> DEFAULT_SMS_TEMPLATE
-                "outgoing_sms" -> DEFAULT_OUTGOING_SMS_TEMPLATE
-                "incoming" -> DEFAULT_INCOMING_CALL_TEMPLATE
-                "outgoing" -> DEFAULT_OUTGOING_CALL_TEMPLATE
-                else -> DEFAULT_CALL_TEMPLATE
-            }
-        } else template
+        val t = when (type) {
+            "sms" -> DEFAULT_SMS_TEMPLATE
+            "outgoing_sms" -> DEFAULT_OUTGOING_SMS_TEMPLATE
+            "incoming" -> DEFAULT_INCOMING_CALL_TEMPLATE
+            "outgoing" -> DEFAULT_OUTGOING_CALL_TEMPLATE
+            else -> DEFAULT_CALL_TEMPLATE
+        }
 
         val zoned = cal.toInstant().atZone(java.time.ZoneId.systemDefault())
-        var result = t
+        return t
             .replace("{sender}", sender)
             .replace("{number}", sender)
             .replace("{name}", name?.let { " ($it)" } ?: "")
@@ -119,8 +108,6 @@ object TemplateFormatter {
             .replace("{type}", type)
             .replace("{sim}", sim ?: "")
             .replace("{duration}", formatDuration(durationMs, durationFormatter))
-
-        return result
     }
 
     /**
@@ -164,32 +151,4 @@ object TemplateFormatter {
                 else -> context.getString(R.string.duration_sec, sec)
             }
         }
-
-    /**
-     * Предпросмотр сообщения по шаблону с демонстрационными данными
-     * (кнопка «Проверить» рядом с шаблонами). Пустой шаблон → дефолтный формат
-     * — то же поведение, что и при реальной отправке.
-     *
-     * @param type Тип события
-     * @param durationFormatter локализованная форма длительности (по умолчанию
-     *        русская; из UI передавайте [localizedDuration])
-     */
-    fun preview(
-        template: String,
-        type: String,
-        timestamp: Long = System.currentTimeMillis(),
-        durationFormatter: (min: Int, sec: Int) -> String = { min, sec -> formatDurationRu(min, sec) },
-    ): String =
-        format(
-            template = template,
-            sender = PREVIEW_SENDER,
-            name = PREVIEW_NAME,
-            text = PREVIEW_TEXT,
-            timestamp = timestamp,
-            type = type,
-            sim = PREVIEW_SIM,
-            durationFormatter = durationFormatter,
-            // Демонстрационная длительность — только для звонков
-            durationMs = if (type == "incoming" || type == "outgoing") PREVIEW_DURATION_MS else null,
-        )
 }

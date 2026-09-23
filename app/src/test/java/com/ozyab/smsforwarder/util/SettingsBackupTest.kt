@@ -40,11 +40,6 @@ class SettingsBackupTest {
         Prefs.incomingCallsEnabled = false
         Prefs.outgoingCallsEnabled = false
         Prefs.themeMode = "system"
-        Prefs.messageTemplateSms = ""
-        Prefs.messageTemplateOutgoingSms = ""
-        Prefs.messageTemplateCall = ""
-        Prefs.messageTemplateIncomingCall = ""
-        Prefs.messageTemplateOutgoingCall = ""
         ChannelStore.setAll(listOf(Channel.direct()))
     }
 
@@ -102,19 +97,6 @@ class SettingsBackupTest {
         assertFalse(settings.has("notificationApps"))
     }
 
-    @Test
-    fun `export includes new templates`() {
-        Prefs.messageTemplateOutgoingSms = "OUT: {sender}"
-        Prefs.messageTemplateIncomingCall = "IN: {sender}"
-        Prefs.messageTemplateOutgoingCall = "DIAL: {sender}"
-
-        val json = SettingsBackup.export()
-        val settings = json.getJSONObject("settings")
-
-        assertEquals("OUT: {sender}", settings.getString("messageTemplateOutgoingSms"))
-        assertEquals("IN: {sender}", settings.getString("messageTemplateIncomingCall"))
-        assertEquals("DIAL: {sender}", settings.getString("messageTemplateOutgoingCall"))
-    }
 
     @Test
     fun `import applies settings and keeps bot token`() {
@@ -166,7 +148,8 @@ class SettingsBackupTest {
     }
 
     @Test
-    fun `import applies new templates`() {
+    fun `import ignores legacy template keys`() {
+        // Шаблоны удалены: legacy-ключи из старых бэкапов молча игнорируются
         val body = JSONObject()
             .put("app", "sms-forwarder")
             .put("version", 1)
@@ -180,15 +163,9 @@ class SettingsBackupTest {
 
         SettingsBackup.import(body)
 
-        waitForPrefs({
-            Prefs.messageTemplateOutgoingSms == "OUT: {sender}" &&
-                Prefs.messageTemplateIncomingCall == "IN: {sender}" &&
-                Prefs.messageTemplateOutgoingCall == "DIAL: {sender}"
-        })
-
-        assertEquals("OUT: {sender}", Prefs.messageTemplateOutgoingSms)
-        assertEquals("IN: {sender}", Prefs.messageTemplateIncomingCall)
-        assertEquals("DIAL: {sender}", Prefs.messageTemplateOutgoingCall)
+        // Исключение не брошено, настройки не изменены (у Prefs больше нет этих свойств)
+        val json = SettingsBackup.export()
+        assertFalse(json.getJSONObject("settings").has("messageTemplateOutgoingSms"))
     }
 
     @Test

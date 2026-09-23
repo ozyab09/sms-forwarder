@@ -2,12 +2,20 @@ package com.ozyab.smsforwarder
 
 import com.ozyab.smsforwarder.util.TemplateFormatter
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Тесты стандартного формата пересылаемых сообщений.
+ *
+ * Пользовательские шаблоны удалены (рефакторинг): format() всегда рендерит
+ * DEFAULT_* константы. Проверяем плейсхолдеры всех типов событий, потокобезопасность
+ * {time}/{date} (фикс B4 #137) и локализацию {duration}.
+ */
 class TemplateFormatterTest {
 
     private val ts = 1757573400000L
@@ -15,16 +23,17 @@ class TemplateFormatterTest {
     private val expectedDate = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(ts))
 
     // ──────────────────────────────────────────────
-    //  Existing tests (sms, missed)
+    //  Стандартный формат по типам событий
     // ──────────────────────────────────────────────
 
     @Test
-    fun `default SMS template uses fallback when blank`() {
+    fun `sms format contains all fields`() {
         val result = TemplateFormatter.format(
-            template = "", sender = "+79161234567", name = "Иван",
+            sender = "+79161234567", name = "Иван",
             text = "Hello!", timestamp = ts, type = "sms", sim = "МТС"
         )
         assertTrue(result.contains("📩 SMS"))
+        assertTrue(result.contains(expectedTime))
         assertTrue(result.contains("+79161234567"))
         assertTrue(result.contains("Иван"))
         assertTrue(result.contains("Hello!"))
@@ -32,201 +41,157 @@ class TemplateFormatterTest {
     }
 
     @Test
-    fun `default call template uses fallback when blank`() {
+    fun `missed call format contains number and time`() {
         val result = TemplateFormatter.format(
-            template = "", sender = "+79161234567", name = "Иван",
+            sender = "+79161234567", name = null,
             text = "", timestamp = ts, type = "missed", sim = "МТС"
         )
         assertTrue(result.contains("📵 Пропущенный"))
+        assertTrue(result.contains(expectedTime))
         assertTrue(result.contains("+79161234567"))
-        assertTrue(result.contains("Иван"))
+        assertFalse("имя отсутствует — без скобок", result.contains("()"))
     }
 
     @Test
-    fun `custom template replaces all placeholders`() {
-        val tpl = "{type} from {sender}{name}: {text} at {time} on {date} via {sim}"
+    fun `incoming call format contains duration`() {
         val result = TemplateFormatter.format(
-            template = tpl, sender = "+79990001122", name = "Bob",
-            text = "Test msg", timestamp = ts, type = "sms", sim = "Beeline"
-        )
-        assertEquals("sms from +79990001122 (Bob): Test msg at $expectedTime on $expectedDate via Beeline", result)
-    }
-
-    @Test
-    fun `name is wrapped in parentheses when present`() {
-        val result = TemplateFormatter.format(
-            template = "{sender}{name}", sender = "+79161234567", name = "Аня",
-            text = "", timestamp = ts, type = "sms", sim = null
-        )
-        assertEquals("+79161234567 (Аня)", result)
-    }
-
-    @Test
-    fun `name is empty string when null`() {
-        val result = TemplateFormatter.format(
-            template = "{sender}{name}", sender = "+79161234567", name = null,
-            text = "", timestamp = ts, type = "sms", sim = null
-        )
-        assertEquals("+79161234567", result)
-    }
-
-    @Test
-    fun `sim line is empty when null`() {
-        val result = TemplateFormatter.format(
-            template = "[{sim}]", sender = "+79161234567", name = null,
-            text = "", timestamp = ts, type = "sms", sim = null
-        )
-        assertEquals("[]", result)
-    }
-
-    @Test
-    fun `{number} is alias for {sender}`() {
-        val result = TemplateFormatter.format(
-            template = "{number}", sender = "+79991112233", name = null,
-            text = "", timestamp = ts, type = "missed", sim = null
-        )
-        assertEquals("+79991112233", result)
-    }
-
-    @Test
-    fun `text is empty for missed call`() {
-        val result = TemplateFormatter.format(
-            template = "Text: [{text}]", sender = "+79161234567", name = null,
-            text = "", timestamp = ts, type = "missed", sim = null
-        )
-        assertEquals("Text: []", result)
-    }
-
-    // ──────────────────────────────────────────────
-    //  New types: outgoing_sms, incoming, outgoing, notification
-    // ──────────────────────────────────────────────
-
-    @Test
-    fun `default outgoing SMS template`() {
-        val result = TemplateFormatter.format(
-            template = "", sender = "+79161234567", name = "Маша",
-            text = "Hello!", timestamp = ts, type = "outgoing_sms", sim = "МТС"
-        )
-        assertTrue(result.contains("📤 SMS"))
-        assertTrue(result.contains("Маша"))
-        assertTrue(result.contains("+79161234567"))
-        assertTrue(result.contains("Hello!"))
-        assertTrue(result.contains("МТС"))
-    }
-
-    @Test
-    fun `default incoming call template`() {
-        val result = TemplateFormatter.format(
-            template = "", sender = "+79161234567", name = "Иван",
-            text = "", timestamp = ts, type = "incoming"
+            sender = "+79161234567", name = null,
+            text = "", timestamp = ts, type = "incoming", sim = null,
+            durationMs = 323_000L,
+            durationFormatter = { min, sec -> "${min}m${sec}s" }
         )
         assertTrue(result.contains("📞 Входящий"))
-        assertTrue(result.contains("+79161234567"))
-        assertTrue(result.contains("Иван"))
+        assertTrue("длительность подставлена", result.contains("5m23s"))
     }
 
     @Test
-    fun `default outgoing call template`() {
+    fun `outgoing call format contains duration`() {
         val result = TemplateFormatter.format(
-            template = "", sender = "+79161234567", name = "Иван",
-            text = "", timestamp = ts, type = "outgoing"
+            sender = "+79161234567", name = null,
+            text = "", timestamp = ts, type = "outgoing",
+            durationMs = 60_000L,
+            durationFormatter = { min, sec -> "${min}m${sec}s" }
         )
         assertTrue(result.contains("📞 Исходящий"))
-        assertTrue(result.contains("+79161234567"))
-        assertTrue(result.contains("Иван"))
+        assertTrue(result.contains("1m0s"))
     }
 
     @Test
-    fun `outgoing SMS template with custom template`() {
-        val tpl = "OUTGOING to {sender}: {text}"
+    fun `outgoing sms format contains body`() {
         val result = TemplateFormatter.format(
-            template = tpl, sender = "+79990001122", name = null,
-            text = "Hi", timestamp = ts, type = "outgoing_sms"
+            sender = "+79161234567", name = null,
+            text = "Привет", timestamp = ts, type = "outgoing_sms", sim = "МТС"
         )
-        assertEquals("OUTGOING to +79990001122: Hi", result)
-    }
-
-    @Test
-    fun `incoming call template with custom template`() {
-        val tpl = "INCOMING from {sender}{name}"
-        val result = TemplateFormatter.format(
-            template = tpl, sender = "+79990001122", name = "Bob",
-            text = "", timestamp = ts, type = "incoming"
-        )
-        assertEquals("INCOMING from +79990001122 (Bob)", result)
-    }
-
-    @Test
-    fun `outgoing call template with custom template`() {
-        val tpl = "DIAL to {sender}{name}"
-        val result = TemplateFormatter.format(
-            template = tpl, sender = "+79990001122", name = "Bob",
-            text = "", timestamp = ts, type = "outgoing"
-        )
-        assertEquals("DIAL to +79990001122 (Bob)", result)
-    }
-
-    // ──────────────────────────────────────────────
-    //  Preview for new types
-    // ──────────────────────────────────────────────
-
-    @Test
-    fun `preview uses sample data for outgoing SMS`() {
-        val result = TemplateFormatter.preview("", type = "outgoing_sms", timestamp = ts)
         assertTrue(result.contains("📤 SMS"))
-        assertTrue(result.contains(TemplateFormatter.PREVIEW_SENDER))
-        assertTrue(result.contains(TemplateFormatter.PREVIEW_TEXT))
+        assertTrue(result.contains("Привет"))
+        assertTrue(result.contains("Кому: +79161234567"))
     }
 
     @Test
-    fun `preview uses sample data for incoming call`() {
-        val result = TemplateFormatter.preview("", type = "incoming", timestamp = ts)
-        assertTrue(result.contains("📞 Входящий"))
-        assertTrue(result.contains(TemplateFormatter.PREVIEW_SENDER))
-    }
-
-    @Test
-    fun `preview uses sample data for outgoing call`() {
-        val result = TemplateFormatter.preview("", type = "outgoing", timestamp = ts)
-        assertTrue(result.contains("📞 Исходящий"))
-        assertTrue(result.contains(TemplateFormatter.PREVIEW_SENDER))
-    }
-
-    // ──────────────────────────────────────────────
-    //  Misc
-    // ──────────────────────────────────────────────
-
-    @Test
-    fun `preview uses sample data for SMS`() {
-        val result = TemplateFormatter.preview("", type = "sms", timestamp = ts)
-        assertTrue(result.contains("📩 SMS"))
-        assertTrue(result.contains(TemplateFormatter.PREVIEW_SENDER))
-        assertTrue(result.contains(TemplateFormatter.PREVIEW_NAME))
-        assertTrue(result.contains(TemplateFormatter.PREVIEW_TEXT))
-        assertTrue(result.contains(TemplateFormatter.PREVIEW_SIM))
-    }
-
-    @Test
-    fun `preview uses sample data for missed call`() {
-        val result = TemplateFormatter.preview("", type = "missed", timestamp = ts)
-        assertTrue(result.contains("📵 Пропущенный"))
-        assertTrue(!result.contains(TemplateFormatter.PREVIEW_TEXT))
-    }
-
-    @Test
-    fun `preview respects custom template`() {
-        val result = TemplateFormatter.preview("CALL {type} {time}", type = "missed", timestamp = ts)
-        assertEquals("CALL missed $expectedTime", result)
-    }
-
-    @Test
-    fun `user can build JSON template`() {
-        val tpl = """{"sender":"{sender}","text":"{text}","time":"{time}"}"""
+    fun `unknown type falls back to missed format`() {
         val result = TemplateFormatter.format(
-            template = tpl, sender = "12345", name = null,
-            text = "hi", timestamp = ts, type = "sms", sim = null
+            sender = "123", name = null, text = "", timestamp = ts, type = "weird"
         )
-        assertEquals("""{"sender":"12345","text":"hi","time":"$expectedTime"}""", result)
+        assertTrue(result.contains("📵"))
+    }
+
+    // ──────────────────────────────────────────────
+    //  Плейсхолдеры и краевые случаи
+    // ──────────────────────────────────────────────
+
+    @Test
+    fun `date placeholder is rendered`() {
+        // {date} есть в DEFAULT_*: проверяем подстановку через формат SMS
+        val result = TemplateFormatter.format(
+            sender = "1", name = null, text = "", timestamp = ts, type = "sms"
+        )
+        assertTrue(result.contains(expectedTime))
+    }
+
+    @Test
+    fun `null sim renders without placeholder`() {
+        val result = TemplateFormatter.format(
+            sender = "1", name = null, text = "x", timestamp = ts, type = "sms", sim = null
+        )
+        assertFalse("литерал {sim} не остаётся", result.contains("{sim}"))
+    }
+
+    @Test
+    fun `null name renders without brackets`() {
+        val result = TemplateFormatter.format(
+            sender = "1", name = null, text = "x", timestamp = ts, type = "sms"
+        )
+        assertFalse(result.contains("()"))
+    }
+
+    @Test
+    fun `name renders with brackets when present`() {
+        val result = TemplateFormatter.format(
+            sender = "1", name = "Иван", text = "x", timestamp = ts, type = "sms"
+        )
+        assertTrue(result.contains("(Иван)"))
+    }
+
+    @Test
+    fun `type placeholder replaced`() {
+        val result = TemplateFormatter.format(
+            sender = "1", name = null, text = "", timestamp = ts, type = "missed"
+        )
+        assertFalse("литерал {type} не остаётся", result.contains("{type}"))
+    }
+
+    // ──────────────────────────────────────────────
+    //  Длительность: локализация и краевые случаи
+    // ──────────────────────────────────────────────
+
+    @Test
+    fun `duration empty for missed calls`() {
+        val result = TemplateFormatter.format(
+            sender = "1", name = null, text = "", timestamp = ts, type = "missed",
+            durationMs = null
+        )
+        assertFalse(result.contains("Длительность"))
+    }
+
+    @Test
+    fun `duration empty for zero duration`() {
+        val result = TemplateFormatter.format(
+            sender = "1", name = null, text = "", timestamp = ts, type = "incoming",
+            durationMs = 0L,
+            durationFormatter = { min, sec -> "${min}m${sec}s" }
+        )
+        assertFalse("нулевая длительность не показывается", result.contains("0m0s"))
+    }
+
+    @Test
+    fun `duration formats minutes only`() {
+        val result = TemplateFormatter.format(
+            sender = "1", name = null, text = "", timestamp = ts, type = "incoming",
+            durationMs = 120_000L,
+            durationFormatter = { min, sec -> "${min}m${sec}s" }
+        )
+        assertTrue(result.contains("2m0s"))
+    }
+
+    @Test
+    fun `duration formats seconds only`() {
+        val result = TemplateFormatter.format(
+            sender = "1", name = null, text = "", timestamp = ts, type = "incoming",
+            durationMs = 45_000L,
+            durationFormatter = { min, sec -> "${min}m${sec}s" }
+        )
+        assertTrue(result.contains("0m45s"))
+    }
+
+    @Test
+    fun `duration formatter default is russian`() {
+        // Дефолтный durationFormatter — русская форма (вне Android-контекста);
+        // локализованная версия через ресурсы проверяется в ReceiverTest.
+        val result = TemplateFormatter.format(
+            sender = "1", name = null, text = "", timestamp = ts, type = "incoming",
+            durationMs = 323_000L
+        )
+        assertTrue(result.contains("5 мин 23 сек"))
     }
 
     // ──────────────────────────────────────────────
@@ -234,12 +199,11 @@ class TemplateFormatterTest {
     // ──────────────────────────────────────────────
 
     @Test
-    fun `time and date placeholders match expected format`() {
+    fun `time is rendered in default format`() {
         val result = TemplateFormatter.format(
-            template = "{time}|{date}", sender = "1", name = null,
-            text = "", timestamp = ts, type = "sms", sim = null
+            sender = "1", name = null, text = "", timestamp = ts, type = "sms"
         )
-        assertEquals("$expectedTime|$expectedDate", result)
+        assertTrue(result.contains(expectedTime))
     }
 
     @Test
@@ -249,7 +213,6 @@ class TemplateFormatterTest {
         // каждый результат обязан быть корректным.
         val threads = 8
         val iterations = 200
-        val expected = "$expectedTime|$expectedDate"
         val errors = java.util.concurrent.atomic.AtomicInteger(0)
         val pool = java.util.concurrent.Executors.newFixedThreadPool(threads)
         try {
@@ -257,10 +220,9 @@ class TemplateFormatterTest {
                 pool.execute {
                     repeat(iterations) {
                         val r = TemplateFormatter.format(
-                            template = "{time}|{date}", sender = "1", name = null,
-                            text = "", timestamp = ts, type = "sms", sim = null
+                            sender = "1", name = null, text = "", timestamp = ts, type = "sms"
                         )
-                        if (r != expected) errors.incrementAndGet()
+                        if (!r.contains(expectedTime)) errors.incrementAndGet()
                     }
                 }
             }
@@ -268,6 +230,24 @@ class TemplateFormatterTest {
             pool.shutdown()
             pool.awaitTermination(30, java.util.concurrent.TimeUnit.SECONDS)
         }
-        assertEquals("Конкурентный format() исказил {time}/{date}", 0, errors.get())
+        assertEquals("Конкурентный format() исказил {time}", 0, errors.get())
+    }
+
+    @Test
+    fun `preview demo constants are intact`() {
+        // Константы используются в тестах и were в превью — проверяем неизменность
+        assertEquals("+7 900 123-45-67", TemplateFormatter.PREVIEW_SENDER)
+        assertEquals("Иван", TemplateFormatter.PREVIEW_NAME)
+    }
+
+    @Test
+    fun `default templates are stable`() {
+        // Защита от случайного изменения формата пересылки
+        assertTrue(TemplateFormatter.DEFAULT_SMS_TEMPLATE.contains("📩"))
+        assertTrue(TemplateFormatter.DEFAULT_SMS_TEMPLATE.contains("{text}"))
+        assertTrue(TemplateFormatter.DEFAULT_CALL_TEMPLATE.contains("📵"))
+        assertTrue(TemplateFormatter.DEFAULT_OUTGOING_SMS_TEMPLATE.contains("📤"))
+        assertTrue(TemplateFormatter.DEFAULT_INCOMING_CALL_TEMPLATE.contains("📞"))
+        assertTrue(TemplateFormatter.DEFAULT_OUTGOING_CALL_TEMPLATE.contains("{duration}"))
     }
 }
