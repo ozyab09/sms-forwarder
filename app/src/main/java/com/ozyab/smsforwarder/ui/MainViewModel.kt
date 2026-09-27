@@ -264,7 +264,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         list = list.filter {
                             it.type == EventHistory.TYPE_MISSED ||
                                 it.type == EventHistory.TYPE_INCOMING ||
-                                it.type == EventHistory.TYPE_OUTGOING
+                                it.type == EventHistory.TYPE_OUTGOING ||
+                                it.type == EventHistory.TYPE_UNANSWERED
                         }
                     }
                     list

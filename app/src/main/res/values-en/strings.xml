@@ -59,6 +59,7 @@
     <string name="history_detail_type_outgoing_sms">Outgoing SMS</string>
     <string name="history_detail_type_incoming">Answered incoming call</string>
     <string name="history_detail_type_outgoing">Outgoing call</string>
+    <string name="history_detail_type_unanswered">No answer</string>
     <string name="history_detail_type_battery">Battery event</string>
     <string name="tab_about">About</string>
     <string name="about_version">Version %1$s</string>
@@ -188,6 +189,7 @@
     <string name="call_label_incoming">Incoming</string>
     <string name="call_label_outgoing">Outgoing</string>
     <string name="call_label_missed">Missed</string>
+    <string name="call_label_unanswered">No answer</string>
 
     <string name="duration_min_sec">%1$d min %2$d sec</string>
     <string name="duration_min">%1$d min</string>
