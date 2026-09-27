@@ -58,6 +58,7 @@
     <string name="history_detail_type_outgoing_sms">Исходящий SMS</string>
     <string name="history_detail_type_incoming">Принятый входящий</string>
     <string name="history_detail_type_outgoing">Исходящий звонок</string>
+    <string name="history_detail_type_battery">Событие батареи</string>
     <string name="tab_about">О приложении</string>
     <string name="about_version">Версия %1$s</string>
     <string name="about_theme">Тема оформления</string>
@@ -111,6 +112,14 @@
     <string name="pref_quiet_start">Начало</string>
     <string name="pref_quiet_end">Конец</string>
     <string name="pref_quiet_hint">В этот период SMS и вызовы не пересылаются. Интервал может пересекать полночь (например, 23:00–07:00).</string>
+
+    <!-- Батарея (#161) -->
+    <string name="pref_battery_section">Батарея</string>
+    <string name="pref_battery_full_enabled">Сообщать о заряде до порога</string>
+    <string name="pref_battery_full_threshold">Порог полного заряда: %1$d%%</string>
+    <string name="pref_battery_low_enabled">Сообщать о низком заряде</string>
+    <string name="pref_battery_low_threshold">Порог низкого заряда: %1$d%%</string>
+    <string name="pref_battery_hint">Событие отправляется один раз при переходе порога; повторно — после выхода за порог обратно. Порог полного заряда — 80–100%, низкого — 0–30%.</string>
 
     <!-- Статус -->
     <string name="status_service">Статус сервиса</string>

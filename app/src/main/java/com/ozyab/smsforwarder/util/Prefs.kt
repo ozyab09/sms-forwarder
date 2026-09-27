@@ -88,6 +88,12 @@ object Prefs {
 
     // Шаблоны сообщений (plain)
 
+    // Батарея (plain): события при достижении порогов (#161)
+    const val KEY_BATTERY_FULL_ENABLED = "battery_full_enabled"
+    const val KEY_BATTERY_FULL_THRESHOLD = "battery_full_threshold" // 80..100
+    const val KEY_BATTERY_LOW_ENABLED = "battery_low_enabled"
+    const val KEY_BATTERY_LOW_THRESHOLD = "battery_low_threshold" // 0..30
+
     // Тихие часы (plain)
     const val KEY_QUIET_HOURS_ENABLED = "quiet_hours_enabled"
     const val KEY_QUIET_HOURS_START = "quiet_hours_start" // минуты от полуночи
@@ -351,6 +357,27 @@ object Prefs {
     // Шаблоны сообщений удалены (рефакторинг): пересылка всегда в стандартном
     // формате (см. TemplateFormatter.DEFAULT_*). Старые ключи в DataStore
     // остаются, но больше не читаются и не пишутся.
+
+    // --- Батарея (события при достижении порогов, #161) ---
+    /** Уведомлять о достижении порога полного заряда. */
+    var batteryFullEnabled: Boolean
+        get() = getBoolean(KEY_BATTERY_FULL_ENABLED, false)
+        set(v) = setBoolean(KEY_BATTERY_FULL_ENABLED, v)
+
+    /** Порог полного заряда, % (80..100). */
+    var batteryFullThreshold: Int
+        get() = getInt(KEY_BATTERY_FULL_THRESHOLD, 100)
+        set(v) = setInt(KEY_BATTERY_FULL_THRESHOLD, v)
+
+    /** Уведомлять о низком заряде. */
+    var batteryLowEnabled: Boolean
+        get() = getBoolean(KEY_BATTERY_LOW_ENABLED, false)
+        set(v) = setBoolean(KEY_BATTERY_LOW_ENABLED, v)
+
+    /** Порог низкого заряда, % (0..30). */
+    var batteryLowThreshold: Int
+        get() = getInt(KEY_BATTERY_LOW_THRESHOLD, 15)
+        set(v) = setInt(KEY_BATTERY_LOW_THRESHOLD, v)
 
     // --- Тихие часы (минуты от полуночи) ---
     var quietHoursEnabled: Boolean

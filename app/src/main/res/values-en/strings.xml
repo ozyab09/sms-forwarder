@@ -58,6 +58,7 @@
     <string name="history_detail_type_outgoing_sms">Outgoing SMS</string>
     <string name="history_detail_type_incoming">Answered incoming call</string>
     <string name="history_detail_type_outgoing">Outgoing call</string>
+    <string name="history_detail_type_battery">Battery event</string>
     <string name="tab_about">About</string>
     <string name="about_version">Version %1$s</string>
     <string name="about_theme">Theme</string>
@@ -110,6 +111,14 @@
     <string name="pref_quiet_start">Start</string>
     <string name="pref_quiet_end">End</string>
     <string name="pref_quiet_hint">SMS and calls are not forwarded during this period. The interval may cross midnight (e.g. 23:00–07:00).</string>
+
+    <!-- Battery (#161) -->
+    <string name="pref_battery_section">Battery</string>
+    <string name="pref_battery_full_enabled">Notify when charged to threshold</string>
+    <string name="pref_battery_full_threshold">Full charge threshold: %1$d%%</string>
+    <string name="pref_battery_low_enabled">Notify on low battery</string>
+    <string name="pref_battery_low_threshold">Low battery threshold: %1$d%%</string>
+    <string name="pref_battery_hint">An event is sent once when the threshold is crossed; again only after leaving the threshold range. Full charge threshold: 80–100%, low: 0–30%.</string>
 
     <!-- Status -->
     <string name="status_service">Service status</string>

@@ -53,6 +53,10 @@ object SettingsBackup {
             .put("quietHoursEnabled", Prefs.quietHoursEnabled)
             .put("quietHoursStart", Prefs.quietHoursStart)
             .put("quietHoursEnd", Prefs.quietHoursEnd)
+            .put("batteryFullEnabled", Prefs.batteryFullEnabled)
+            .put("batteryFullThreshold", Prefs.batteryFullThreshold)
+            .put("batteryLowEnabled", Prefs.batteryLowEnabled)
+            .put("batteryLowThreshold", Prefs.batteryLowThreshold)
 
         // Каналы: не-direct, без секретов (pass) и без id (при импорте новые)
         val channels = JSONArray()
@@ -108,6 +112,12 @@ object SettingsBackup {
         Prefs.quietHoursEnabled = settings.optBoolean("quietHoursEnabled", Prefs.quietHoursEnabled)
         Prefs.quietHoursStart = settings.optInt("quietHoursStart", Prefs.quietHoursStart)
         Prefs.quietHoursEnd = settings.optInt("quietHoursEnd", Prefs.quietHoursEnd)
+        Prefs.batteryFullEnabled = settings.optBoolean("batteryFullEnabled", Prefs.batteryFullEnabled)
+        Prefs.batteryFullThreshold = settings.optInt("batteryFullThreshold", Prefs.batteryFullThreshold)
+            .coerceIn(80, 100)
+        Prefs.batteryLowEnabled = settings.optBoolean("batteryLowEnabled", Prefs.batteryLowEnabled)
+        Prefs.batteryLowThreshold = settings.optInt("batteryLowThreshold", Prefs.batteryLowThreshold)
+            .coerceIn(0, 30)
 
         // Каналы: заменяем все прокси-каналы. Позиция direct не фиксируется
         // (порядок динамический, см. issue #123): setAll сохранит его позицию,
