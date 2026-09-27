@@ -45,6 +45,10 @@ data class SettingsUiState(
     val quietHoursEnabled: Boolean = false,
     val quietHoursStart: Int = 23 * 60,
     val quietHoursEnd: Int = 8 * 60,
+    val batteryFullEnabled: Boolean = false,
+    val batteryFullThreshold: Int = 100,
+    val batteryLowEnabled: Boolean = false,
+    val batteryLowThreshold: Int = 15,
     val testing: Boolean = false,
     val resolvingChatId: Boolean = false,
     /** Мастер-выключатель пересылки: кнопка «Запустить/Остановить». */
@@ -114,6 +118,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             quietHoursEnabled = Prefs.quietHoursEnabled,
             quietHoursStart = Prefs.quietHoursStart,
             quietHoursEnd = Prefs.quietHoursEnd,
+            batteryFullEnabled = Prefs.batteryFullEnabled,
+            batteryFullThreshold = Prefs.batteryFullThreshold,
+            batteryLowEnabled = Prefs.batteryLowEnabled,
+            batteryLowThreshold = Prefs.batteryLowThreshold,
             forwardingEnabled = Prefs.forwardingEnabled,
         )
     }
@@ -137,6 +145,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.forwardingEnabled = v
         _state.value = _state.value.copy(forwardingEnabled = v)
     }
+    fun setBatteryFullEnabled(v: Boolean) { _state.value = _state.value.copy(batteryFullEnabled = v) }
+    fun setBatteryFullThreshold(v: Int) { _state.value = _state.value.copy(batteryFullThreshold = v) }
+    fun setBatteryLowEnabled(v: Boolean) { _state.value = _state.value.copy(batteryLowEnabled = v) }
+    fun setBatteryLowThreshold(v: Int) { _state.value = _state.value.copy(batteryLowThreshold = v) }
     fun setQuietHoursStart(v: Int) { _state.value = _state.value.copy(quietHoursStart = v) }
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
 
@@ -153,6 +165,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.quietHoursEnabled = s.quietHoursEnabled
         Prefs.quietHoursStart = s.quietHoursStart
         Prefs.quietHoursEnd = s.quietHoursEnd
+        Prefs.batteryFullEnabled = s.batteryFullEnabled
+        Prefs.batteryFullThreshold = s.batteryFullThreshold
+        Prefs.batteryLowEnabled = s.batteryLowEnabled
+        Prefs.batteryLowThreshold = s.batteryLowThreshold
     }
 
     /**
