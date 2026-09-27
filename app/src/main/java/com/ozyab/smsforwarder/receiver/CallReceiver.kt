@@ -122,10 +122,14 @@ object CallReceiverLogic {
                         }
                         candidate?.let { CallEvent(buildEvent(context, it, "missed", null, simSubId), "missed", context.getString(com.ozyab.smsforwarder.R.string.call_label_missed), it) }
                     }
-                    // Исходящий вызов (OFFHOOK без RINGING) — длительность тоже считается:
-                    // callConnectTimeMs ставится при OFFHOOK и для исходящих
+                    // Исходящий вызов (OFFHOOK без RINGING) — длительность из CallLog
+                    // (#163): OFFHOOK — момент набора номера, а не соединения, поэтому
+                    // локальный расчёт завышает длительность. CallLog.Calls.DURATION
+                    // хранит фактическую длительность соединения; локальный расчёт —
+                    // fallback (нет разрешения/записи).
                     numberOutgoing != null -> {
-                        val text = buildEvent(context, numberOutgoing, "outgoing", durationMs, simSubId)
+                        val outDuration = callLogDuration(context, numberOutgoing) ?: durationMs
+                        val text = buildEvent(context, numberOutgoing, "outgoing", outDuration, simSubId)
                         CallEvent(text, "outgoing", context.getString(com.ozyab.smsforwarder.R.string.call_label_outgoing), numberOutgoing)
                     }
                     // RINGING потерян — ищем свежий пропущенный в CallLog
@@ -137,6 +141,42 @@ object CallReceiverLogic {
             }
         }
         return null
+    }
+
+    /**
+     * Фактическая длительность исходящего вызова из CallLog (#163), мс.
+     * Ищем последний OUTGOING-вызов на этот номер в свежем окне; DURATION —
+     * секунды установленного соединения. null — нет разрешения/записи.
+     */
+    private fun callLogDuration(context: Context, number: String): Long? {
+        if (!hasCallLogPermission(context)) return null
+        val digits = number.filter { it.isDigit() }
+        if (digits.isEmpty()) return null
+        return try {
+            val cr = context.contentResolver
+            val uri = CallLog.Calls.CONTENT_URI
+            val projection = arrayOf(CallLog.Calls.TYPE, CallLog.Calls.NUMBER, CallLog.Calls.DURATION, CallLog.Calls.DATE)
+            val sort = CallLog.Calls.DATE + " DESC LIMIT 20"
+            val now = System.currentTimeMillis()
+            cr.query(uri, projection, null, null, sort)?.use { c ->
+                val typeCol = c.getColumnIndex(CallLog.Calls.TYPE)
+                val numCol = c.getColumnIndex(CallLog.Calls.NUMBER)
+                val durCol = c.getColumnIndex(CallLog.Calls.DURATION)
+                val dateCol = c.getColumnIndex(CallLog.Calls.DATE)
+                while (c.moveToNext()) {
+                    if (now - c.getLong(dateCol) > RECENT_WINDOW_MS) return null
+                    if (c.getInt(typeCol) != CallLog.Calls.OUTGOING_TYPE) continue
+                    val callDigits = (c.getString(numCol) ?: "").filter { it.isDigit() }
+                    if (callDigits == digits) {
+                        val sec = c.getLong(durCol)
+                        return if (sec > 0) sec * 1000 else null
+                    }
+                }
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     /** Проверка по CallLog: последний вызов с этого номера — MISSED. */
