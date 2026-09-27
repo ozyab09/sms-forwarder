@@ -35,6 +35,7 @@
     <string name="history_all">All</string>
     <string name="history_sms">SMS</string>
     <string name="history_calls">Calls</string>
+    <string name="history_battery">Battery</string>
     <string name="history_clear">Clear</string>
     <string name="history_clear_confirm">Delete all history?</string>
     <string name="history_status_sent">Sent</string>
