@@ -97,7 +97,10 @@ class ReceiverTest {
 
     @Test
     fun `OFFHOOK without RINGING then IDLE is outgoing`() {
+        // Sleep: локальная длительность > 0 → fallback "outgoing"
+        // (в Robolectric CallLog пуст, NO_RECORD)
         CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79005556677")
+        Thread.sleep(20)
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79005556677")
         assertNotNull("исходящий звонок обнаружен", result)
         assertEquals("outgoing", result!!.type)
@@ -164,7 +167,9 @@ class ReceiverTest {
 
     @Test
     fun `outgoing event text uses outgoing call template`() {
+        // Sleep: локальная длительность > 0 → fallback "outgoing"
         CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79005556677")
+        Thread.sleep(20)
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79005556677")
         assertNotNull(result)
         assertEquals("outgoing", result!!.type)
@@ -184,6 +189,47 @@ class ReceiverTest {
         CallReceiverLogic.reset()
         val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001112233")
         assertEquals(null, result)
+    }
+
+    // ──────────────────────────────────────────
+    //  CallReceiverLogic — unanswered outgoing (#166)
+    // ──────────────────────────────────────────
+
+    @Test
+    fun `outgoing without calllog record and zero local duration is unanswered`() {
+        // В Robolectric CallLog пуст → NO_RECORD; локальная длительность 0
+        // (мгновенный OFFHOOK→IDLE) → недозвон, событие "unanswered" без длительности
+        CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79001231234")
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001231234")
+        assertNotNull(result)
+        assertEquals("unanswered", result!!.type)
+        assertTrue(
+            "текст недозвона без «Длительность»: ${result.text}",
+            result.text.lineSequence().none { it.startsWith("Длительность:") },
+        )
+    }
+
+    @Test
+    fun `outgoing with positive local duration falls back to outgoing`() {
+        // NO_RECORD из CallLog, но локальный расчёт > 0 → fallback "outgoing"
+        // (соединение, вероятно, было — лучше приблизительно, чем молчать)
+        CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79001231234")
+        Thread.sleep(20)
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001231234")
+        assertNotNull(result)
+        assertEquals("outgoing", result!!.type)
+    }
+
+    @Test
+    fun `unanswered event text uses unanswered template`() {
+        CallReceiverLogic.onPhoneStateChanged(context, "OFFHOOK", "+79001231234")
+        val result = CallReceiverLogic.onPhoneStateChanged(context, "IDLE", "+79001231234")
+        assertNotNull(result)
+        assertTrue(
+            "заголовок недозвона: ${result!!.text}",
+            result.text.startsWith("❌ Не дозвонился"),
+        )
+        assertTrue(result.text.contains("+79001231234"))
     }
 
     // ──────────────────────────────────────────────
