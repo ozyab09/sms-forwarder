@@ -98,6 +98,7 @@ class HistoryPanel(
         row.setOnClickListener { showEventDetails(e) }
         val icon = when (e.type) {
             EventHistory.TYPE_SMS -> "📨"
+            EventHistory.TYPE_BATTERY -> "🔋"
             else -> "📵"
         }
         val statusIcon = when (e.status) {
@@ -167,6 +168,7 @@ class HistoryPanel(
         }
         val typeText = when (e.type) {
             EventHistory.TYPE_SMS -> activity.getString(R.string.history_detail_type_sms)
+            EventHistory.TYPE_BATTERY -> activity.getString(R.string.history_detail_type_battery)
             EventHistory.TYPE_OUTGOING_SMS -> activity.getString(R.string.history_detail_type_outgoing_sms)
             EventHistory.TYPE_INCOMING -> activity.getString(R.string.history_detail_type_incoming)
             EventHistory.TYPE_OUTGOING -> activity.getString(R.string.history_detail_type_outgoing)

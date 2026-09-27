@@ -46,6 +46,12 @@ object TemplateFormatter {
 Кому: {number}{name}
 Длительность: {duration}""".trimIndent()
 
+    /** Формат события «батарея заряжена до порога» (#161). */
+    val BATTERY_FULL_TEMPLATE = "🔋 Батарея заряжена: {level} [{time}]".trimIndent()
+
+    /** Формат события «низкий заряд батареи» (#161). */
+    val BATTERY_LOW_TEMPLATE = "🪫 Низкий заряд батареи: {level} [{time}]".trimIndent()
+
     /** Демонстрационные данные (использовались превью; оставлены для тестов). */
     const val PREVIEW_SENDER = "+7 900 123-45-67"
     const val PREVIEW_NAME = "Иван"
@@ -109,6 +115,10 @@ object TemplateFormatter {
             .replace("{sim}", sim ?: "")
             .replace("{duration}", formatDuration(durationMs, durationFormatter))
     }
+
+    /** Текущее время «ЧЧ:мм:сс» для шаблонов без timestamp (события батареи). */
+    fun formatTimeNow(): String =
+        timeFormat.format(java.time.ZonedDateTime.now())
 
     /**
      * Форматирует длительность звонка в человекочитаемый вид.

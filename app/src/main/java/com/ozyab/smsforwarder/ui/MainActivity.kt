@@ -87,6 +87,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnQuietStart: MaterialButton
     private lateinit var btnQuietEnd: MaterialButton
 
+    // Батарея (#161)
+    private lateinit var swBatteryFull: SwitchMaterial
+    private lateinit var layoutBatteryFull: View
+    private lateinit var tvBatteryFullThreshold: TextView
+    private lateinit var sliderBatteryFull: com.google.android.material.slider.Slider
+    private lateinit var swBatteryLow: SwitchMaterial
+    private lateinit var layoutBatteryLow: View
+    private lateinit var tvBatteryLowThreshold: TextView
+    private lateinit var sliderBatteryLow: com.google.android.material.slider.Slider
+
     // Логи
     private lateinit var panelSettings: ScrollView
     private lateinit var panelLogs: View
@@ -232,6 +242,15 @@ class MainActivity : AppCompatActivity() {
         btnQuietStart = findViewById(R.id.btn_quiet_start)
         btnQuietEnd = findViewById(R.id.btn_quiet_end)
 
+        swBatteryFull = findViewById(R.id.sw_battery_full)
+        layoutBatteryFull = findViewById(R.id.layout_battery_full)
+        tvBatteryFullThreshold = findViewById(R.id.tv_battery_full_threshold)
+        sliderBatteryFull = findViewById(R.id.slider_battery_full)
+        swBatteryLow = findViewById(R.id.sw_battery_low)
+        layoutBatteryLow = findViewById(R.id.layout_battery_low)
+        tvBatteryLowThreshold = findViewById(R.id.tv_battery_low_threshold)
+        sliderBatteryLow = findViewById(R.id.slider_battery_low)
+
         panelSettings = findViewById(R.id.panel_settings)
         panelLogs = findViewById(R.id.panel_logs)
         logsText = findViewById(R.id.logs_text)
@@ -292,6 +311,24 @@ class MainActivity : AppCompatActivity() {
         layoutQuietTimes.visibility = if (s.quietHoursEnabled) View.VISIBLE else View.GONE
         btnQuietStart.text = formatTime(s.quietHoursStart)
         btnQuietEnd.text = formatTime(s.quietHoursEnd)
+
+        // Батарея (#161)
+        renderBattery(s)
+    }
+
+    private fun renderBattery(s: SettingsUiState) {
+        swBatteryFull.isChecked = s.batteryFullEnabled
+        layoutBatteryFull.visibility = if (s.batteryFullEnabled) View.VISIBLE else View.GONE
+        tvBatteryFullThreshold.text = getString(R.string.pref_battery_full_threshold, s.batteryFullThreshold)
+        if (sliderBatteryFull.value != s.batteryFullThreshold.toFloat()) {
+            sliderBatteryFull.value = s.batteryFullThreshold.toFloat()
+        }
+        swBatteryLow.isChecked = s.batteryLowEnabled
+        layoutBatteryLow.visibility = if (s.batteryLowEnabled) View.VISIBLE else View.GONE
+        tvBatteryLowThreshold.text = getString(R.string.pref_battery_low_threshold, s.batteryLowThreshold)
+        if (sliderBatteryLow.value != s.batteryLowThreshold.toFloat()) {
+            sliderBatteryLow.value = s.batteryLowThreshold.toFloat()
+        }
     }
 
     /**
@@ -398,6 +435,29 @@ class MainActivity : AppCompatActivity() {
         swQuietHours.setOnCheckedChangeListener { _, checked ->
             layoutQuietTimes.visibility = if (checked) View.VISIBLE else View.GONE
             viewModel.setQuietHoursEnabled(checked)
+        }
+        // Батарея (#161): тумблеры + слайдеры порогов (80..100 / 0..30)
+        swBatteryFull.setOnCheckedChangeListener { _, checked ->
+            layoutBatteryFull.visibility = if (checked) View.VISIBLE else View.GONE
+            viewModel.setBatteryFullEnabled(checked)
+            viewModel.save()
+        }
+        swBatteryLow.setOnCheckedChangeListener { _, checked ->
+            layoutBatteryLow.visibility = if (checked) View.VISIBLE else View.GONE
+            viewModel.setBatteryLowEnabled(checked)
+            viewModel.save()
+        }
+        sliderBatteryFull.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
+            viewModel.setBatteryFullThreshold(value.toInt())
+            tvBatteryFullThreshold.text = getString(R.string.pref_battery_full_threshold, value.toInt())
+            viewModel.save()
+        }
+        sliderBatteryLow.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
+            viewModel.setBatteryLowThreshold(value.toInt())
+            tvBatteryLowThreshold.text = getString(R.string.pref_battery_low_threshold, value.toInt())
+            viewModel.save()
         }
         btnQuietStart.setOnClickListener { showTimePicker(isStart = true) }
         btnQuietEnd.setOnClickListener { showTimePicker(isStart = false) }

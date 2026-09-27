@@ -14,8 +14,10 @@ import com.ozyab.smsforwarder.history.EventHistory
 import com.ozyab.smsforwarder.telegram.ChannelSender
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.telegram.TelegramClient
+import com.ozyab.smsforwarder.util.BatteryMonitor
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
+import com.ozyab.smsforwarder.util.TemplateFormatter
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -50,6 +52,9 @@ class ForwardService : Service() {
     private var workerScope: CoroutineScope? = null
     private val queue = SendQueue()
     private lateinit var outgoingSmsObserver: OutgoingSmsObserver
+
+    /** Монитор батареи (#161): события при достижении порогов заряда. */
+    private var batteryMonitor: BatteryMonitor? = null
 
     /** Пробуждение воркера при появлении нового события. */
     private val wake = Channel<Unit>(Channel.CONFLATED)
@@ -128,6 +133,8 @@ class ForwardService : Service() {
                 if (::outgoingSmsObserver.isInitialized) {
                     outgoingSmsObserver.stop()
                 }
+                batteryMonitor?.stop()
+                batteryMonitor = null
                 val dropped = queue.size
                 queue.clear()
                 EventQueueStore.clear(this)
@@ -144,6 +151,11 @@ class ForwardService : Service() {
             outgoingSmsObserver = OutgoingSmsObserver(this)
         }
         outgoingSmsObserver.start()
+
+        // Монитор батареи (#161): только если включён хоть один порог
+        if (Prefs.batteryFullEnabled || Prefs.batteryLowEnabled) {
+            getOrCreateBatteryMonitor().start()
+        }
 
         // Логируем первый старт (не каждое событие)
         if (!workerStarted) {
@@ -377,6 +389,23 @@ class ForwardService : Service() {
         return username
     }
 
+    /** Ленивая инициализация монитора батареи (событие — сразу в очередь). */
+    private fun getOrCreateBatteryMonitor(): BatteryMonitor {
+        if (batteryMonitor == null) {
+            batteryMonitor = BatteryMonitor(this) { kind, pct ->
+                val template = when (kind) {
+                    BatteryMonitor.EventKind.FULL -> TemplateFormatter.BATTERY_FULL_TEMPLATE
+                    BatteryMonitor.EventKind.LOW -> TemplateFormatter.BATTERY_LOW_TEMPLATE
+                }
+                val text = template.replace("{level}", "$pct%")
+                    .replace("{time}", TemplateFormatter.formatTimeNow())
+                LogStore.info("Событие батареи: $pct% (${if (kind == BatteryMonitor.EventKind.FULL) "полный заряд" else "низкий заряд"})")
+                enqueue(text = text, type = "battery", sender = "")
+            }
+        }
+        return batteryMonitor!!
+    }
+
     private fun persist() {
         val snapshot = queue.snapshot()
         if (snapshot.isEmpty()) {
@@ -431,6 +460,8 @@ class ForwardService : Service() {
         if (::outgoingSmsObserver.isInitialized) {
             outgoingSmsObserver.stop()
         }
+        batteryMonitor?.stop()
+        batteryMonitor = null
         workerScope?.cancel()
         workerScope = null
         workerStarted = false
