@@ -61,6 +61,7 @@ class HistoryPanel(
     fun renderHistory() {
         val type = when (chipGroupHistory.checkedChipId) {
             R.id.chip_history_sms -> EventHistory.TYPE_SMS
+            R.id.chip_history_battery -> EventHistory.TYPE_BATTERY
             else -> null
         }
         val callsOnly = chipGroupHistory.checkedChipId == R.id.chip_history_calls
