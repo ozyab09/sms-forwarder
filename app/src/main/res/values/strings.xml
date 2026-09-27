@@ -59,6 +59,7 @@
     <string name="history_detail_type_outgoing_sms">Исходящий SMS</string>
     <string name="history_detail_type_incoming">Принятый входящий</string>
     <string name="history_detail_type_outgoing">Исходящий звонок</string>
+    <string name="history_detail_type_unanswered">Не дозвонился</string>
     <string name="history_detail_type_battery">Событие батареи</string>
     <string name="tab_about">О приложении</string>
     <string name="about_version">Версия %1$s</string>
@@ -189,6 +190,7 @@
     <string name="call_label_incoming">Входящий</string>
     <string name="call_label_outgoing">Исходящий</string>
     <string name="call_label_missed">Пропущенный</string>
+    <string name="call_label_unanswered">Не дозвонился</string>
 
     <!-- Длительность звонка (в тексте пересылки) -->
     <string name="duration_min_sec">%1$d мин %2$d сек</string>

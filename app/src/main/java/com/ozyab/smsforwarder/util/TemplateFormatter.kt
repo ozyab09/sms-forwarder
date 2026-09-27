@@ -46,6 +46,11 @@ object TemplateFormatter {
 Кому: {number}{name}
 Длительность: {duration}""".trimIndent()
 
+    /** Формат недозвона исходящего (#166). */
+    val DEFAULT_UNANSWERED_CALL_TEMPLATE = """❌ Не дозвонился [{time}]
+{sim}
+Кому: {number}{name}""".trimIndent()
+
     /** Формат события «батарея заряжена до порога» (#161). */
     val BATTERY_FULL_TEMPLATE = "🔋 Батарея заряжена: {level} [{time}]".trimIndent()
 
@@ -100,6 +105,7 @@ object TemplateFormatter {
             "outgoing_sms" -> DEFAULT_OUTGOING_SMS_TEMPLATE
             "incoming" -> DEFAULT_INCOMING_CALL_TEMPLATE
             "outgoing" -> DEFAULT_OUTGOING_CALL_TEMPLATE
+            "unanswered" -> DEFAULT_UNANSWERED_CALL_TEMPLATE
             else -> DEFAULT_CALL_TEMPLATE
         }
 

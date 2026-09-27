@@ -42,6 +42,10 @@ object CallReceiverLogic {
     /** Окно «свежести» для fallback-поиска пропущенного в CallLog. */
     private const val RECENT_WINDOW_MS = 2 * 60_000L
 
+    /** Ретраи чтения CallLog при IDLE: запись появляется с задержкой (#166). */
+    internal var CALL_LOG_RETRIES = 3
+    internal var CALL_LOG_RETRY_DELAY_MS = 150L
+
     /** Сброс состояния (для тестов). */
     @Synchronized
     fun reset() {
@@ -123,14 +127,14 @@ object CallReceiverLogic {
                         candidate?.let { CallEvent(buildEvent(context, it, "missed", null, simSubId), "missed", context.getString(com.ozyab.smsforwarder.R.string.call_label_missed), it) }
                     }
                     // Исходящий вызов (OFFHOOK без RINGING) — длительность из CallLog
-                    // (#163): OFFHOOK — момент набора номера, а не соединения, поэтому
-                    // локальный расчёт завышает длительность. CallLog.Calls.DURATION
-                    // хранит фактическую длительность соединения; локальный расчёт —
-                    // fallback (нет разрешения/записи).
+                    // (#163, #166): OFFHOOK — момент набора номера, а не соединения,
+                    // поэтому локальный расчёт завышает длительность. DURATION=0 —
+                    // недозвон: событие «не дозвонился» без длительности. Запись
+                    // CallLog может появиться с задержкой — короткие ретраи. Fallback
+                    // на локальный расчёт — только если записи нет/нет разрешения.
                     numberOutgoing != null -> {
-                        val outDuration = callLogDuration(context, numberOutgoing) ?: durationMs
-                        val text = buildEvent(context, numberOutgoing, "outgoing", outDuration, simSubId)
-                        CallEvent(text, "outgoing", context.getString(com.ozyab.smsforwarder.R.string.call_label_outgoing), numberOutgoing)
+                        val result = resolveOutgoing(context, numberOutgoing, durationMs, simSubId)
+                        result
                     }
                     // RINGING потерян — ищем свежий пропущенный в CallLog
                     else -> {
@@ -143,39 +147,114 @@ object CallReceiverLogic {
         return null
     }
 
+    /** Результат чтения CallLog для исходящего вызова. */
+    private enum class OutgoingLog {
+        /** Записи нет (пока) или нет разрешения — использовать fallback. */
+        NO_RECORD,
+        /** Недозвон (DURATION = 0). */
+        UNANSWERED,
+        /** Соединение состоялось, длительность известна. */
+        ANSWERED,
+    }
+
     /**
-     * Фактическая длительность исходящего вызова из CallLog (#163), мс.
-     * Ищем последний OUTGOING-вызов на этот номер в свежем окне; DURATION —
-     * секунды установленного соединения. null — нет разрешения/записи.
+     * Длительность/статус исходящего из CallLog (#163, #166).
+     *
+     * ВАЖНО про DURATION=0: это НЕ «записи нет», а признак недозвона — раньше
+     * он ошибочно трактовался как «не найдено» и включал fallback на локальный
+     * расчёт, из-за чего недозвоны получали «длительность» от набора до сброса.
+     *
+     * @param durationMs сюда пишется найденная длительность (мс), если ANSWERED
+     * @return статус чтения
      */
-    private fun callLogDuration(context: Context, number: String): Long? {
-        if (!hasCallLogPermission(context)) return null
+    private fun callLogOutgoing(context: Context, number: String, outDurationMs: LongArray): OutgoingLog {
+        if (!hasCallLogPermission(context)) return OutgoingLog.NO_RECORD
         val digits = number.filter { it.isDigit() }
-        if (digits.isEmpty()) return null
+        if (digits.isEmpty()) return OutgoingLog.NO_RECORD
         return try {
             val cr = context.contentResolver
             val uri = CallLog.Calls.CONTENT_URI
             val projection = arrayOf(CallLog.Calls.TYPE, CallLog.Calls.NUMBER, CallLog.Calls.DURATION, CallLog.Calls.DATE)
             val sort = CallLog.Calls.DATE + " DESC LIMIT 20"
             val now = System.currentTimeMillis()
+            var found = OutgoingLog.NO_RECORD
             cr.query(uri, projection, null, null, sort)?.use { c ->
                 val typeCol = c.getColumnIndex(CallLog.Calls.TYPE)
                 val numCol = c.getColumnIndex(CallLog.Calls.NUMBER)
                 val durCol = c.getColumnIndex(CallLog.Calls.DURATION)
                 val dateCol = c.getColumnIndex(CallLog.Calls.DATE)
                 while (c.moveToNext()) {
-                    if (now - c.getLong(dateCol) > RECENT_WINDOW_MS) return null
+                    if (now - c.getLong(dateCol) > RECENT_WINDOW_MS) return found
                     if (c.getInt(typeCol) != CallLog.Calls.OUTGOING_TYPE) continue
                     val callDigits = (c.getString(numCol) ?: "").filter { it.isDigit() }
                     if (callDigits == digits) {
                         val sec = c.getLong(durCol)
-                        return if (sec > 0) sec * 1000 else null
+                        if (sec > 0) {
+                            outDurationMs[0] = sec * 1000
+                            return OutgoingLog.ANSWERED
+                        }
+                        return OutgoingLog.UNANSWERED
                     }
                 }
-                null
             }
+            found
         } catch (e: Exception) {
-            null
+            OutgoingLog.NO_RECORD
+        }
+    }
+
+    /**
+     * Разрешение исходящего вызова (#166).
+     *
+     * Запись CallLog появляется не мгновенно при IDLE (гонка записи системой),
+     * поэтому чтение ретраится несколько раз. Итоги:
+     *  - ANSWERED → событие "outgoing" с фактической длительностью соединения;
+     *  - UNANSWERED → событие "unanswered" (недозвон) без длительности;
+     *  - NO_RECORD после ретраев → fallback: локальный расчёт, если он > 0
+     *    (соединение было), иначе тоже "unanswered".
+     */
+    private fun resolveOutgoing(
+        context: Context,
+        number: String,
+        localDurationMs: Long?,
+        simSubId: Int?,
+    ): CallEvent {
+        val durationHolder = LongArray(1)
+        var status = OutgoingLog.NO_RECORD
+        for (attempt in 1..CALL_LOG_RETRIES) {
+            status = callLogOutgoing(context, number, durationHolder)
+            if (status != OutgoingLog.NO_RECORD) break
+            if (attempt < CALL_LOG_RETRIES) {
+                try {
+                    Thread.sleep(CALL_LOG_RETRY_DELAY_MS)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    break
+                }
+            }
+        }
+
+        return when (status) {
+            OutgoingLog.ANSWERED -> {
+                val text = buildEvent(context, number, "outgoing", durationHolder[0], simSubId)
+                CallEvent(text, "outgoing", context.getString(com.ozyab.smsforwarder.R.string.call_label_outgoing), number)
+            }
+            OutgoingLog.UNANSWERED -> {
+                val text = buildEvent(context, number, "unanswered", null, simSubId)
+                CallEvent(text, "unanswered", context.getString(com.ozyab.smsforwarder.R.string.call_label_unanswered), number)
+            }
+            OutgoingLog.NO_RECORD -> {
+                // Нет записи (разрешение отозвано/OEM-квирк) — локальный расчёт:
+                // > 0 → считаем соединение состоявшимся (лучше приблизительно,
+                // чем молчать); 0/нет данных → недозвон.
+                if (localDurationMs != null && localDurationMs > 0) {
+                    val text = buildEvent(context, number, "outgoing", localDurationMs, simSubId)
+                    CallEvent(text, "outgoing", context.getString(com.ozyab.smsforwarder.R.string.call_label_outgoing), number)
+                } else {
+                    val text = buildEvent(context, number, "unanswered", null, simSubId)
+                    CallEvent(text, "unanswered", context.getString(com.ozyab.smsforwarder.R.string.call_label_unanswered), number)
+                }
+            }
         }
     }
 
@@ -287,6 +366,10 @@ class CallReceiver : android.content.BroadcastReceiver() {
             val enabled = when (result.type) {
                 "incoming" -> Prefs.incomingCallsEnabled
                 "outgoing" -> Prefs.outgoingCallsEnabled
+                // Недозвон исходящего (#166): привязан к исходящим — отдельного
+                // переключателя нет, иначе пользователь не сможет выключить
+                // «мусорные» события недозвонов, не выключив исходящие целиком
+                "unanswered" -> Prefs.outgoingCallsEnabled
                 else -> Prefs.callsEnabled // missed
             }
             if (!enabled) return@goAsync

@@ -64,6 +64,7 @@ class HistoryPanel(
             R.id.chip_history_battery -> EventHistory.TYPE_BATTERY
             else -> null
         }
+        // «Звонки»: пропущенные + входящие + исходящие + недозвоны (#166)
         val callsOnly = chipGroupHistory.checkedChipId == R.id.chip_history_calls
         val query = etHistorySearch.text?.toString()?.trim().orEmpty()
         viewModel.setHistoryFilter(type, query, callsOnly)
@@ -100,6 +101,7 @@ class HistoryPanel(
         val icon = when (e.type) {
             EventHistory.TYPE_SMS -> "📨"
             EventHistory.TYPE_BATTERY -> "🔋"
+            EventHistory.TYPE_UNANSWERED -> "❌"
             else -> "📵"
         }
         val statusIcon = when (e.status) {
@@ -173,6 +175,7 @@ class HistoryPanel(
             EventHistory.TYPE_OUTGOING_SMS -> activity.getString(R.string.history_detail_type_outgoing_sms)
             EventHistory.TYPE_INCOMING -> activity.getString(R.string.history_detail_type_incoming)
             EventHistory.TYPE_OUTGOING -> activity.getString(R.string.history_detail_type_outgoing)
+            EventHistory.TYPE_UNANSWERED -> activity.getString(R.string.history_detail_type_unanswered)
             else -> activity.getString(R.string.history_detail_type_call)
         }
         val dash = activity.getString(R.string.history_detail_none)
