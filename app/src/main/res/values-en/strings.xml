@@ -110,6 +110,7 @@
     <!-- Quiet hours -->
     <string name="pref_quiet_hours_section">Quiet hours</string>
     <string name="pref_quiet_hours_enabled">Don\'t forward during quiet hours</string>
+    <string name="pref_quiet_hours_accumulate">Accumulate and send after quiet hours</string>
     <string name="pref_quiet_start">Start</string>
     <string name="pref_quiet_end">End</string>
     <string name="pref_quiet_hint">SMS and calls are not forwarded during this period. The interval may cross midnight (e.g. 23:00–07:00).</string>
@@ -120,7 +121,7 @@
     <string name="pref_battery_full_threshold">Full charge threshold: %1$d%%</string>
     <string name="pref_battery_low_enabled">Notify on low battery</string>
     <string name="pref_battery_low_threshold">Low battery threshold: %1$d%%</string>
-    <string name="pref_battery_hint">An event is sent once when the threshold is crossed; again only after leaving the threshold range. Full charge threshold: 80–100%, low: 0–30%.</string>
+    <string name="pref_battery_hint" formatted="false">An event is sent once when the threshold is crossed; again only after leaving the threshold range. Full charge threshold: 80–100%, low: 0–30%.</string>
 
     <!-- Status -->
     <string name="status_service">Service status</string>

@@ -108,6 +108,7 @@ class MainViewModelTest {
         Prefs.quietHoursEnabled = true
         Prefs.quietHoursStart = 23 * 60
         Prefs.quietHoursEnd = 8 * 60
+        Prefs.quietHoursAccumulate = false
 
         vm = MainViewModel(ApplicationProvider.getApplicationContext())
         vm.load()
@@ -119,6 +120,7 @@ class MainViewModelTest {
         assertTrue(s.quietHoursEnabled)
         assertEquals(23 * 60, s.quietHoursStart)
         assertEquals(8 * 60, s.quietHoursEnd)
+        assertFalse(s.quietHoursAccumulate)
     }
 
     @Test
@@ -141,6 +143,7 @@ class MainViewModelTest {
         vm.setSmsEnabled(false)
         vm.setQuietHoursEnabled(true)
         vm.setQuietHoursStart(21 * 60)
+        vm.setQuietHoursAccumulate(false)
 
         vm.save()
 
@@ -150,6 +153,7 @@ class MainViewModelTest {
         awaitPrefs("false") { Prefs.smsEnabled.toString() }
         awaitPrefs("true") { Prefs.quietHoursEnabled.toString() }
         awaitPrefs("1260") { Prefs.quietHoursStart.toString() }
+        awaitPrefs("false") { Prefs.quietHoursAccumulate.toString() }
     }
 
     // ===== testConnection =====

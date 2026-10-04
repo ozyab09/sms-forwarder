@@ -36,9 +36,6 @@ class SmsReceiver : BroadcastReceiver() {
             if (!Prefs.forwardingEnabled) return@goAsync
             if (!Prefs.smsEnabled) return@goAsync
 
-            // Тихие часы: не пересылаем в указанный период
-            if (QuietHours.isActiveNow()) return@goAsync
-
             val sb = StringBuilder()
             for (m in messages) sb.append(m.messageBody ?: "")
             val body = sb.toString()
@@ -61,6 +58,17 @@ class SmsReceiver : BroadcastReceiver() {
                 sim = sim
             )
 
+            // Тихие часы: режим «накопления» (#170) — событие уходит после
+            // окончания интервала; режим «отбрасывания» — старое поведение.
+            if (QuietHours.isActiveNow()) {
+                if (Prefs.quietHoursAccumulate) {
+                    ForwardService.start(
+                        context, text, type = "sms", sender = sender, eventTime = ts,
+                        nextRetryAt = QuietHours.endTimestampMs(),
+                    )
+                }
+                return@goAsync
+            }
 
             ForwardService.start(context, text, type = "sms", sender = sender, eventTime = ts)
         }

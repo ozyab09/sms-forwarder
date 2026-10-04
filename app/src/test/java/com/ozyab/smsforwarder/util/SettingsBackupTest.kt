@@ -97,6 +97,46 @@ class SettingsBackupTest {
         assertFalse(settings.has("notificationApps"))
     }
 
+    @Test
+    fun `export includes quiet hours accumulate mode (#170)`() {
+        Prefs.quietHoursEnabled = true
+        Prefs.quietHoursStart = 23 * 60
+        Prefs.quietHoursEnd = 8 * 60
+        Prefs.quietHoursAccumulate = false
+
+        val json = SettingsBackup.export()
+        val settings = json.getJSONObject("settings")
+
+        assertTrue(settings.getBoolean("quietHoursEnabled"))
+        assertEquals(23 * 60, settings.getInt("quietHoursStart"))
+        assertEquals(8 * 60, settings.getInt("quietHoursEnd"))
+        assertFalse(settings.getBoolean("quietHoursAccumulate"))
+    }
+
+    @Test
+    fun `import applies quiet hours accumulate mode (#170)`() {
+        Prefs.quietHoursAccumulate = true
+
+        val body = JSONObject()
+            .put("app", "sms-forwarder")
+            .put("version", 1)
+            .put(
+                "settings",
+                JSONObject()
+                    .put("quietHoursEnabled", true)
+                    .put("quietHoursStart", 22 * 60)
+                    .put("quietHoursEnd", 7 * 60)
+                    .put("quietHoursAccumulate", false),
+            )
+            .put("channels", org.json.JSONArray())
+
+        SettingsBackup.import(body)
+
+        assertFalse(Prefs.quietHoursAccumulate)
+        assertEquals(22 * 60, Prefs.quietHoursStart)
+        assertEquals(7 * 60, Prefs.quietHoursEnd)
+    }
+
 
     @Test
     fun `import applies settings and keeps bot token`() {
