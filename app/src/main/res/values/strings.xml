@@ -38,6 +38,9 @@
     <string name="history_battery">Батарея</string>
     <string name="history_clear">Очистить</string>
     <string name="history_clear_confirm">Удалить всю историю?</string>
+    <string name="btn_export_history">Экспорт</string>
+    <string name="history_export_ok">История сохранена</string>
+    <string name="history_export_failed">Не удалось сохранить историю</string>
     <string name="history_status_sent">Отправлено</string>
     <string name="history_status_failed">Не отправлено</string>
     <string name="history_status_dropped">Отброшено</string>
