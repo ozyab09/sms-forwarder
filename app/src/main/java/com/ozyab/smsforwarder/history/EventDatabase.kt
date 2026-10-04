@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * Privacy-first: хранится локально, шифрование на уровне файла не требуется —
  * здесь нет токенов, только история пересылки.
  */
-@Database(entities = [EventEntity::class], version = 2, exportSchema = false)
+@Database(entities = [EventEntity::class, StatEntry::class], version = 3, exportSchema = false)
 abstract class EventDatabase : RoomDatabase() {
 
     abstract fun eventDao(): EventDao
@@ -34,6 +34,20 @@ abstract class EventDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v2 → v3: добавлена таблица stat_entry для статистики (F-E).
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE stat_entry (
+                        key TEXT NOT NULL PRIMARY KEY,
+                        count INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         fun get(context: Context): EventDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -41,7 +55,7 @@ abstract class EventDatabase : RoomDatabase() {
                     EventDatabase::class.java,
                     "event_history.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     // История не критична: падение БД не должно ронять приложение
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()

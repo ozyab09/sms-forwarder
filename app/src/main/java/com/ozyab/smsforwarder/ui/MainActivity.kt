@@ -386,7 +386,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 launch {
                     // История: рендер по состоянию из ViewModel (MVVM, без гонок)
-                    viewModel.history.collect { h -> historyPanel.renderHistoryList(h.events) }
+                    viewModel.history.collect { h ->
+                        historyPanel.renderHistoryList(h.events)
+                        historyPanel.renderStats(h.stats, h.queueDroppedAfterAttempts, h.queueDroppedOverflow, h.queueSize)
+                    }
                 }
             }
         }

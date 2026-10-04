@@ -189,10 +189,11 @@ class MainActivityLaunchTest {
         }
         assertTrue(
             "записанное событие должно отобразиться в списке истории (регрессия #144)",
-            historyList.childCount > 0,
+            historyList.childCount > 1, // 0 = stats header, 1 = first event
         )
         // Строка события — вертикальный LinearLayout с несколькими TextView
-        val row = historyList.getChildAt(0) as LinearLayout
+        // Индекс 1, так как 0 — stats header
+        val row = historyList.getChildAt(1) as LinearLayout
         val rowTexts = (0 until row.childCount).mapNotNull { (row.getChildAt(it) as? TextView)?.text?.toString() }
         assertTrue(
             "в строке должен быть номер отправителя",

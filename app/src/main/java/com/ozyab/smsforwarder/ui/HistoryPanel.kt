@@ -83,6 +83,120 @@ class HistoryPanel(
         for (e in events) historyList.addView(buildHistoryRow(e))
     }
 
+    fun renderStats(
+        stats: EventHistory.Stats?,
+        droppedAfterAttempts: Int,
+        droppedOverflow: Int,
+        queueSize: Int,
+    ) {
+        // Статистику рендерим в заголовке списка (как отдельный view перед списком)
+        // Удаляем старый stats view если есть
+        val existingStats = historyList.findViewById<View>(R.id.history_stats_header)
+        existingStats?.let { historyList.removeView(it) }
+
+        val statsView = buildStatsView(stats, droppedAfterAttempts, droppedOverflow, queueSize)
+        statsView.id = R.id.history_stats_header
+        historyList.addView(statsView, 0) // Вставляем в начало
+    }
+
+    private fun buildStatsView(
+        stats: EventHistory.Stats?,
+        droppedAfterAttempts: Int,
+        droppedOverflow: Int,
+        queueSize: Int,
+    ): View {
+        val container = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(4, 4, 4, 16)
+        }
+
+        val statsData = stats ?: EventHistory.Stats(
+            allTime = EventHistory.StatsPeriod(),
+            today = EventHistory.StatsPeriod(),
+        )
+
+        // Заголовок
+        container.addView(TextView(activity).apply {
+            text = activity.getString(R.string.history_stats_title)
+            textSize = 14f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setTextColor(ContextCompat.getColor(activity, android.R.color.black))
+            setPadding(0, 0, 0, 8)
+        })
+
+        // Сегодня / Всего
+        val today = statsData.today
+        val allTime = statsData.allTime
+
+        container.addView(buildStatRow(
+            "Сегодня",
+            "Всего: ${today.total}",
+            "Отправлено: ${today.byStatus[EventHistory.STATUS_SENT] ?: 0} | " +
+                "Не отправлено: ${today.byStatus[EventHistory.STATUS_FAILED] ?: 0} | " +
+                "Отброшено: ${today.byStatus[EventHistory.STATUS_DROPPED] ?: 0}"
+        ))
+
+        container.addView(buildStatRow(
+            "За всё время",
+            "Всего: ${allTime.total}",
+            "Отправлено: ${allTime.byStatus[EventHistory.STATUS_SENT] ?: 0} | " +
+                "Не отправлено: ${allTime.byStatus[EventHistory.STATUS_FAILED] ?: 0} | " +
+                "Отброшено: ${allTime.byStatus[EventHistory.STATUS_DROPPED] ?: 0}"
+        ))
+
+        // Очередь и потери (ISSUES #16)
+        if (droppedAfterAttempts > 0 || droppedOverflow > 0 || queueSize > 0) {
+            container.addView(TextView(activity).apply {
+                text = activity.getString(R.string.history_stats_queue_title)
+                textSize = 13f
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                setPadding(0, 8, 0, 4)
+                setTextColor(ContextCompat.getColor(activity, android.R.color.holo_orange_dark))
+            })
+            container.addView(buildStatRow(
+                "Очередь",
+                "В очереди: $queueSize",
+                "Отброшено (попытки): $droppedAfterAttempts | Отброшено (переполнение): $droppedOverflow"
+            ))
+        }
+
+        // Разделитель
+        container.addView(View(activity).apply {
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1
+            )
+            lp.bottomMargin = 8
+            layoutParams = lp
+            setBackgroundColor(ContextCompat.getColor(activity, android.R.color.darker_gray))
+        })
+
+        return container
+    }
+
+    private fun buildStatRow(title: String, line1: String, line2: String): View {
+        val row = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 4, 0, 4)
+        }
+        row.addView(TextView(activity).apply {
+            text = title
+            textSize = 13f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        })
+        row.addView(TextView(activity).apply {
+            text = line1
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(activity, android.R.color.black))
+        })
+        row.addView(TextView(activity).apply {
+            text = line2
+            textSize = 11f
+            setTextColor(ContextCompat.getColor(activity, android.R.color.darker_gray))
+        })
+        return row
+    }
+
     private fun emptyHistoryView(): TextView = TextView(activity).apply {
         text = activity.getString(R.string.history_empty)
         setTextColor(ContextCompat.getColor(activity, android.R.color.darker_gray))
