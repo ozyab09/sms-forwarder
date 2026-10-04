@@ -447,6 +447,14 @@
                     android:textStyle="bold" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_export_history"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/btn_export_history" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_clear_history"
                     style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"

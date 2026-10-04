@@ -38,6 +38,9 @@
     <string name="history_battery">Battery</string>
     <string name="history_clear">Clear</string>
     <string name="history_clear_confirm">Delete all history?</string>
+    <string name="btn_export_history">Export</string>
+    <string name="history_export_ok">History saved</string>
+    <string name="history_export_failed">Could not save history</string>
     <string name="history_status_sent">Sent</string>
     <string name="history_status_failed">Failed</string>
     <string name="history_status_dropped">Dropped</string>

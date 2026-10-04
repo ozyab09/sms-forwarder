@@ -181,6 +181,38 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Экспорт истории (SAF: CreateDocument) — CSV
+    private val exportHistoryCsvLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        if (uri != null) {
+            val ok = writeHistoryToUri(uri, true)
+            if (ok) {
+                LogStore.ok(getString(R.string.history_export_ok))
+                Toast.makeText(this, R.string.history_export_ok, Toast.LENGTH_LONG).show()
+            } else {
+                LogStore.error(getString(R.string.history_export_failed))
+                Toast.makeText(this, R.string.history_export_failed, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // Экспорт истории (SAF: CreateDocument) — JSON
+    private val exportHistoryJsonLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            val ok = writeHistoryToUri(uri, false)
+            if (ok) {
+                LogStore.ok(getString(R.string.history_export_ok))
+                Toast.makeText(this, R.string.history_export_ok, Toast.LENGTH_LONG).show()
+            } else {
+                LogStore.error(getString(R.string.history_export_failed))
+                Toast.makeText(this, R.string.history_export_failed, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Prefs.init(this)
@@ -579,7 +611,95 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun writeHistoryToUri(uri: android.net.Uri, isCsv: Boolean): Boolean {
+        return try {
+            // Получаем события через EventHistory (нужен контекст)
+            // Используем runBlocking для IO операции
+            val events = kotlinx.coroutines.runBlocking {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val filter = viewModel.historyFilter
+                    com.ozyab.smsforwarder.history.EventHistory.search(
+                        this@MainActivity,
+                        filter.type,
+                        filter.query.takeIf { it.isNotBlank() },
+                        com.ozyab.smsforwarder.history.EventHistory.MAX_EVENTS
+                    )
+                }
+            }
+            if (isCsv) {
+                val sb = StringBuilder()
+                for (e in events) {
+                    sb.append(e.sender).append(',')
+                    sb.append(escapeCsv(e.body)).append(',')
+                    sb.append(e.timestamp).append(',')
+                    sb.append(e.type).append(',')
+                    sb.append(e.status).append(',')
+                    sb.append(escapeCsv(e.channelName ?: "")).append(',')
+                    sb.append(e.attempts).append(',')
+                    sb.append(escapeCsv(e.chatId ?: "")).append(',')
+                    sb.append(escapeCsv(e.botUsername ?: "")).append(',')
+                    sb.append(escapeCsv(e.formattedText)).append('\n')
+                }
+                // Header
+                val header = "sender,body,timestamp,type,status,channelName,attempts,chatId,botUsername,formattedText\n"
+                contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(header.toByteArray())
+                    out.write(sb.toString().toByteArray())
+                } ?: return false
+            } else {
+                // JSON format
+                val arr = org.json.JSONArray()
+                for (e in events) {
+                    arr.put(
+                        org.json.JSONObject()
+                            .put("sender", e.sender)
+                            .put("body", e.body)
+                            .put("timestamp", e.timestamp)
+                            .put("type", e.type)
+                            .put("status", e.status)
+                            .put("channelName", e.channelName)
+                            .put("attempts", e.attempts)
+                            .put("chatId", e.chatId)
+                            .put("botUsername", e.botUsername)
+                            .put("formattedText", e.formattedText)
+                    )
+                }
+                contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(arr.toString(2).toByteArray())
+                } ?: return false
+            }
+            true
+        } catch (e: Exception) {
+            LogStore.error("Ошибка экспорта истории: ${e.message}")
+            false
+        }
+    }
 
+    private fun escapeCsv(value: String): String {
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"${value.replace("\"", "\"\"")}\""
+        }
+        return value
+    }
+
+    /** Экспорт истории — диалог выбора формата и запуск SAF. */
+    fun exportHistory() {
+        val formats = arrayOf("CSV", "JSON")
+        AlertDialog.Builder(this)
+            .setTitle(R.string.btn_export_history)
+            .setSingleChoiceItems(formats, 0) { _, which ->
+                val isCsv = which == 0
+                val ext = if (isCsv) "csv" else "json"
+                val fileName = "sms_forwarder_history-${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())}.$ext"
+                if (isCsv) {
+                    exportHistoryCsvLauncher.launch(fileName)
+                } else {
+                    exportHistoryJsonLauncher.launch(fileName)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
 
     private fun textWatcher(onChange: () -> Unit): android.text.TextWatcher =
         object : android.text.TextWatcher {
