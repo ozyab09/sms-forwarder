@@ -45,6 +45,8 @@ data class SettingsUiState(
     val quietHoursEnabled: Boolean = false,
     val quietHoursStart: Int = 23 * 60,
     val quietHoursEnd: Int = 8 * 60,
+    /** Режим «накопления» в тихие часы (#170): true — копить и отправить после, false — отбрасывать. */
+    val quietHoursAccumulate: Boolean = true,
     val batteryFullEnabled: Boolean = false,
     val batteryFullThreshold: Int = 100,
     val batteryLowEnabled: Boolean = false,
@@ -118,6 +120,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             quietHoursEnabled = Prefs.quietHoursEnabled,
             quietHoursStart = Prefs.quietHoursStart,
             quietHoursEnd = Prefs.quietHoursEnd,
+            quietHoursAccumulate = Prefs.quietHoursAccumulate,
             batteryFullEnabled = Prefs.batteryFullEnabled,
             batteryFullThreshold = Prefs.batteryFullThreshold,
             batteryLowEnabled = Prefs.batteryLowEnabled,
@@ -151,6 +154,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setBatteryLowThreshold(v: Int) { _state.value = _state.value.copy(batteryLowThreshold = v) }
     fun setQuietHoursStart(v: Int) { _state.value = _state.value.copy(quietHoursStart = v) }
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
+    fun setQuietHoursAccumulate(v: Boolean) { _state.value = _state.value.copy(quietHoursAccumulate = v) }
 
     /** Сохраняет текущее состояние в [Prefs]. */
     fun save() {
@@ -165,6 +169,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.quietHoursEnabled = s.quietHoursEnabled
         Prefs.quietHoursStart = s.quietHoursStart
         Prefs.quietHoursEnd = s.quietHoursEnd
+        Prefs.quietHoursAccumulate = s.quietHoursAccumulate
         Prefs.batteryFullEnabled = s.batteryFullEnabled
         Prefs.batteryFullThreshold = s.batteryFullThreshold
         Prefs.batteryLowEnabled = s.batteryLowEnabled

@@ -83,6 +83,7 @@ class MainActivity : AppCompatActivity() {
 
     // Шаблоны сообщений
     private lateinit var swQuietHours: SwitchMaterial
+    private lateinit var swQuietHoursAccumulate: SwitchMaterial
     private lateinit var layoutQuietTimes: View
     private lateinit var btnQuietStart: MaterialButton
     private lateinit var btnQuietEnd: MaterialButton
@@ -238,6 +239,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btn_add_proxy).setOnClickListener { channelsPanel.showProxyDialog(null) }
 
         swQuietHours = findViewById(R.id.sw_quiet_hours)
+        swQuietHoursAccumulate = findViewById(R.id.sw_quiet_hours_accumulate)
         layoutQuietTimes = findViewById(R.id.layout_quiet_hours_times)
         btnQuietStart = findViewById(R.id.btn_quiet_start)
         btnQuietEnd = findViewById(R.id.btn_quiet_end)
@@ -308,6 +310,7 @@ class MainActivity : AppCompatActivity() {
         // Тихие часы
         renderServiceToggle(s)
         swQuietHours.isChecked = s.quietHoursEnabled
+        swQuietHoursAccumulate.isChecked = s.quietHoursAccumulate
         layoutQuietTimes.visibility = if (s.quietHoursEnabled) View.VISIBLE else View.GONE
         btnQuietStart.text = formatTime(s.quietHoursStart)
         btnQuietEnd.text = formatTime(s.quietHoursEnd)
@@ -435,6 +438,10 @@ class MainActivity : AppCompatActivity() {
         swQuietHours.setOnCheckedChangeListener { _, checked ->
             layoutQuietTimes.visibility = if (checked) View.VISIBLE else View.GONE
             viewModel.setQuietHoursEnabled(checked)
+        }
+        swQuietHoursAccumulate.setOnCheckedChangeListener { _, checked ->
+            viewModel.setQuietHoursAccumulate(checked)
+            viewModel.save()
         }
         // Батарея (#161): тумблеры + слайдеры порогов (80..100 / 0..30)
         swBatteryFull.setOnCheckedChangeListener { _, checked ->

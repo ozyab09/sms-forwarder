@@ -131,12 +131,25 @@ class OutgoingSmsObserver(context: Context) : ContentObserver(Handler(Looper.get
             sim = sim
         )
 
+        // Тихие часы: режим «накопления» (#170) — событие уходит после
+        // окончания интервала; режим «отбрасывания» — старое поведение.
+        val nextRetryAt = if (com.ozyab.smsforwarder.util.QuietHours.isActiveNow()) {
+            if (Prefs.quietHoursAccumulate) {
+                com.ozyab.smsforwarder.util.QuietHours.endTimestampMs()
+            } else {
+                return
+            }
+        } else {
+            System.currentTimeMillis()
+        }
+
         ForwardService.start(
             appContext,
             formatted,
             type = "outgoing_sms",
             sender = sms.address,
-            eventTime = sms.date
+            eventTime = sms.date,
+            nextRetryAt = nextRetryAt
         )
     }
 

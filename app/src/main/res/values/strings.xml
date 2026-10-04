@@ -111,6 +111,7 @@
     <!-- Тихие часы -->
     <string name="pref_quiet_hours_section">Тихие часы</string>
     <string name="pref_quiet_hours_enabled">Не пересылать в тихие часы</string>
+    <string name="pref_quiet_hours_accumulate">Накапливать и отправить после тихих часов</string>
     <string name="pref_quiet_start">Начало</string>
     <string name="pref_quiet_end">Конец</string>
     <string name="pref_quiet_hint">В этот период SMS и вызовы не пересылаются. Интервал может пересекать полночь (например, 23:00–07:00).</string>
@@ -121,7 +122,7 @@
     <string name="pref_battery_full_threshold">Порог полного заряда: %1$d%%</string>
     <string name="pref_battery_low_enabled">Сообщать о низком заряде</string>
     <string name="pref_battery_low_threshold">Порог низкого заряда: %1$d%%</string>
-    <string name="pref_battery_hint">Событие отправляется один раз при переходе порога; повторно — после выхода за порог обратно. Порог полного заряда — 80–100%, низкого — 0–30%.</string>
+    <string name="pref_battery_hint" formatted="false">Событие отправляется один раз при переходе порога; повторно — после выхода за порог обратно. Порог полного заряда — 80–100%, низкого — 0–30%.</string>
 
     <!-- Статус -->
     <string name="status_service">Статус сервиса</string>

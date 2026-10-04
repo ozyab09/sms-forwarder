@@ -357,10 +357,21 @@ class CallReceiver : android.content.BroadcastReceiver() {
             // Мастер-выключатель: «Стоп» означает остановку пересылки до «Запустить»
             if (!Prefs.forwardingEnabled) return@goAsync
             if (!Prefs.callsEnabled) return@goAsync
-            if (QuietHours.isActiveNow()) return@goAsync
 
             val result = CallReceiverLogic.onPhoneStateChanged(context, state, number, subId)
                 ?: return@goAsync
+
+            // Тихие часы: режим «накопления» (#170) — событие уходит после
+            // окончания интервала; режим «отбрасывания» — старое поведение.
+            if (QuietHours.isActiveNow()) {
+                if (Prefs.quietHoursAccumulate) {
+                    com.ozyab.smsforwarder.service.ForwardService.start(
+                        context, result.text, type = result.type, sender = result.number,
+                        nextRetryAt = QuietHours.endTimestampMs(),
+                    )
+                }
+                return@goAsync
+            }
 
             // Проверяем, включена ли пересылка для данного типа
             val enabled = when (result.type) {

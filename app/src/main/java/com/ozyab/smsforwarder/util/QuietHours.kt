@@ -44,12 +44,54 @@ object QuietHours {
         }
     }
 
-    /** Текущий момент в минутах от полуночи. */
-    fun nowMinutes(): Int {
-        val c = Calendar.getInstance()
+    /** Текущий момент в минутах от полуночи (использует системную TZ). */
+    fun nowMinutes(timeZone: java.util.TimeZone = java.util.TimeZone.getDefault()): Int {
+        val c = Calendar.getInstance(timeZone)
         return c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE)
     }
 
     /** Проверка «сейчас тихие часы» (удобно для ресиверов). */
-    fun isActiveNow(): Boolean = isEnabled() && isActive(nowMinutes(), startMinutes(), endMinutes())
+    fun isActiveNow(timeZone: java.util.TimeZone = java.util.TimeZone.getDefault()): Boolean =
+        isEnabled() && isActive(nowMinutes(timeZone), startMinutes(), endMinutes())
+
+    /**
+     * Проверка, попадает ли заданный timestamp в тихие часы.
+     */
+    fun isActiveAt(timestamp: Long, timeZone: java.util.TimeZone = java.util.TimeZone.getDefault()): Boolean {
+        val cal = Calendar.getInstance(timeZone)
+        cal.timeInMillis = timestamp
+        val minutes = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+        return isEnabled() && isActive(minutes, startMinutes(), endMinutes())
+    }
+
+    /**
+     * Timestamp (ms) окончания текущего периода тихих часов.
+     *
+     * Если тихие часы не активны — возвращает [now] (событие можно отправлять
+     * немедленно). Если активны — время окончания интервала с учётом пересечения
+     * полуночи: для 23:00–08:00 в 02:00 вернёт сегодняшние 08:00, в 23:30 —
+     * завтрашние 08:00.
+     *
+     * Используется режимом «накопления» (issue #170): событие ставится в
+     * очередь с nextRetryAt = конец тихих часов и уходит после их окончания.
+     */
+    fun endTimestampMs(
+        now: Long = System.currentTimeMillis(),
+        timeZone: java.util.TimeZone = java.util.TimeZone.getDefault(),
+    ): Long {
+        if (!isActiveAt(now, timeZone)) return now
+        val end = endMinutes().coerceIn(0, 1439)
+        val cal = Calendar.getInstance(timeZone)
+        cal.timeInMillis = now
+        cal.set(Calendar.HOUR_OF_DAY, end / 60)
+        cal.set(Calendar.MINUTE, end % 60)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        var endMs = cal.timeInMillis
+        if (endMs <= now) {
+            // Конец интервала уже прошёл сегодня — завтра (интервал через полночь)
+            endMs += 24 * 60 * 60 * 1000L
+        }
+        return endMs
+    }
 }
