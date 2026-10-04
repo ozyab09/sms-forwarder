@@ -47,6 +47,9 @@ class HistoryPanel(
         container.findViewById<MaterialButton>(R.id.btn_clear_history).setOnClickListener {
             confirmClearHistory()
         }
+        container.findViewById<MaterialButton>(R.id.btn_export_history).setOnClickListener {
+            activity.exportHistory()
+        }
         etHistorySearch.addTextChangedListener(textWatcher {
             // Debounce: запрос к Room не на каждый символ
             historySearchHandler.removeCallbacks(historySearchRunnable)
