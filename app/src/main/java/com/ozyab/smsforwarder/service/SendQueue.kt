@@ -63,7 +63,13 @@ class SendQueue(
     fun isEmpty(): Boolean = size == 0
 
     /** Добавить новое событие (можно из любого потока). */
-    fun enqueue(text: String, type: String = "sms", sender: String = "", eventTime: Long = 0L) {
+    fun enqueue(
+        text: String,
+        type: String = "sms",
+        sender: String = "",
+        eventTime: Long = 0L,
+        nextRetryAt: Long = now(),
+    ) {
         synchronized(lock) {
             if (pending.size + retries.size >= maxSize) {
                 // Переполнение: отбрасываем самое старое. Держим текст отброшенного,
@@ -77,16 +83,21 @@ class SendQueue(
                 if (dropped != null) droppedOverflow++
                 lastDropped = dropped
             }
-            pending.addLast(
-                QueuedEvent(
-                    id = java.util.UUID.randomUUID().toString(),
-                    text = text,
-                    nextRetryAt = now(),
-                    type = type,
-                    sender = sender,
-                    eventTime = eventTime,
-                )
+            val event = QueuedEvent(
+                id = java.util.UUID.randomUUID().toString(),
+                text = text,
+                nextRetryAt = nextRetryAt,
+                type = type,
+                sender = sender,
+                eventTime = eventTime,
             )
+            // Событие с будущим nextRetryAt идёт в retries, а не в pending
+            // (не блокирует новые события, не дожидаясь бэк-оффа)
+            if (nextRetryAt > now()) {
+                retries.add(event)
+            } else {
+                pending.addLast(event)
+            }
         }
     }
 

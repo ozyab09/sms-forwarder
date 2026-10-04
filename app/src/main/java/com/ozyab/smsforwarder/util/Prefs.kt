@@ -98,6 +98,7 @@ object Prefs {
     const val KEY_QUIET_HOURS_ENABLED = "quiet_hours_enabled"
     const val KEY_QUIET_HOURS_START = "quiet_hours_start" // минуты от полуночи
     const val KEY_QUIET_HOURS_END = "quiet_hours_end"
+    const val KEY_QUIET_HOURS_ACCUMULATE = "quiet_hours_accumulate" // накопление вместо отбрасывания (#170)
 
     private val initLock = Any()
     // Два счётчика: secure-инициализация + первая DataStore-эмиссия.
@@ -228,6 +229,9 @@ object Prefs {
             Thread.currentThread().interrupt()
         }
     }
+
+    /** True, если инициализация Prefs завершена (для тестов). */
+    fun isInitDone(): Boolean = initDone
 
     // --- secure (EncryptedSharedPreferences) ---
 
@@ -391,6 +395,15 @@ object Prefs {
     var quietHoursEnd: Int
         get() = getInt(KEY_QUIET_HOURS_END, 8 * 60)
         set(v) = setInt(KEY_QUIET_HOURS_END, v)
+
+    /**
+     * Режим «накопления» в тихие часы (issue #170): true — события копятся
+     * в очереди и уходят после окончания тихих часов; false — отбрасываются
+     * (старое поведение). Дефолт — true (не терять данные).
+     */
+    var quietHoursAccumulate: Boolean
+        get() = getBoolean(KEY_QUIET_HOURS_ACCUMULATE, true)
+        set(v) = setBoolean(KEY_QUIET_HOURS_ACCUMULATE, v)
 
     fun isConfigured(): Boolean {
         awaitReady()

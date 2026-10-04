@@ -83,6 +83,7 @@ class ForwardService : Service() {
         const val EXTRA_TYPE = "extra_type"
         const val EXTRA_SENDER = "extra_sender"
         const val EXTRA_EVENT_TIME = "extra_event_time"
+        const val EXTRA_NEXT_RETRY_AT = "extra_next_retry_at"
 
         fun start(context: Context) {
             val i = Intent(context, ForwardService::class.java).setAction(ACTION_START)
@@ -95,13 +96,21 @@ class ForwardService : Service() {
         }
 
         /** Старт сервиса и постановка события в очередь (из ресиверов). */
-        fun start(context: Context, text: String, type: String = "sms", sender: String = "", eventTime: Long = System.currentTimeMillis()) {
+        fun start(
+            context: Context,
+            text: String,
+            type: String = "sms",
+            sender: String = "",
+            eventTime: Long = System.currentTimeMillis(),
+            nextRetryAt: Long = System.currentTimeMillis(),
+        ) {
             val i = Intent(context, ForwardService::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_TEXT, text)
                 .putExtra(EXTRA_TYPE, type)
                 .putExtra(EXTRA_SENDER, sender)
                 .putExtra(EXTRA_EVENT_TIME, eventTime)
+                .putExtra(EXTRA_NEXT_RETRY_AT, nextRetryAt)
             try {
                 context.startForegroundService(i)
             } catch (e: Exception) {
@@ -169,6 +178,7 @@ class ForwardService : Service() {
                     type = i.getStringExtra(EXTRA_TYPE) ?: "sms",
                     sender = i.getStringExtra(EXTRA_SENDER) ?: "",
                     eventTime = i.getLongExtra(EXTRA_EVENT_TIME, System.currentTimeMillis()),
+                    nextRetryAt = i.getLongExtra(EXTRA_NEXT_RETRY_AT, System.currentTimeMillis()),
                 )
             }
         }
@@ -197,9 +207,15 @@ class ForwardService : Service() {
     }
 
     /** Добавить событие в очередь (вызывается из ресиверов). */
-    fun enqueue(text: String, type: String = "sms", sender: String = "", eventTime: Long = System.currentTimeMillis()) {
+    fun enqueue(
+        text: String,
+        type: String = "sms",
+        sender: String = "",
+        eventTime: Long = System.currentTimeMillis(),
+        nextRetryAt: Long = System.currentTimeMillis(),
+    ) {
         if (text.isBlank()) return // пустые события не пересылаем
-        queue.enqueue(text, type = type, sender = sender, eventTime = eventTime)
+        queue.enqueue(text, type = type, sender = sender, eventTime = eventTime, nextRetryAt = nextRetryAt)
         // Переполнение очереди — не молча (запись истории — из воркера, ниже)
         queue.lastDropped?.let { dropped ->
             queue.lastDropped = null

@@ -156,4 +156,43 @@ class SendQueueTest {
         assertEquals("B", queue.pollReady()?.text)
         assertEquals("A", queue.pollReady()?.text)
     }
+
+    // --- enqueue с nextRetryAt (#170) ---
+
+    @Test
+    fun `enqueue with future nextRetryAt is not ready immediately`() {
+        val futureMs = clock + 60_000L
+        queue.enqueue("A", nextRetryAt = futureMs)
+        // Событие в очереди, но не готово к отправке
+        assertEquals(1, queue.size)
+        assertNull(queue.pollReady())
+        assertEquals(60_000L, queue.nextRetryDelayMs())
+    }
+
+    @Test
+    fun `enqueue with future nextRetryAt becomes ready after delay`() {
+        val futureMs = clock + 60_000L
+        queue.enqueue("A", nextRetryAt = futureMs)
+        assertNull(queue.pollReady())
+        clock += 59_999
+        assertNull(queue.pollReady())
+        clock += 1
+        assertEquals("A", queue.pollReady()?.text)
+    }
+
+    @Test
+    fun `enqueue with future nextRetryAt does not block new events`() {
+        val futureMs = clock + 60_000L
+        queue.enqueue("A", nextRetryAt = futureMs)
+        // Новое событие без nextRetryAt — готово немедленно
+        queue.enqueue("B")
+        assertEquals("B", queue.pollReady()?.text)
+        assertNull(queue.pollReady())
+    }
+
+    @Test
+    fun `enqueue with past nextRetryAt is ready immediately`() {
+        queue.enqueue("A", nextRetryAt = clock - 1000L)
+        assertEquals("A", queue.pollReady()?.text)
+    }
 }
