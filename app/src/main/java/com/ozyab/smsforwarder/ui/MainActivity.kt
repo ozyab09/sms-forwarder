@@ -98,6 +98,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvBatteryLowThreshold: TextView
     private lateinit var sliderBatteryLow: com.google.android.material.slider.Slider
 
+    // Зарядное устройство (#171)
+    private lateinit var swChargerConnected: SwitchMaterial
+    private lateinit var swChargerDisconnected: SwitchMaterial
+
     // Логи
     private lateinit var panelSettings: ScrollView
     private lateinit var panelLogs: View
@@ -285,6 +289,9 @@ class MainActivity : AppCompatActivity() {
         tvBatteryLowThreshold = findViewById(R.id.tv_battery_low_threshold)
         sliderBatteryLow = findViewById(R.id.slider_battery_low)
 
+        swChargerConnected = findViewById(R.id.sw_charger_connected)
+        swChargerDisconnected = findViewById(R.id.sw_charger_disconnected)
+
         panelSettings = findViewById(R.id.panel_settings)
         panelLogs = findViewById(R.id.panel_logs)
         logsText = findViewById(R.id.logs_text)
@@ -364,6 +371,10 @@ class MainActivity : AppCompatActivity() {
         if (sliderBatteryLow.value != s.batteryLowThreshold.toFloat()) {
             sliderBatteryLow.value = s.batteryLowThreshold.toFloat()
         }
+
+        // Зарядное устройство (#171)
+        swChargerConnected.isChecked = s.chargerConnectedEnabled
+        swChargerDisconnected.isChecked = s.chargerDisconnectedEnabled
     }
 
     /**
@@ -501,6 +512,17 @@ class MainActivity : AppCompatActivity() {
             tvBatteryLowThreshold.text = getString(R.string.pref_battery_low_threshold, value.toInt())
             viewModel.save()
         }
+
+        // Зарядное устройство (#171)
+        swChargerConnected.setOnCheckedChangeListener { _, checked ->
+            viewModel.setChargerConnectedEnabled(checked)
+            viewModel.save()
+        }
+        swChargerDisconnected.setOnCheckedChangeListener { _, checked ->
+            viewModel.setChargerDisconnectedEnabled(checked)
+            viewModel.save()
+        }
+
         btnQuietStart.setOnClickListener { showTimePicker(isStart = true) }
         btnQuietEnd.setOnClickListener { showTimePicker(isStart = false) }
         btnGetMyId.setOnClickListener { viewModel.resolveChatId() }

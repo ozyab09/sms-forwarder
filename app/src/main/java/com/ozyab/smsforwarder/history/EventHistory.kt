@@ -25,6 +25,8 @@ object EventHistory {
     const val TYPE_UNANSWERED = "unanswered"
     const val TYPE_OUTGOING_SMS = "outgoing_sms"
     const val TYPE_BATTERY = "battery"
+    const val TYPE_CHARGER_CONNECTED = "charger_connected"
+    const val TYPE_CHARGER_DISCONNECTED = "charger_disconnected"
 
     /** Сколько событий максимум держим в истории. */
     const val MAX_EVENTS = 1000

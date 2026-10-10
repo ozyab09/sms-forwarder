@@ -129,6 +129,12 @@
     <string name="pref_battery_low_threshold">Порог низкого заряда: %1$d%%</string>
     <string name="pref_battery_hint" formatted="false">Событие отправляется один раз при переходе порога; повторно — после выхода за порог обратно. Порог полного заряда — 80–100%, низкого — 0–30%.</string>
 
+    <!-- Зарядное устройство (#171) -->
+    <string name="pref_charger_section">Зарядное устройство</string>
+    <string name="pref_charger_connected_enabled">Сообщать о подключении зарядки</string>
+    <string name="pref_charger_disconnected_enabled">Сообщать об отключении зарядки</string>
+    <string name="pref_charger_hint">События приходят при реальном подключении/отключении зарядного устройства.</string>
+
     <!-- Статус -->
     <string name="status_service">Статус сервиса</string>
     <string name="status_running">Пересылка работает</string>
