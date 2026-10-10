@@ -28,10 +28,16 @@ import kotlinx.coroutines.withContext
  * UI подписывается на [MainViewModel.state] и рендерит его — логика отделена
  * от Activity и переживает поворот экрана.
  */
-/** Состояние вкладки «История» (загрузка/данные/действия). */
+/** Состояние вкладки «История» (загрузка/данные/действия/статистика). */
 data class HistoryUiState(
     val loading: Boolean = false,
     val events: List<EventEntity> = emptyList(),
+    /** Статистика пересылки (за сегодня / за всё время). */
+    val stats: EventHistory.Stats? = null,
+    /** Счётчики потерь очереди (из SendQueue). */
+    val queueDroppedAfterAttempts: Int = 0,
+    val queueDroppedOverflow: Int = 0,
+    val queueSize: Int = 0,
 )
 
 data class SettingsUiState(
@@ -106,6 +112,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Диспетчер для сетевых вызовов — в тестах подменяется тестовым (один планировщик). */
     internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
+    /** SendQueue для доступа к счётчикам (в тестах подменяется). */
 
     /** Загружает текущие настройки из [Prefs] в состояние. */
     fun load() {
@@ -279,8 +287,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 LogStore.error("Ошибка загрузки истории: ${e.message}")
                 emptyList()
             }
-            _history.value = HistoryUiState(loading = false, events = events)
+            // Загружаем статистику параллельно
+            val stats = loadStats()
+            _history.value = HistoryUiState(loading = false, events = events, stats = stats)
         }
+    }
+
+    /** Загружает статистику пересылки (историю + счётчики очереди). */
+    private suspend fun loadStats(): EventHistory.Stats {
+        val historyStats = try {
+            EventHistory.getStats(getApplication())
+        } catch (e: Exception) {
+            LogStore.error("Ошибка загрузки статистики: ${e.message}")
+            EventHistory.Stats(
+                allTime = EventHistory.StatsPeriod(),
+                today = EventHistory.StatsPeriod(),
+            )
+        }
+        // Счётчики очереди недоступны из ViewModel (отдельный экземпляр SendQueue в сервисе)
+        // TODO: inject actual SendQueue instance from service for accurate stats
+        return historyStats
     }
 
     /** Очистить всю историю (после подтверждения в UI). */

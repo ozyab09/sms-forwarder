@@ -41,6 +41,8 @@
     <string name="btn_export_history">Export</string>
     <string name="history_export_ok">History saved</string>
     <string name="history_export_failed">Could not save history</string>
+    <string name="history_stats_title">Forwarding Statistics</string>
+    <string name="history_stats_queue_title">Queue &amp; Losses</string>
     <string name="history_status_sent">Sent</string>
     <string name="history_status_failed">Failed</string>
     <string name="history_status_dropped">Dropped</string>
