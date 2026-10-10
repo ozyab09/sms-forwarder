@@ -57,6 +57,10 @@ data class SettingsUiState(
     val batteryFullThreshold: Int = 100,
     val batteryLowEnabled: Boolean = false,
     val batteryLowThreshold: Int = 15,
+    /** Уведомлять о подключении зарядного устройства (#171). */
+    val chargerConnectedEnabled: Boolean = false,
+    /** Уведомлять об отключении зарядного устройства (#171). */
+    val chargerDisconnectedEnabled: Boolean = false,
     val testing: Boolean = false,
     val resolvingChatId: Boolean = false,
     /** Мастер-выключатель пересылки: кнопка «Запустить/Остановить». */
@@ -133,6 +137,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             batteryFullThreshold = Prefs.batteryFullThreshold,
             batteryLowEnabled = Prefs.batteryLowEnabled,
             batteryLowThreshold = Prefs.batteryLowThreshold,
+            chargerConnectedEnabled = Prefs.chargerConnectedEnabled,
+            chargerDisconnectedEnabled = Prefs.chargerDisconnectedEnabled,
             forwardingEnabled = Prefs.forwardingEnabled,
         )
     }
@@ -160,6 +166,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setBatteryFullThreshold(v: Int) { _state.value = _state.value.copy(batteryFullThreshold = v) }
     fun setBatteryLowEnabled(v: Boolean) { _state.value = _state.value.copy(batteryLowEnabled = v) }
     fun setBatteryLowThreshold(v: Int) { _state.value = _state.value.copy(batteryLowThreshold = v) }
+    fun setChargerConnectedEnabled(v: Boolean) { _state.value = _state.value.copy(chargerConnectedEnabled = v) }
+    fun setChargerDisconnectedEnabled(v: Boolean) { _state.value = _state.value.copy(chargerDisconnectedEnabled = v) }
     fun setQuietHoursStart(v: Int) { _state.value = _state.value.copy(quietHoursStart = v) }
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
     fun setQuietHoursAccumulate(v: Boolean) { _state.value = _state.value.copy(quietHoursAccumulate = v) }
@@ -182,6 +190,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.batteryFullThreshold = s.batteryFullThreshold
         Prefs.batteryLowEnabled = s.batteryLowEnabled
         Prefs.batteryLowThreshold = s.batteryLowThreshold
+        Prefs.chargerConnectedEnabled = s.chargerConnectedEnabled
+        Prefs.chargerDisconnectedEnabled = s.chargerDisconnectedEnabled
     }
 
     /**

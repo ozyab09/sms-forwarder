@@ -58,6 +58,8 @@ object SettingsBackup {
             .put("batteryFullThreshold", Prefs.batteryFullThreshold)
             .put("batteryLowEnabled", Prefs.batteryLowEnabled)
             .put("batteryLowThreshold", Prefs.batteryLowThreshold)
+            .put("chargerConnectedEnabled", Prefs.chargerConnectedEnabled)
+            .put("chargerDisconnectedEnabled", Prefs.chargerDisconnectedEnabled)
 
         // Каналы: не-direct, без секретов (pass) и без id (при импорте новые)
         val channels = JSONArray()
@@ -120,6 +122,8 @@ object SettingsBackup {
         Prefs.batteryLowEnabled = settings.optBoolean("batteryLowEnabled", Prefs.batteryLowEnabled)
         Prefs.batteryLowThreshold = settings.optInt("batteryLowThreshold", Prefs.batteryLowThreshold)
             .coerceIn(0, 30)
+        Prefs.chargerConnectedEnabled = settings.optBoolean("chargerConnectedEnabled", Prefs.chargerConnectedEnabled)
+        Prefs.chargerDisconnectedEnabled = settings.optBoolean("chargerDisconnectedEnabled", Prefs.chargerDisconnectedEnabled)
 
         // Каналы: заменяем все прокси-каналы. Позиция direct не фиксируется
         // (порядок динамический, см. issue #123): setAll сохранит его позицию,

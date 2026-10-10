@@ -94,6 +94,10 @@ object Prefs {
     const val KEY_BATTERY_LOW_ENABLED = "battery_low_enabled"
     const val KEY_BATTERY_LOW_THRESHOLD = "battery_low_threshold" // 0..30
 
+    // Зарядное устройство (plain): события подключения/отключения (#171)
+    const val KEY_CHARGER_CONNECTED_ENABLED = "charger_connected_enabled"
+    const val KEY_CHARGER_DISCONNECTED_ENABLED = "charger_disconnected_enabled"
+
     // Тихие часы (plain)
     const val KEY_QUIET_HOURS_ENABLED = "quiet_hours_enabled"
     const val KEY_QUIET_HOURS_START = "quiet_hours_start" // минуты от полуночи
@@ -382,6 +386,17 @@ object Prefs {
     var batteryLowThreshold: Int
         get() = getInt(KEY_BATTERY_LOW_THRESHOLD, 15)
         set(v) = setInt(KEY_BATTERY_LOW_THRESHOLD, v)
+
+    // --- Зарядное устройство (#171) ---
+    /** Уведомлять о подключении зарядного устройства. */
+    var chargerConnectedEnabled: Boolean
+        get() = getBoolean(KEY_CHARGER_CONNECTED_ENABLED, false)
+        set(v) = setBoolean(KEY_CHARGER_CONNECTED_ENABLED, v)
+
+    /** Уведомлять об отключении зарядного устройства. */
+    var chargerDisconnectedEnabled: Boolean
+        get() = getBoolean(KEY_CHARGER_DISCONNECTED_ENABLED, false)
+        set(v) = setBoolean(KEY_CHARGER_DISCONNECTED_ENABLED, v)
 
     // --- Тихие часы (минуты от полуночи) ---
     var quietHoursEnabled: Boolean

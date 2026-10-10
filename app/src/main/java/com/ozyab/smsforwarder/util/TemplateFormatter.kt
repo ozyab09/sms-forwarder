@@ -57,6 +57,12 @@ object TemplateFormatter {
     /** Формат события «низкий заряд батареи» (#161). */
     val BATTERY_LOW_TEMPLATE = "🪫 Низкий заряд батареи: {level} [{time}]".trimIndent()
 
+    /** Формат события «зарядное устройство подключено» (#171). */
+    val CHARGER_CONNECTED_TEMPLATE = "🔌 Зарядное устройство подключено [{time}]".trimIndent()
+
+    /** Формат события «зарядное устройство отключено» (#171). */
+    val CHARGER_DISCONNECTED_TEMPLATE = "🔋 Зарядное устройство отключено [{time}]".trimIndent()
+
     /** Демонстрационные данные (использовались превью; оставлены для тестов). */
     const val PREVIEW_SENDER = "+7 900 123-45-67"
     const val PREVIEW_NAME = "Иван"
