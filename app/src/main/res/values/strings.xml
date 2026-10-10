@@ -41,6 +41,8 @@
     <string name="btn_export_history">Экспорт</string>
     <string name="history_export_ok">История сохранена</string>
     <string name="history_export_failed">Не удалось сохранить историю</string>
+    <string name="history_stats_title">Статистика пересылки</string>
+    <string name="history_stats_queue_title">Очередь и потери</string>
     <string name="history_status_sent">Отправлено</string>
     <string name="history_status_failed">Не отправлено</string>
     <string name="history_status_dropped">Отброшено</string>

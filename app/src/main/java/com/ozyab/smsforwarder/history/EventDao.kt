@@ -1,8 +1,22 @@
 package com.ozyab.smsforwarder.history
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
+import androidx.room.Entity
 import androidx.room.Insert
+import androidx.room.PrimaryKey
 import androidx.room.Query
+
+/**
+ * Простая пара ключ-значение для статистики (Room-friendly).
+ * Используется вместо Pair<String, Int> который не поддерживается Room KSP.
+ * Колонка `stat_key` вместо `key`, т.к. `key` — зарезервированное слово в SQL.
+ */
+@Entity(tableName = "stat_entry")
+data class StatEntry(
+    @PrimaryKey @ColumnInfo(name = "stat_key") val statKey: String,
+    val count: Int,
+)
 
 /**
  * DAO для истории событий.
@@ -49,4 +63,80 @@ interface EventDao {
 
     @Query("DELETE FROM events")
     suspend fun clear()
+
+    // --- Статистика (F-E) ---
+
+    /** Всего событий в истории. */
+    @Query("SELECT COUNT(*) FROM events")
+    suspend fun countAll(): Int
+
+    /** Событий за сегодня (по локальному времени устройства). */
+    @Query(
+        """
+        SELECT COUNT(*) FROM events
+        WHERE date(timestamp / 1000, 'unixepoch', 'localtime') = date('now', 'localtime')
+        """
+    )
+    suspend fun countToday(): Int
+
+    /** Событий по статусу за сегодня. */
+    @Query(
+        """
+        SELECT status as stat_key, COUNT(*) as count FROM events
+        WHERE date(timestamp / 1000, 'unixepoch', 'localtime') = date('now', 'localtime')
+        GROUP BY status
+        """
+    )
+    suspend fun countTodayByStatus(): List<StatEntry>
+
+    /** Событий по типу за сегодня. */
+    @Query(
+        """
+        SELECT type as stat_key, COUNT(*) as count FROM events
+        WHERE date(timestamp / 1000, 'unixepoch', 'localtime') = date('now', 'localtime')
+        GROUP BY type
+        """
+    )
+    suspend fun countTodayByType(): List<StatEntry>
+
+    /** Событий по каналу за сегодня (только sent). */
+    @Query(
+        """
+        SELECT channelName as stat_key, COUNT(*) as count FROM events
+        WHERE status = 'sent'
+          AND date(timestamp / 1000, 'unixepoch', 'localtime') = date('now', 'localtime')
+          AND channelName IS NOT NULL
+        GROUP BY channelName
+        """
+    )
+    suspend fun countTodayByChannel(): List<StatEntry>
+
+    /** Всего событий по статусу (все время). */
+    @Query(
+        """
+        SELECT status as stat_key, COUNT(*) as count FROM events
+        GROUP BY status
+        """
+    )
+    suspend fun countAllByStatus(): List<StatEntry>
+
+    /** Всего событий по типу (все время). */
+    @Query(
+        """
+        SELECT type as stat_key, COUNT(*) as count FROM events
+        GROUP BY type
+        """
+    )
+    suspend fun countAllByType(): List<StatEntry>
+
+    /** Всего событий по каналу (все время, только sent). */
+    @Query(
+        """
+        SELECT channelName as stat_key, COUNT(*) as count FROM events
+        WHERE status = 'sent'
+          AND channelName IS NOT NULL
+        GROUP BY channelName
+        """
+    )
+    suspend fun countAllByChannel(): List<StatEntry>
 }

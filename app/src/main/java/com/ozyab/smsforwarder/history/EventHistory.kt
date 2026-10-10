@@ -100,6 +100,38 @@ object EventHistory {
         EventDatabase.get(context).eventDao().clear()
     }
 
+    // --- Статистика (F-E) ---
+
+    data class Stats(
+        val allTime: StatsPeriod,
+        val today: StatsPeriod,
+    )
+
+    data class StatsPeriod(
+        val total: Int = 0,
+        val byStatus: Map<String, Int> = emptyMap(),
+        val byType: Map<String, Int> = emptyMap(),
+        val byChannel: Map<String, Int> = emptyMap(),
+    )
+
+    /** Статистика за сегодня и за всё время. */
+    suspend fun getStats(context: Context): Stats = withContext(Dispatchers.IO) {
+        val dao = EventDatabase.get(context).eventDao()
+        val today = StatsPeriod(
+            total = dao.countToday(),
+            byStatus = dao.countTodayByStatus().associate { it.statKey to it.count },
+            byType = dao.countTodayByType().associate { it.statKey to it.count },
+            byChannel = dao.countTodayByChannel().associate { it.statKey to it.count },
+        )
+        val allTime = StatsPeriod(
+            total = dao.countAll(),
+            byStatus = dao.countAllByStatus().associate { it.statKey to it.count },
+            byType = dao.countAllByType().associate { it.statKey to it.count },
+            byChannel = dao.countAllByChannel().associate { it.statKey to it.count },
+        )
+        Stats(allTime = allTime, today = today)
+    }
+
     /**
      * Обрезка до [MAX_EVENTS] — одним SQL-запросом (без чтения 1001 строки в память).
      * Если записей больше лимита, удаляем всё строго старше минимального timestamp
