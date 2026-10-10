@@ -15,6 +15,7 @@ import com.ozyab.smsforwarder.telegram.ChannelSender
 import com.ozyab.smsforwarder.telegram.ChannelStore
 import com.ozyab.smsforwarder.telegram.TelegramClient
 import com.ozyab.smsforwarder.util.BatteryMonitor
+import com.ozyab.smsforwarder.util.ChargerMonitor
 import com.ozyab.smsforwarder.util.LogStore
 import com.ozyab.smsforwarder.util.Prefs
 import com.ozyab.smsforwarder.util.TemplateFormatter
@@ -55,6 +56,9 @@ class ForwardService : Service() {
 
     /** Монитор батареи (#161): события при достижении порогов заряда. */
     private var batteryMonitor: BatteryMonitor? = null
+
+    /** Монитор зарядного устройства (#171): события подключения/отключения зарядки. */
+    private var chargerMonitor: ChargerMonitor? = null
 
     /** Пробуждение воркера при появлении нового события. */
     private val wake = Channel<Unit>(Channel.CONFLATED)
@@ -164,6 +168,11 @@ class ForwardService : Service() {
         // Монитор батареи (#161): только если включён хоть один порог
         if (Prefs.batteryFullEnabled || Prefs.batteryLowEnabled) {
             getOrCreateBatteryMonitor().start()
+        }
+
+        // Монитор зарядного устройства (#171): только если включено хотя бы одно событие
+        if (Prefs.chargerConnectedEnabled || Prefs.chargerDisconnectedEnabled) {
+            getOrCreateChargerMonitor().start()
         }
 
         // Логируем первый старт (не каждое событие)
@@ -422,6 +431,33 @@ class ForwardService : Service() {
         return batteryMonitor!!
     }
 
+    /** Ленивая инициализация монитора зарядного устройства (событие — сразу в очередь). */
+    private fun getOrCreateChargerMonitor(): ChargerMonitor {
+        if (chargerMonitor == null) {
+            chargerMonitor = ChargerMonitor(this) { kind ->
+                val (template, logKind) = when (kind) {
+                    ChargerMonitor.EventKind.CONNECTED ->
+                        TemplateFormatter.CHARGER_CONNECTED_TEMPLATE to "подключено"
+                    ChargerMonitor.EventKind.DISCONNECTED ->
+                        TemplateFormatter.CHARGER_DISCONNECTED_TEMPLATE to "отключено"
+                    else -> throw IllegalStateException("Unknown ChargerMonitor.EventKind: $kind")
+                }
+                val text = template.replace("{time}", TemplateFormatter.formatTimeNow())
+                LogStore.info("Событие зарядного устройства: $logKind")
+                enqueue(
+                    text = text,
+                    type = when (kind) {
+                        ChargerMonitor.EventKind.CONNECTED -> EventHistory.TYPE_CHARGER_CONNECTED
+                        ChargerMonitor.EventKind.DISCONNECTED -> EventHistory.TYPE_CHARGER_DISCONNECTED
+                        else -> throw IllegalStateException("Unknown ChargerMonitor.EventKind: $kind")
+                    },
+                    sender = ""
+                )
+            }
+        }
+        return chargerMonitor!!
+    }
+
     private fun persist() {
         val snapshot = queue.snapshot()
         if (snapshot.isEmpty()) {
@@ -478,6 +514,8 @@ class ForwardService : Service() {
         }
         batteryMonitor?.stop()
         batteryMonitor = null
+        chargerMonitor?.stop()
+        chargerMonitor = null
         workerScope?.cancel()
         workerScope = null
         workerStarted = false
