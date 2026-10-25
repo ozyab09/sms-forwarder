@@ -434,22 +434,21 @@ class ForwardService : Service() {
     /** Ленивая инициализация монитора зарядного устройства (событие — сразу в очередь). */
     private fun getOrCreateChargerMonitor(): ChargerMonitor {
         if (chargerMonitor == null) {
-            chargerMonitor = ChargerMonitor(this) { kind ->
+            chargerMonitor = ChargerMonitor(this) { kind, pct ->
                 val (template, logKind) = when (kind) {
                     ChargerMonitor.EventKind.CONNECTED ->
                         TemplateFormatter.CHARGER_CONNECTED_TEMPLATE to "подключено"
                     ChargerMonitor.EventKind.DISCONNECTED ->
                         TemplateFormatter.CHARGER_DISCONNECTED_TEMPLATE to "отключено"
-                    else -> throw IllegalStateException("Unknown ChargerMonitor.EventKind: $kind")
                 }
-                val text = template.replace("{time}", TemplateFormatter.formatTimeNow())
-                LogStore.info("Событие зарядного устройства: $logKind")
+                val text = template.replace("{level}", pct?.let { "$it%" } ?: "—")
+                    .replace("{time}", TemplateFormatter.formatTimeNow())
+                LogStore.info("Событие зарядного устройства: $logKind${pct?.let { " ($it%)" } ?: ""}")
                 enqueue(
                     text = text,
                     type = when (kind) {
                         ChargerMonitor.EventKind.CONNECTED -> EventHistory.TYPE_CHARGER_CONNECTED
                         ChargerMonitor.EventKind.DISCONNECTED -> EventHistory.TYPE_CHARGER_DISCONNECTED
-                        else -> throw IllegalStateException("Unknown ChargerMonitor.EventKind: $kind")
                     },
                     sender = ""
                 )
