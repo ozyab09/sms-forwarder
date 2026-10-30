@@ -68,7 +68,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var etToken: TextInputEditText
     private lateinit var etChatId: TextInputEditText
-    private lateinit var btnGetMyId: MaterialButton
     private lateinit var btnTest: MaterialButton
     private lateinit var btnCheckUpdate: MaterialButton
     private lateinit var swSms: SwitchMaterial
@@ -262,7 +261,6 @@ class MainActivity : AppCompatActivity() {
     private fun bindViews() {
         etToken = findViewById(R.id.et_bot_token)
         etChatId = findViewById(R.id.et_chat_id)
-        btnGetMyId = findViewById(R.id.btn_get_my_id)
         btnTest = findViewById(R.id.btn_test)
         swSms = findViewById(R.id.sw_sms)
         swOutgoingSms = findViewById(R.id.sw_outgoing_sms)
@@ -389,7 +387,6 @@ class MainActivity : AppCompatActivity() {
                         renderServiceToggle(s)
                         btnTest.isEnabled = !s.testing
                         btnTest.text = getString(if (s.testing) R.string.testing else R.string.btn_test_connection)
-                        btnGetMyId.isEnabled = !s.resolvingChatId
                     }
                 }
                 launch {
@@ -410,14 +407,6 @@ class MainActivity : AppCompatActivity() {
         when (e) {
             is UiEvent.ToastRes -> Toast.makeText(this, e.resId, Toast.LENGTH_LONG).show()
             is UiEvent.TestFinished -> showTestResult(e.channels, e.okCount, toastOnSuccess = !startServiceAfterTest)
-            is UiEvent.ChatIdResolved ->
-                Toast.makeText(this, getString(R.string.toast_chat_id_resolved, e.id), Toast.LENGTH_LONG).show()
-            is UiEvent.ChatIdFailed -> {
-                // Ссылку на бота показываем текстом, но НЕ открываем автоматически —
-                // неожиданный уход из приложения раздражает.
-                val botHint = e.botUsername?.let { getString(R.string.toast_chat_id_failed_bot, it) } ?: ""
-                Toast.makeText(this, getString(R.string.toast_chat_id_failed, e.reason, botHint), Toast.LENGTH_LONG).show()
-            }
         }
     }
 
@@ -525,7 +514,6 @@ class MainActivity : AppCompatActivity() {
 
         btnQuietStart.setOnClickListener { showTimePicker(isStart = true) }
         btnQuietEnd.setOnClickListener { showTimePicker(isStart = false) }
-        btnGetMyId.setOnClickListener { viewModel.resolveChatId() }
         swSms.setOnCheckedChangeListener { _, v -> viewModel.setSmsEnabled(v) }
         swOutgoingSms.setOnCheckedChangeListener { _, v -> viewModel.setOutgoingSmsEnabled(v) }
         swCalls.setOnCheckedChangeListener { _, v -> viewModel.setCallsEnabled(v) }
