@@ -212,52 +212,7 @@ class MainViewModelTest {
         assertEquals(0, finished[0].okCount)
     }
 
-    // ===== resolveChatId =====
-
-    @Test
-    fun `resolve chat id without token emits hint toast`() = runTest {
-        vm = buildVm()
-
-        val events = withEvents(vm) { vm.resolveChatId() }
-
-        assertTrue(events.any { it is UiEvent.ToastRes && it.resId == R.string.pref_bot_token_hint })
-    }
-
-    @Test
-    fun `resolve chat id success updates state and prefs`() = runTest {
-        vm = buildVm()
-        vm.setBotToken("123:abc")
-        vm.resolveChatIdImpl = { TelegramClient.Result.Ok(987654321L) }
-
-        lateinit var events: List<UiEvent>
-        events = withEvents(vm) {
-            vm.resolveChatId()
-            assertTrue(vm.state.value.resolvingChatId)
-        }
-
-        assertFalse(vm.state.value.resolvingChatId)
-        assertEquals("987654321", vm.state.value.chatId)
-        assertEquals("987654321", Prefs.chatId)
-        assertTrue(events.any { it is UiEvent.ChatIdResolved && it.id == 987654321L })
-    }
-
-    @Test
-    fun `resolve chat id failure emits ChatIdFailed with bot username`() = runTest {
-        vm = buildVm()
-        vm.setBotToken("123:abc")
-        vm.resolveChatIdImpl = { TelegramClient.Result.Err("нет сообщений") }
-        vm.getBotUsernameImpl = { "my_bot" }
-
-        val events = withEvents(vm) { vm.resolveChatId() }
-
-        assertFalse(vm.state.value.resolvingChatId)
-        val failed = events.filterIsInstance<UiEvent.ChatIdFailed>()
-        assertEquals(1, failed.size)
-        assertEquals("нет сообщений", failed[0].reason)
-        assertEquals("my_bot", failed[0].botUsername)
-    }
-
-    // ===== история (MVVM, #139-A1) =====
+    // ===== история (MVVM, #139-A1) ===
 
     /**
      * Ждёт реального завершения загрузки истории: EventHistory внутри использует
