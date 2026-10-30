@@ -62,7 +62,6 @@ data class SettingsUiState(
     /** Уведомлять об отключении зарядного устройства (#171). */
     val chargerDisconnectedEnabled: Boolean = false,
     val testing: Boolean = false,
-    val resolvingChatId: Boolean = false,
     /** Мастер-выключатель пересылки: кнопка «Запустить/Остановить». */
     val forwardingEnabled: Boolean = false,
 )
@@ -79,8 +78,6 @@ data class TestChannel(
 sealed interface UiEvent {
     data class ToastRes(val resId: Int) : UiEvent
     data class TestFinished(val channels: List<TestChannel>, val okCount: Int) : UiEvent
-    data class ChatIdResolved(val id: Long) : UiEvent
-    data class ChatIdFailed(val reason: String, val botUsername: String?) : UiEvent
 }
 
 /**
@@ -109,9 +106,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // В проде — реальные реализации (сеть, каналы); в тестах подменяются фейками.
     internal var testAllImpl: suspend (String, List<Channel>) -> List<ChannelSender.ChannelTestResult> =
         { token, channels -> ChannelSender.testAll(token, channels) }
-    internal var resolveChatIdImpl: suspend () -> TelegramClient.Result = {
-        TelegramClient.resolveChatId()
-    }
     internal var getBotUsernameImpl: suspend () -> String? = { TelegramClient.getBotUsername() }
 
     /** Диспетчер для сетевых вызовов — в тестах подменяется тестовым (один планировщик). */
@@ -230,35 +224,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (name.isNotBlank() && name != Prefs.botUsername) Prefs.botUsername = name
             }
             emit(UiEvent.TestFinished(mapped, mapped.count { it.ok }))
-        }
-    }
-
-    /** Определяет Chat ID через getMe; при ошибке — предлагает открыть бота. */
-    fun resolveChatId() {
-        save()
-        // Токен из state (см. комментарий в testConnection).
-        val token = _state.value.botToken.trim()
-        if (token.isBlank()) {
-            emit(UiEvent.ToastRes(com.ozyab.smsforwarder.R.string.pref_bot_token_hint))
-            return
-        }
-        _state.value = _state.value.copy(resolvingChatId = true)
-        viewModelScope.launch {
-            val result = withContext(ioDispatcher) { resolveChatIdImpl() }
-            _state.value = _state.value.copy(resolvingChatId = false)
-            when (result) {
-                is TelegramClient.Result.Ok -> {
-                    setChatId(result.messageId.toString())
-                    Prefs.chatId = result.messageId.toString()
-                    LogStore.ok("Chat ID определён: ${result.messageId}")
-                    emit(UiEvent.ChatIdResolved(result.messageId))
-                }
-                is TelegramClient.Result.Err -> {
-                    LogStore.error("Chat ID не определён: ${result.reason}")
-                    val username = withContext(ioDispatcher) { getBotUsernameImpl() }
-                    emit(UiEvent.ChatIdFailed(result.reason, username))
-                }
-            }
         }
     }
 
