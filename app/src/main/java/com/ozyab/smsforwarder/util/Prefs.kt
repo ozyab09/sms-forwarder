@@ -104,6 +104,11 @@ object Prefs {
     const val KEY_QUIET_HOURS_END = "quiet_hours_end"
     const val KEY_QUIET_HOURS_ACCUMULATE = "quiet_hours_accumulate" // накопление вместо отбрасывания (#170)
 
+    // Таймаут отправки сообщения (plain): миллисекунды
+    const val KEY_SEND_TIMEOUT_MS = "send_timeout_ms"
+    /** Дефолтное значение 5 секунд. */
+    const val DEFAULT_SEND_TIMEOUT_MS = 5_000
+
     private val initLock = Any()
     // Два счётчика: secure-инициализация + первая DataStore-эмиссия.
     private val readyLatch = CountDownLatch(2)
@@ -419,6 +424,11 @@ object Prefs {
     var quietHoursAccumulate: Boolean
         get() = getBoolean(KEY_QUIET_HOURS_ACCUMULATE, true)
         set(v) = setBoolean(KEY_QUIET_HOURS_ACCUMULATE, v)
+
+    /** Время ожидания ответа Telegram при отправке сообщения (мс). Дефолт 5 с. */
+    var sendTimeoutMs: Int
+        get() = getInt(KEY_SEND_TIMEOUT_MS, DEFAULT_SEND_TIMEOUT_MS)
+        set(v) = setInt(KEY_SEND_TIMEOUT_MS, v)
 
     fun isConfigured(): Boolean {
         awaitReady()

@@ -97,6 +97,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvBatteryLowThreshold: TextView
     private lateinit var sliderBatteryLow: com.google.android.material.slider.Slider
 
+    // Таймаут отправки
+    private lateinit var etSendTimeout: TextInputEditText
+
     // Зарядное устройство (#171)
     private lateinit var swChargerConnected: SwitchMaterial
     private lateinit var swChargerDisconnected: SwitchMaterial
@@ -278,6 +281,8 @@ class MainActivity : AppCompatActivity() {
         btnQuietStart = findViewById(R.id.btn_quiet_start)
         btnQuietEnd = findViewById(R.id.btn_quiet_end)
 
+        etSendTimeout = findViewById(R.id.et_send_timeout)
+
         swBatteryFull = findViewById(R.id.sw_battery_full)
         layoutBatteryFull = findViewById(R.id.layout_battery_full)
         tvBatteryFullThreshold = findViewById(R.id.tv_battery_full_threshold)
@@ -373,6 +378,12 @@ class MainActivity : AppCompatActivity() {
         // Зарядное устройство (#171)
         swChargerConnected.isChecked = s.chargerConnectedEnabled
         swChargerDisconnected.isChecked = s.chargerDisconnectedEnabled
+
+        // Таймаут отправки
+        val timeoutText = if (s.sendTimeoutSec > 0) s.sendTimeoutSec.toString() else "5"
+        if (etSendTimeout.text?.toString() != timeoutText) {
+            etSendTimeout.setText(timeoutText)
+        }
     }
 
     /**
@@ -501,6 +512,18 @@ class MainActivity : AppCompatActivity() {
             tvBatteryLowThreshold.text = getString(R.string.pref_battery_low_threshold, value.toInt())
             viewModel.save()
         }
+
+        // Таймаут отправки
+        etSendTimeout.addTextChangedListener(textWatcher {
+            try {
+                val v = etSendTimeout.text?.toString()?.toIntOrNull() ?: 5
+                if (v > 0) {
+                    viewModel.setSendTimeoutSec(v)
+                    viewModel.save()
+                }
+            } catch (_: Exception) {
+            }
+        })
 
         // Зарядное устройство (#171)
         swChargerConnected.setOnCheckedChangeListener { _, checked ->

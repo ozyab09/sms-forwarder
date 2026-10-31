@@ -61,6 +61,8 @@ data class SettingsUiState(
     val chargerConnectedEnabled: Boolean = false,
     /** Уведомлять об отключении зарядного устройства (#171). */
     val chargerDisconnectedEnabled: Boolean = false,
+    /** Таймаут отправки сообщения, секунды (по умолчанию 5). */
+    val sendTimeoutSec: Int = Prefs.DEFAULT_SEND_TIMEOUT_MS / 1000,
     val testing: Boolean = false,
     /** Мастер-выключатель пересылки: кнопка «Запустить/Остановить». */
     val forwardingEnabled: Boolean = false,
@@ -133,6 +135,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             batteryLowThreshold = Prefs.batteryLowThreshold,
             chargerConnectedEnabled = Prefs.chargerConnectedEnabled,
             chargerDisconnectedEnabled = Prefs.chargerDisconnectedEnabled,
+            sendTimeoutSec = Prefs.sendTimeoutMs / 1000,
             forwardingEnabled = Prefs.forwardingEnabled,
         )
     }
@@ -162,6 +165,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setBatteryLowThreshold(v: Int) { _state.value = _state.value.copy(batteryLowThreshold = v) }
     fun setChargerConnectedEnabled(v: Boolean) { _state.value = _state.value.copy(chargerConnectedEnabled = v) }
     fun setChargerDisconnectedEnabled(v: Boolean) { _state.value = _state.value.copy(chargerDisconnectedEnabled = v) }
+    fun setSendTimeoutSec(v: Int) { _state.value = _state.value.copy(sendTimeoutSec = v) }
     fun setQuietHoursStart(v: Int) { _state.value = _state.value.copy(quietHoursStart = v) }
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
     fun setQuietHoursAccumulate(v: Boolean) { _state.value = _state.value.copy(quietHoursAccumulate = v) }
@@ -186,6 +190,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.batteryLowThreshold = s.batteryLowThreshold
         Prefs.chargerConnectedEnabled = s.chargerConnectedEnabled
         Prefs.chargerDisconnectedEnabled = s.chargerDisconnectedEnabled
+        Prefs.sendTimeoutMs = s.sendTimeoutSec * 1000
     }
 
     /**

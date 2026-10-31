@@ -133,6 +133,11 @@
     <string name="pref_charger_disconnected_enabled">Notify on charger disconnected</string>
     <string name="pref_charger_hint">Events are triggered on actual charger connect/disconnect.</string>
 
+    <!-- Message Sending -->
+    <string name="pref_send_timeout_section">Message Sending</string>
+    <string name="pref_send_timeout_enabled">Message send timeout (sec.)</string>
+    <string name="pref_send_timeout_hint">Timeout for Telegram server response when sending a message (seconds). Default is 5.</string>
+
     <!-- Status -->
     <string name="status_service">Service status</string>
     <string name="status_running">Forwarding is running</string>

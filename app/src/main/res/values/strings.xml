@@ -194,6 +194,13 @@
 
     <!-- Локальные уведомления -->
 
+    <!-- Таймаут отправки сообщения (#TBD) -->
+    <string name="pref_send_timeout_section">Отправка сообщений</string>
+    <string name="pref_send_timeout_enabled">Таймаут отправки</string>
+    <string name="pref_send_timeout_hint">Время ожидания ответа Telegram при отправке сообщения (секунды). Дефолт — 5.</string>
+
+    <!-- Локальные уведомления -->
+
     <!-- Метки типов звонков (уведомления, история) -->
     <string name="call_label_incoming">Входящий</string>
     <string name="call_label_outgoing">Исходящий</string>
