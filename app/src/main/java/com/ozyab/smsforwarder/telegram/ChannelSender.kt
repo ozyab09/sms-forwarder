@@ -1,6 +1,7 @@
 package com.ozyab.smsforwarder.telegram
 
 import com.ozyab.smsforwarder.util.LogStore
+import com.ozyab.smsforwarder.util.Prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
@@ -10,6 +11,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import okhttp3.Call
 import okhttp3.Request
 import org.json.JSONObject
 
@@ -243,6 +245,10 @@ object ChannelSender {
     ): ChannelOutcome {
         val (client, buildErr) = ChannelClientFactory.build(channel)
         if (buildErr != null) return ChannelOutcome.Failed(buildErr)
+        val callTimeoutMs = Prefs.sendTimeoutMs.toLong()
+        val callClient = client.newBuilder()
+            .callTimeout(callTimeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .build()
         return try {
             val body = okhttp3.FormBody.Builder()
                 .add("chat_id", chatId)
@@ -253,7 +259,7 @@ object ChannelSender {
                 .url("${ChannelClientFactory.apiBase}/bot$token/sendMessage")
                 .post(body)
                 .build()
-            client.newCall(req).execute().use { resp ->
+            callClient.newCall(req).execute().use { resp ->
                 val json = JSONObject(resp.body?.string().orEmpty())
                 if (resp.isSuccessful && json.optBoolean("ok", false)) {
                     val mid = json.getJSONObject("result").optLong("message_id")
