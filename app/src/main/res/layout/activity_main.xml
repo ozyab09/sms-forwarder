@@ -192,6 +192,53 @@
                     android:textSize="12sp"
                     android:textColor="?android:attr/textColorSecondary" />
 
+                <!-- ===== Таймаут отправки ===== -->
+                <TextView
+                    style="@style/TextAppearance.Material3.TitleMedium"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="@string/pref_send_timeout_section"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="@string/pref_send_timeout_enabled">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_send_timeout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="number"
+                            android:maxLines="1"
+                            android:text="5" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginStart="8dp"
+                        android:text="сек." />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tv_send_timeout_hint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/pref_send_timeout_hint"
+                    android:textSize="12sp"
+                    android:textColor="?android:attr/textColorSecondary" />
+
                 <!-- ===== Батарея ===== -->
                 <TextView
                     style="@style/TextAppearance.Material3.TitleMedium"
