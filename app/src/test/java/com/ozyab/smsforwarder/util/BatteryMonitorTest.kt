@@ -31,6 +31,8 @@ class BatteryMonitorTest {
         Prefs.batteryLowEnabled = false
         Prefs.batteryFullThreshold = 100
         Prefs.batteryLowThreshold = 15
+        Prefs.chargingStepEnabled = false
+        Prefs.chargingStepThreshold = 10
     }
 
     private fun full(enabled: Boolean = true, threshold: Int = 100) {
@@ -41,6 +43,11 @@ class BatteryMonitorTest {
     private fun low(enabled: Boolean = true, threshold: Int = 15) {
         Prefs.batteryLowEnabled = enabled
         Prefs.batteryLowThreshold = threshold
+    }
+
+    private fun step(enabled: Boolean = true, threshold: Int = 10) {
+        Prefs.chargingStepEnabled = enabled
+        Prefs.chargingStepThreshold = threshold
     }
 
     @Test
@@ -117,5 +124,95 @@ class BatteryMonitorTest {
             ),
             events,
         )
+    }
+
+    // --- ШАГ ЗАРЯДКИ (#NEW) ---
+
+    @Test
+    fun `charge step fires at threshold delta`() {
+        step(enabled = true, threshold = 10)
+        monitor.onPowerConnected(50) // start tracking from 50%
+        assertEquals(emptyList<Pair<BatteryMonitor.EventKind, Int>>(), events) // no event on connect
+        monitor.handleLevel(55) // within threshold — no event
+        assertEquals(emptyList<Pair<BatteryMonitor.EventKind, Int>>(), events)
+        monitor.handleLevel(60) // 60 - 50 = 10 ≥ threshold — EVENT
+        assertEquals(listOf(BatteryMonitor.EventKind.CHARGE_STEP to 60), events)
+    }
+
+    @Test
+    fun `charge step fires repeatedly for each threshold delta`() {
+        step(enabled = true, threshold = 10)
+        monitor.onPowerConnected(0)
+        monitor.handleLevel(10) // 0→10 = 10 — step 1
+        assertEquals(1, events.size)
+        monitor.handleLevel(19) // within next 10 — no event
+        assertEquals(1, events.size)
+        monitor.handleLevel(20) // 10→20 = 10 — step 2
+        assertEquals(2, events.size)
+        monitor.handleLevel(35) // 20→35 = 15 ≥ 10 — step 3 (accumulated) should fire once at 30 boundary equivalent
+        // Actually the logic fires when pct > last && delta >= threshold, so 20→35 gives 15 >= 10 → event
+        assertEquals(3, events.size)
+    }
+
+    @Test
+    fun `charge step resets on power disconnect`() {
+        step(enabled = true, threshold = 10)
+        monitor.onPowerConnected(20)
+        monitor.handleLevel(30) // 20→30 = 10 — step
+        assertEquals(1, events.size)
+        monitor.onPowerDisconnected() // reset
+        // After disconnect, lastChargeStepLevel becomes -1, so no more steps until reconnect
+        monitor.handleLevel(35) // no event since disconnected
+        assertEquals(1, events.size)
+        // Reconnect
+        monitor.onPowerConnected(35)
+        monitor.handleLevel(45) // 35→45 = 10 — step again
+        assertEquals(2, events.size)
+    }
+
+    @Test
+    fun `disabled charging step produces no events`() {
+        step(enabled = false)
+        monitor.onPowerConnected(0)
+        monitor.handleLevel(10)
+        monitor.handleLevel(20)
+        monitor.handleLevel(30)
+        assertTrue(events.isEmpty())
+    }
+
+    @Test
+    fun `no charging step without prior onPowerConnected`() {
+        step(enabled = true, threshold = 10)
+        // never called onPowerConnected — lastChargeStepLevel stays -1
+        monitor.handleLevel(10)
+        monitor.handleLevel(20)
+        assertTrue(events.isEmpty())
+    }
+
+    @Test
+    fun `charge step ignores small fluctuations below threshold`() {
+        step(enabled = true, threshold = 10)
+        monitor.onPowerConnected(0)
+        monitor.handleLevel(5) // 0→5 = 5 < 10 — no event
+        assertEquals(emptyList<Pair<BatteryMonitor.EventKind, Int>>(), events)
+        monitor.handleLevel(7) // still < 10
+        monitor.handleLevel(9) // still < 10
+        assertEquals(emptyList<Pair<BatteryMonitor.EventKind, Int>>(), events)
+        monitor.handleLevel(10) // 0→10 = 10 — finally
+        assertEquals(1, events.size)
+    }
+
+    @Test
+    fun `custom step threshold is respected`() {
+        step(enabled = true, threshold = 25)
+        monitor.onPowerConnected(0)
+        monitor.handleLevel(20) // 0→20 = 20 < 25 — no event
+        assertEquals(emptyList<Pair<BatteryMonitor.EventKind, Int>>(), events)
+        monitor.handleLevel(25) // 0→25 = 25 ≥ 25 — step
+        assertEquals(1, events.size)
+        monitor.handleLevel(40) // 25→40 = 15 < 25 — no event
+        assertEquals(1, events.size)
+        monitor.handleLevel(50) // 25→50 = 25 ≥ 25 — second step
+        assertEquals(2, events.size)
     }
 }

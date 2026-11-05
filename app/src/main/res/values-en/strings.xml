@@ -133,6 +133,12 @@
     <string name="pref_charger_disconnected_enabled">Notify on charger disconnected</string>
     <string name="pref_charger_hint">Events are triggered on actual charger connect/disconnect.</string>
 
+    <!-- Charging Step Notifications -->
+    <string name="pref_charging_step_section">Charging Progress</string>
+    <string name="pref_charging_step_enabled">Notify every N%% charge increase</string>
+    <string name="pref_charging_step_threshold">Step threshold: %1$d%%</string>
+    <string name="pref_charging_step_hint">When enabled, sends a notification for every N%% charge increase (1–50%%).</string>
+
     <!-- Message Sending -->
     <string name="pref_send_timeout_section">Message Sending</string>
     <string name="pref_send_timeout_enabled">Message send timeout (sec.)</string>
