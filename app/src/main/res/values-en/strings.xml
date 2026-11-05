@@ -139,6 +139,10 @@
     <string name="pref_charging_step_threshold">Step threshold: %1$d%%</string>
     <string name="pref_charging_step_hint">When enabled, sends a notification for every N%% charge increase (1–50%%).</string>
 
+    <!-- Device Name -->
+    <string name="pref_device_name_enabled">Include device name in messages</string>
+    <string name="pref_device_name_hint">Appends the device model and Android version to each forwarded message.</string>
+
     <!-- Message Sending -->
     <string name="pref_send_timeout_section">Message Sending</string>
     <string name="pref_send_timeout_enabled">Message send timeout (sec.)</string>

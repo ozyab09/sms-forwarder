@@ -68,6 +68,8 @@ data class SettingsUiState(
     /** Порог шага зарядки в % (#NEW). */
     val chargingStepThreshold: Int = 10,
     val testing: Boolean = false,
+    /** Отправлять имя устройства в сообщениях. */
+    val deviceNameEnabled: Boolean = false,
     /** Мастер-выключатель пересылки: кнопка «Запустить/Остановить». */
     val forwardingEnabled: Boolean = false,
 )
@@ -143,6 +145,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             chargingStepEnabled = Prefs.chargingStepEnabled,
             chargingStepThreshold = Prefs.chargingStepThreshold,
             forwardingEnabled = Prefs.forwardingEnabled,
+            deviceNameEnabled = Prefs.deviceNameEnabled,
         )
     }
 
@@ -177,6 +180,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setQuietHoursStart(v: Int) { _state.value = _state.value.copy(quietHoursStart = v) }
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
     fun setQuietHoursAccumulate(v: Boolean) { _state.value = _state.value.copy(quietHoursAccumulate = v) }
+    fun setDeviceNameEnabled(v: Boolean) { _state.value = _state.value.copy(deviceNameEnabled = v) }
 
     /** Сохраняет текущее состояние в [Prefs]. */
     fun save() {
@@ -202,6 +206,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.chargingStepEnabled = s.chargingStepEnabled
         Prefs.chargingStepThreshold = s.chargingStepThreshold
         Prefs.testing = s.testing
+        Prefs.deviceNameEnabled = s.deviceNameEnabled
     }
 
     /**

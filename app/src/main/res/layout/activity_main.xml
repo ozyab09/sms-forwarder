@@ -393,6 +393,23 @@
                     android:textSize="12sp"
                     android:textColor="?android:attr/textColorSecondary" />
 
+                <!-- ===== Имя устройства ===== -->
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/sw_device_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="@string/pref_device_name_enabled"
+                    android:checked="false" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/pref_device_name_hint"
+                    android:textSize="12sp"
+                    android:textColor="?android:attr/textColorSecondary" />
+
                 <!-- ===== Сервис ===== -->
                 <TextView
                     style="@style/TextAppearance.Material3.TitleMedium"
