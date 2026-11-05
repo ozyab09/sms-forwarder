@@ -116,6 +116,9 @@ object Prefs {
     /** Дефолтное значение 5 секунд. */
     const val DEFAULT_SEND_TIMEOUT_MS = 5_000
 
+    // Имя устройства в сообщениях (plain)
+    const val KEY_DEVICE_NAME_ENABLED = "device_name_enabled"
+
     private val initLock = Any()
     // Два счётчика: secure-инициализация + первая DataStore-эмиссия.
     private val readyLatch = CountDownLatch(2)
@@ -452,6 +455,11 @@ object Prefs {
     var testing: Boolean
         get() = getBoolean(KEY_TESTING, false)
         set(v) = setBoolean(KEY_TESTING, v)
+
+    /** Включить отправку имени устройства в каждом сообщении. */
+    var deviceNameEnabled: Boolean
+        get() = getBoolean(KEY_DEVICE_NAME_ENABLED, false)
+        set(v) = setBoolean(KEY_DEVICE_NAME_ENABLED, v)
 
     fun isConfigured(): Boolean {
         awaitReady()

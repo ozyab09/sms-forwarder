@@ -109,6 +109,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var layoutChargingStep: View
     private lateinit var tvChargingStepThreshold: TextView
     private lateinit var sliderChargingStep: com.google.android.material.slider.Slider
+    private lateinit var swDeviceName: SwitchMaterial
 
     // Логи
     private lateinit var panelSettings: ScrollView
@@ -305,6 +306,7 @@ class MainActivity : AppCompatActivity() {
         layoutChargingStep = findViewById(R.id.layout_charging_step)
         tvChargingStepThreshold = findViewById(R.id.tv_charging_step_threshold)
         sliderChargingStep = findViewById(R.id.slider_charging_step)
+        swDeviceName = findViewById(R.id.sw_device_name)
 
         panelSettings = findViewById(R.id.panel_settings)
         panelLogs = findViewById(R.id.panel_logs)
@@ -403,6 +405,8 @@ class MainActivity : AppCompatActivity() {
         if (sliderChargingStep.value != s.chargingStepThreshold.toFloat()) {
             sliderChargingStep.value = s.chargingStepThreshold.toFloat()
         }
+
+        swDeviceName.isChecked = s.deviceNameEnabled
     }
 
     /**
@@ -564,6 +568,12 @@ class MainActivity : AppCompatActivity() {
             if (!fromUser) return@addOnChangeListener
             viewModel.setChargingStepThreshold(value.toInt())
             tvChargingStepThreshold.text = getString(R.string.pref_charging_step_threshold, value.toInt())
+            viewModel.save()
+        }
+
+        // Имя устройства в сообщениях (#NEW)
+        swDeviceName.setOnCheckedChangeListener { _, checked ->
+            viewModel.setDeviceNameEnabled(checked)
             viewModel.save()
         }
 
