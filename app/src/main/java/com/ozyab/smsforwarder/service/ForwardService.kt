@@ -340,7 +340,6 @@ class ForwardService : Service() {
                         eventTime = ev.eventTime,
                         nextRetryAt = ev.nextRetryAt,
                         attempts = ev.attempts,
-                        lastDropped = ev.lastDropped,
                     ),
                     status = EventHistory.STATUS_SENT,
                     channelName = result.channelName,
