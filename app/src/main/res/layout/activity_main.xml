@@ -346,6 +346,53 @@
                     android:textSize="12sp"
                     android:textColor="?android:attr/textColorSecondary" />
 
+                <!-- ===== Прогресс зарядки (шаг) ===== -->
+                <TextView
+                    style="@style/TextAppearance.Material3.TitleMedium"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="@string/pref_charging_step_section"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/sw_charging_step"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/pref_charging_step_enabled" />
+
+                <LinearLayout
+                    android:id="@+id/layout_charging_step"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/tv_charging_step_threshold"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="12sp"
+                        android:textColor="?android:attr/textColorSecondary" />
+
+                    <com.google.android.material.slider.Slider
+                        android:id="@+id/slider_charging_step"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:valueFrom="1"
+                        android:valueTo="50"
+                        android:stepSize="1" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/pref_charging_step_hint"
+                    android:textSize="12sp"
+                    android:textColor="?android:attr/textColorSecondary" />
+
                 <!-- ===== Сервис ===== -->
                 <TextView
                     style="@style/TextAppearance.Material3.TitleMedium"

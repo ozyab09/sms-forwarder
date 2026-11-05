@@ -98,11 +98,18 @@ object Prefs {
     const val KEY_CHARGER_CONNECTED_ENABLED = "charger_connected_enabled"
     const val KEY_CHARGER_DISCONNECTED_ENABLED = "charger_disconnected_enabled"
 
+    // Шаг зарядки (plain): уведомления каждые N% роста заряда (#NEW)
+    const val KEY_CHARGING_STEP_ENABLED = "charging_step_enabled"
+    const val KEY_CHARGING_STEP_THRESHOLD = "charging_step_threshold" // 1..50
+
     // Тихие часы (plain)
     const val KEY_QUIET_HOURS_ENABLED = "quiet_hours_enabled"
     const val KEY_QUIET_HOURS_START = "quiet_hours_start" // минуты от полуночи
     const val KEY_QUIET_HOURS_END = "quiet_hours_end"
     const val KEY_QUIET_HOURS_ACCUMULATE = "quiet_hours_accumulate" // накопление вместо отбрасывания (#170)
+
+    // Тестовое соединение с Telegram API (#NEW)
+    const val KEY_TESTING = "testing"
 
     // Таймаут отправки сообщения (plain): миллисекунды
     const val KEY_SEND_TIMEOUT_MS = "send_timeout_ms"
@@ -403,6 +410,17 @@ object Prefs {
         get() = getBoolean(KEY_CHARGER_DISCONNECTED_ENABLED, false)
         set(v) = setBoolean(KEY_CHARGER_DISCONNECTED_ENABLED, v)
 
+    // --- Шаг зарядки (#NEW)
+    /** Уведомлять о прогрессе зарядки (каждые N%). */
+    var chargingStepEnabled: Boolean
+        get() = getBoolean(KEY_CHARGING_STEP_ENABLED, false)
+        set(v) = setBoolean(KEY_CHARGING_STEP_ENABLED, v)
+
+    /** Шаг прогресса зарядки, % (1..50). */
+    var chargingStepThreshold: Int
+        get() = getInt(KEY_CHARGING_STEP_THRESHOLD, 10)
+        set(v) = setInt(KEY_CHARGING_STEP_THRESHOLD, v)
+
     // --- Тихие часы (минуты от полуночи) ---
     var quietHoursEnabled: Boolean
         get() = getBoolean(KEY_QUIET_HOURS_ENABLED, false)
@@ -429,6 +447,11 @@ object Prefs {
     var sendTimeoutMs: Int
         get() = getInt(KEY_SEND_TIMEOUT_MS, DEFAULT_SEND_TIMEOUT_MS)
         set(v) = setInt(KEY_SEND_TIMEOUT_MS, v)
+
+    /** Флаг тестового соединения API (#NEW). */
+    var testing: Boolean
+        get() = getBoolean(KEY_TESTING, false)
+        set(v) = setBoolean(KEY_TESTING, v)
 
     fun isConfigured(): Boolean {
         awaitReady()

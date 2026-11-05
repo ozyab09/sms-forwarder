@@ -134,6 +134,12 @@
     <string name="pref_charger_disconnected_enabled">Сообщать об отключении зарядки</string>
     <string name="pref_charger_hint">События приходят при реальном подключении/отключении зарядного устройства.</string>
 
+    <!-- Прогресс зарядки (шаг) -->
+    <string name="pref_charging_step_section">Прогресс зарядки</string>
+    <string name="pref_charging_step_enabled">Уведомлять каждые N%% заряда</string>
+    <string name="pref_charging_step_threshold">Порог шага: %1$d%%</string>
+    <string name="pref_charging_step_hint">Включённая зарядка отправляет уведомление каждые N%% роста заряда (1–50%%).</string>
+
     <!-- Статус -->
     <string name="status_service">Статус сервиса</string>
     <string name="status_running">Пересылка работает</string>

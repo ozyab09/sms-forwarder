@@ -63,6 +63,10 @@ object TemplateFormatter {
     /** Формат события «зарядное устройство отключено» (#171). */
     val CHARGER_DISCONNECTED_TEMPLATE = "🔋 Зарядное устройство отключено: {level} [{time}]".trimIndent()
 
+    /** Формат события «прогресс зарядки» (#NEW).
+     *  Уровень в формате "{from}%→{to}%", напр. «80%→90%». */
+    val CHARGE_STEP_TEMPLATE = "⚡ Зарядка: {levelFrom}%→{levelTo}% [{time}]".trimIndent()
+
     /** Демонстрационные данные (использовались превью; оставлены для тестов). */
     const val PREVIEW_SENDER = "+7 900 123-45-67"
     const val PREVIEW_NAME = "Иван"
