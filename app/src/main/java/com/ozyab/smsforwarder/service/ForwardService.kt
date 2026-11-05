@@ -418,13 +418,32 @@ class ForwardService : Service() {
     private fun getOrCreateBatteryMonitor(): BatteryMonitor {
         if (batteryMonitor == null) {
             batteryMonitor = BatteryMonitor(this) { kind, pct ->
-                val template = when (kind) {
-                    BatteryMonitor.EventKind.FULL -> TemplateFormatter.BATTERY_FULL_TEMPLATE
-                    BatteryMonitor.EventKind.LOW -> TemplateFormatter.BATTERY_LOW_TEMPLATE
+                val text = when (kind) {
+                    BatteryMonitor.EventKind.FULL -> {
+                        LogStore.info("Событие батареи: полный заряд $pct%")
+                        TemplateFormatter.BATTERY_FULL_TEMPLATE
+                            .replace("{level}", "$pct%")
+                            .replace("{time}", TemplateFormatter.formatTimeNow())
+                    }
+                    BatteryMonitor.EventKind.LOW -> {
+                        LogStore.info("Событие батареи: низкий заряд $pct%")
+                        TemplateFormatter.BATTERY_LOW_TEMPLATE
+                            .replace("{level}", "$pct%")
+                            .replace("{time}", TemplateFormatter.formatTimeNow())
+                    }
+                    BatteryMonitor.EventKind.CHARGE_STEP -> {
+                        // CHARGE_STEP событие отсылает текущий уровень, который уже накопился.
+                        // Шаблон CHARGE_STEP_TEMPLATE содержит "{from}→to";
+                        // BatteryMonitor считает delta самостоятельно, поэтому передаём "последний+текущий" через доп-поле:
+                        val threshold = Prefs.chargingStepThreshold
+                        val from = Math.max(0, pct - threshold)
+                        LogStore.info("Событие батареи: шаг зарядки $from%→$pct%")
+                        TemplateFormatter.CHARGE_STEP_TEMPLATE
+                            .replace("{levelFrom}", "$from")
+                            .replace("{levelTo}", "$pct")
+                            .replace("{time}", TemplateFormatter.formatTimeNow())
+                    }
                 }
-                val text = template.replace("{level}", "$pct%")
-                    .replace("{time}", TemplateFormatter.formatTimeNow())
-                LogStore.info("Событие батареи: $pct% (${if (kind == BatteryMonitor.EventKind.FULL) "полный заряд" else "низкий заряд"})")
                 enqueue(text = text, type = "battery", sender = "")
             }
         }
@@ -452,6 +471,13 @@ class ForwardService : Service() {
                     },
                     sender = ""
                 )
+                // Связка с BatteryMonitor: при подключении заряжаем счётчик шагов,
+                // при отключении — сбрасываем.
+                if (kind == ChargerMonitor.EventKind.CONNECTED && batteryMonitor != null) {
+                    batteryMonitor?.onPowerConnected(pct ?: 0)
+                } else if (kind == ChargerMonitor.EventKind.DISCONNECTED && batteryMonitor != null) {
+                    batteryMonitor?.onPowerDisconnected()
+                }
             }
         }
         return chargerMonitor!!

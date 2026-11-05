@@ -25,11 +25,15 @@ class BatteryMonitor(
     private val onEvent: (kind: EventKind, level: Int) -> Unit,
 ) {
 
-    enum class EventKind { FULL, LOW }
+    enum class EventKind { FULL, LOW, CHARGE_STEP }
 
     /** Анти-спам: событие уже отправлено и порог ещё не был «разряжен» обратно. */
     private var fullFired = false
     private var lowFired = false
+
+    // --- Трекинг прогресса зарядки (#NEW) ---
+    /** Последний уровень, после которого сработал шаг зарядки. -1 = не отслеживаем. */
+    private var lastChargeStepLevel = -1
 
     private var registered = false
 
@@ -67,6 +71,34 @@ class BatteryMonitor(
         } else if (pct > lowThreshold) {
             lowFired = false
         }
+
+        // --- Трекинг прогресса зарядки (#NEW) ---
+        // Событие «шаг» срабатывает когда зарядка активна и накопилось N%
+        // от последнего сработавшего шага (или от начального уровня, если это первый).
+        val stepEnabled = Prefs.chargingStepEnabled
+        val stepThreshold = Prefs.chargingStepThreshold
+        if (stepEnabled && lastChargeStepLevel >= 0 && pct > lastChargeStepLevel &&
+            (pct - lastChargeStepLevel) >= stepThreshold
+        ) {
+            onEvent(EventKind.CHARGE_STEP, pct)
+            lastChargeStepLevel = pct
+        }
+    }
+
+    /**
+     * Зарядное устройство подключено: сбрасываем счётчик шагов,
+     * чтобы первый шаг считался от текущего уровня.
+     */
+    fun onPowerConnected(startLevel: Int) {
+        lastChargeStepLevel = startLevel
+    }
+
+    /**
+     * Зарядное устройство отключено: сбрасываем step-счётчик
+     * (чтобы на следующей зарядке шаги шли заново, а не продолжались).
+     */
+    fun onPowerDisconnected() {
+        lastChargeStepLevel = -1
     }
 
     /** Регистрирует receiver (идемпотентно). Вызывать при старте сервиса. */

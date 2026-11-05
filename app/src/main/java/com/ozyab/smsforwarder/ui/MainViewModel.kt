@@ -63,6 +63,10 @@ data class SettingsUiState(
     val chargerDisconnectedEnabled: Boolean = false,
     /** Таймаут отправки сообщения, секунды (по умолчанию 5). */
     val sendTimeoutSec: Int = Prefs.DEFAULT_SEND_TIMEOUT_MS / 1000,
+    /** Уведомлять о прогрессе зарядки с шагом (#NEW). */
+    val chargingStepEnabled: Boolean = false,
+    /** Порог шага зарядки в % (#NEW). */
+    val chargingStepThreshold: Int = 10,
     val testing: Boolean = false,
     /** Мастер-выключатель пересылки: кнопка «Запустить/Остановить». */
     val forwardingEnabled: Boolean = false,
@@ -136,6 +140,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             chargerConnectedEnabled = Prefs.chargerConnectedEnabled,
             chargerDisconnectedEnabled = Prefs.chargerDisconnectedEnabled,
             sendTimeoutSec = Prefs.sendTimeoutMs / 1000,
+            chargingStepEnabled = Prefs.chargingStepEnabled,
+            chargingStepThreshold = Prefs.chargingStepThreshold,
             forwardingEnabled = Prefs.forwardingEnabled,
         )
     }
@@ -165,6 +171,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setBatteryLowThreshold(v: Int) { _state.value = _state.value.copy(batteryLowThreshold = v) }
     fun setChargerConnectedEnabled(v: Boolean) { _state.value = _state.value.copy(chargerConnectedEnabled = v) }
     fun setChargerDisconnectedEnabled(v: Boolean) { _state.value = _state.value.copy(chargerDisconnectedEnabled = v) }
+    fun setChargingStepEnabled(v: Boolean) { _state.value = _state.value.copy(chargingStepEnabled = v) }
+    fun setChargingStepThreshold(v: Int) { _state.value = _state.value.copy(chargingStepThreshold = v) }
     fun setSendTimeoutSec(v: Int) { _state.value = _state.value.copy(sendTimeoutSec = v) }
     fun setQuietHoursStart(v: Int) { _state.value = _state.value.copy(quietHoursStart = v) }
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
@@ -191,6 +199,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.chargerConnectedEnabled = s.chargerConnectedEnabled
         Prefs.chargerDisconnectedEnabled = s.chargerDisconnectedEnabled
         Prefs.sendTimeoutMs = s.sendTimeoutSec * 1000
+        Prefs.chargingStepEnabled = s.chargingStepEnabled
+        Prefs.chargingStepThreshold = s.chargingStepThreshold
+        Prefs.testing = s.testing
     }
 
     /**

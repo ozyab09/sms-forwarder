@@ -104,6 +104,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swChargerConnected: SwitchMaterial
     private lateinit var swChargerDisconnected: SwitchMaterial
 
+    // Прогресс зарядки (шаг) (#NEW)
+    private lateinit var swChargingStep: SwitchMaterial
+    private lateinit var layoutChargingStep: View
+    private lateinit var tvChargingStepThreshold: TextView
+    private lateinit var sliderChargingStep: com.google.android.material.slider.Slider
+
     // Логи
     private lateinit var panelSettings: ScrollView
     private lateinit var panelLogs: View
@@ -295,6 +301,11 @@ class MainActivity : AppCompatActivity() {
         swChargerConnected = findViewById(R.id.sw_charger_connected)
         swChargerDisconnected = findViewById(R.id.sw_charger_disconnected)
 
+        swChargingStep = findViewById(R.id.sw_charging_step)
+        layoutChargingStep = findViewById(R.id.layout_charging_step)
+        tvChargingStepThreshold = findViewById(R.id.tv_charging_step_threshold)
+        sliderChargingStep = findViewById(R.id.slider_charging_step)
+
         panelSettings = findViewById(R.id.panel_settings)
         panelLogs = findViewById(R.id.panel_logs)
         logsText = findViewById(R.id.logs_text)
@@ -383,6 +394,14 @@ class MainActivity : AppCompatActivity() {
         val timeoutText = if (s.sendTimeoutSec > 0) s.sendTimeoutSec.toString() else "5"
         if (etSendTimeout.text?.toString() != timeoutText) {
             etSendTimeout.setText(timeoutText)
+        }
+
+        // Прогресс зарядки (шаг) (#NEW)
+        swChargingStep.isChecked = s.chargingStepEnabled
+        layoutChargingStep.visibility = if (s.chargingStepEnabled) View.VISIBLE else View.GONE
+        tvChargingStepThreshold.text = getString(R.string.pref_charging_step_threshold, s.chargingStepThreshold)
+        if (sliderChargingStep.value != s.chargingStepThreshold.toFloat()) {
+            sliderChargingStep.value = s.chargingStepThreshold.toFloat()
         }
     }
 
@@ -532,6 +551,19 @@ class MainActivity : AppCompatActivity() {
         }
         swChargerDisconnected.setOnCheckedChangeListener { _, checked ->
             viewModel.setChargerDisconnectedEnabled(checked)
+            viewModel.save()
+        }
+
+        // Прогресс зарядки (шаг) (#NEW)
+        swChargingStep.setOnCheckedChangeListener { _, checked ->
+            layoutChargingStep.visibility = if (checked) View.VISIBLE else View.GONE
+            viewModel.setChargingStepEnabled(checked)
+            viewModel.save()
+        }
+        sliderChargingStep.addOnChangeListener { _, value, fromUser ->
+            if (!fromUser) return@addOnChangeListener
+            viewModel.setChargingStepThreshold(value.toInt())
+            tvChargingStepThreshold.text = getString(R.string.pref_charging_step_threshold, value.toInt())
             viewModel.save()
         }
 
