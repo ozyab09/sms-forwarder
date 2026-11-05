@@ -403,6 +403,8 @@ class MainActivity : AppCompatActivity() {
         if (sliderChargingStep.value != s.chargingStepThreshold.toFloat()) {
             sliderChargingStep.value = s.chargingStepThreshold.toFloat()
         }
+
+        swDeviceName.isChecked = s.deviceNameEnabled
     }
 
     /**
@@ -564,6 +566,12 @@ class MainActivity : AppCompatActivity() {
             if (!fromUser) return@addOnChangeListener
             viewModel.setChargingStepThreshold(value.toInt())
             tvChargingStepThreshold.text = getString(R.string.pref_charging_step_threshold, value.toInt())
+            viewModel.save()
+        }
+
+        // Имя устройства в сообщениях (#NEW)
+        swDeviceName.setOnCheckedChangeListener { _, checked ->
+            viewModel.setDeviceNameEnabled(checked)
             viewModel.save()
         }
 

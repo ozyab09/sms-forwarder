@@ -78,6 +78,10 @@ class ForwardService : Service() {
     @Volatile
     private var rateLimitRetryAfterSec: Long = 0
 
+    /** Ленивая кэш имени устройства. */
+    @Volatile
+    private var cachedDeviceName: String? = null
+
     companion object {
         private const val CHANNEL_ID = "forward_service"
         private const val NOTIFICATION_ID = 1
@@ -299,8 +303,15 @@ class ForwardService : Service() {
         val channels = ChannelStore.enabled()
         LogStore.info("Отправка: каналов ${channels.size} (${channels.joinToString { it.name }})")
 
+        // Добавляем имя устройства (#NEW)
+        val finalText = if (Prefs.deviceNameEnabled) {
+            ev.text + "\n\n«" + buildDeviceLabel(this) + "»"
+        } else {
+            ev.text
+        }
+
         when (val result = ChannelSender.send(
-            ev.text, token, chatId, channels,
+            finalText, token, chatId, channels,
             onSuccess = { ch ->
                 // promote-on-success: канал, через который удалось отправить,
                 // становится первым в списке для следующих сообщений
@@ -322,7 +333,15 @@ class ForwardService : Service() {
             is ChannelSender.Result.Ok -> {
                 LogStore.ok("Отправлено через «${result.channelName}» (id ${result.messageId})")
                 recordHistorySafe(
-                    ev = ev,
+                    ev = QueuedEvent(
+                        text = finalText,
+                        type = ev.type,
+                        sender = ev.sender,
+                        eventTime = ev.eventTime,
+                        nextRetryAt = ev.nextRetryAt,
+                        attempts = ev.attempts,
+                        lastDropped = ev.lastDropped,
+                    ),
                     status = EventHistory.STATUS_SENT,
                     channelName = result.channelName,
                     attempts = ev.attempts + 1,
@@ -401,6 +420,20 @@ class ForwardService : Service() {
             botUsername = botUsername?.takeIf { it.isNotBlank() }
                 ?: Prefs.botUsername.takeIf { it.isNotBlank() },
         )
+    }
+
+    /**
+     * Собирает строку вида «Модель · Android X.Y (BUILD_ID)».
+     * Результат кэшируется однократно.
+     */
+    private fun buildDeviceLabel(ctx: Context): String {
+        cachedDeviceName?.let { return it }
+        val model = Build.MODEL
+        val osVer = "Android ${Build.VERSION.RELEASE}"
+        val buildId = Build.ID
+        val label = "$model · $osVer ($buildId)"
+        cachedDeviceName = label
+        return label
     }
 
     /**
