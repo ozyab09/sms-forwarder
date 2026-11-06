@@ -28,7 +28,7 @@ class BatteryMonitor(
     sealed class BatteryEvent(val kind: Kind) {
         data class Full(val level: Int) : BatteryEvent(Kind.FULL)
         data class Low(val level: Int) : BatteryEvent(Kind.LOW)
-        data class ChargeStep(val level: Int, val voltageMv: Int, val currentMa: Int) : BatteryEvent(Kind.CHARGE_STEP)
+        data class ChargeStep(val level: Int, val voltageMv: Int) : BatteryEvent(Kind.CHARGE_STEP)
     }
 
     enum class Kind { FULL, LOW, CHARGE_STEP }
@@ -50,18 +50,14 @@ class BatteryMonitor(
             val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
             if (level < 0 || scale <= 0) return
             val pct = level * 100 / scale
-            // EXTRA_VOLTAGE — мВ, EXTRA_CURRENT — мА (доступно при зарядке)
+            // EXTRA_VOLTAGE — мВ (доступно при зарядке)
             val voltageMv = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)
-            val currentMa = intent.getIntExtra(BatteryManager.EXTRA_CURRENT_MA, -1)
-            handleLevel(pct, voltageMv, currentMa)
+            handleLevel(pct, voltageMv)
         }
     }
 
     fun handleLevel(pct: Int) {
-        handleLevel(pct, -1, -1)
-    }
-
-    fun handleLevel(pct: Int, voltageMv: Int, currentMa: Int) {
+        handleLevel(pct, -1)
         val fullEnabled = Prefs.batteryFullEnabled
         val fullThreshold = Prefs.batteryFullThreshold
         val lowEnabled = Prefs.batteryLowEnabled
@@ -93,7 +89,7 @@ class BatteryMonitor(
         if (stepEnabled && lastChargeStepLevel >= 0 && pct > lastChargeStepLevel &&
             (pct - lastChargeStepLevel) >= stepThreshold
         ) {
-            onEvent(BatteryEvent.ChargeStep(pct, voltageMv, currentMa))
+            onEvent(BatteryEvent.ChargeStep(pct, voltageMv))
             lastChargeStepLevel = pct
         }
     }
