@@ -26,8 +26,8 @@ class BatteryMonitor(
 ) {
 
     sealed class BatteryEvent(val kind: Kind) {
-        object Full : BatteryEvent(Kind.FULL)
-        object Low : BatteryEvent(Kind.LOW)
+        data class Full(val level: Int) : BatteryEvent(Kind.FULL)
+        data class Low(val level: Int) : BatteryEvent(Kind.LOW)
         data class ChargeStep(val level: Int, val voltageMv: Int, val currentMa: Int) : BatteryEvent(Kind.CHARGE_STEP)
     }
 
@@ -52,7 +52,7 @@ class BatteryMonitor(
             val pct = level * 100 / scale
             // EXTRA_VOLTAGE — мВ, EXTRA_CURRENT — мА (доступно при зарядке)
             val voltageMv = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)
-            val currentMa = intent.getIntExtra(BatteryManager.EXTRA_CURRENT, -1)
+            val currentMa = intent.getIntExtra(BatteryManager.EXTRA_CURRENT_MA, -1)
             handleLevel(pct, voltageMv, currentMa)
         }
     }
@@ -71,7 +71,7 @@ class BatteryMonitor(
         // падения ниже порога (гистерезис).
         if (fullEnabled && !fullFired && pct >= fullThreshold) {
             fullFired = true
-            onEvent(BatteryEvent.Full)
+            onEvent(BatteryEvent.Full(pct))
         } else if (pct < fullThreshold) {
             fullFired = false
         }
@@ -80,7 +80,7 @@ class BatteryMonitor(
         // подъёма выше порога.
         if (lowEnabled && !lowFired && pct <= lowThreshold) {
             lowFired = true
-            onEvent(BatteryEvent.Low)
+            onEvent(BatteryEvent.Low(pct))
         } else if (pct > lowThreshold) {
             lowFired = false
         }
