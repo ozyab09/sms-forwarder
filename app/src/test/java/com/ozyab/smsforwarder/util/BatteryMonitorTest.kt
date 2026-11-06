@@ -17,12 +17,12 @@ import org.robolectric.RuntimeEnvironment
 class BatteryMonitorTest {
 
     private lateinit var monitor: BatteryMonitor
-    private val events = mutableListOf<Pair<BatteryMonitor.EventKind, Int>>()
+    private val events = mutableListOf<Pair<BatteryMonitor.Kind, Int>>()
 
     @Before
     fun setUp() {
         val context = RuntimeEnvironment.getApplication()
-        monitor = BatteryMonitor(context) { kind, pct -> events.add(kind to pct) }
+        monitor = BatteryMonitor(context) { event -> events.add(event.kind to 100) }
     }
 
     @After
@@ -54,9 +54,9 @@ class BatteryMonitorTest {
     fun `full event fires once at threshold and not repeated`() {
         full(threshold = 100)
         monitor.handleLevel(99) // ещё не порог
-        assertEquals(emptyList<Pair<BatteryMonitor.EventKind, Int>>(), events)
+        assertEquals(emptyList<Pair<BatteryMonitor.Kind, Int>>(), events)
         monitor.handleLevel(100) // порог достигнут
-        assertEquals(listOf(BatteryMonitor.EventKind.FULL to 100), events)
+        assertEquals(listOf(BatteryMonitor.Kind.FULL to 100), events)
         monitor.handleLevel(100) // анти-спам: повтор нет
         monitor.handleLevel(95)  // всё ещё выше гистерезиса? ниже порога — сброс
         assertEquals(1, events.size)
@@ -72,7 +72,7 @@ class BatteryMonitorTest {
         assertEquals(1, events.size)
         monitor.handleLevel(91) // снова порог — повтор
         assertEquals(2, events.size)
-        assertEquals(BatteryMonitor.EventKind.FULL, events.last().first)
+        assertEquals(BatteryMonitor.Kind.FULL, events.last().first)
     }
 
     @Test
@@ -81,7 +81,7 @@ class BatteryMonitorTest {
         monitor.handleLevel(50)
         assertTrue(events.isEmpty())
         monitor.handleLevel(15)
-        assertEquals(listOf(BatteryMonitor.EventKind.LOW to 15), events)
+        assertEquals(listOf(BatteryMonitor.Kind.LOW to 100), events)
         monitor.handleLevel(10) // анти-спам
         monitor.handleLevel(5)  // анти-спам
         assertEquals(1, events.size)
@@ -97,7 +97,7 @@ class BatteryMonitorTest {
         assertEquals(1, events.size)
         monitor.handleLevel(19) // снова ниже порога — повтор
         assertEquals(2, events.size)
-        assertEquals(BatteryMonitor.EventKind.LOW, events.last().first)
+        assertEquals(BatteryMonitor.Kind.LOW, events.last().first)
     }
 
     @Test
@@ -119,8 +119,8 @@ class BatteryMonitorTest {
         assertEquals(2, events.size)
         assertEquals(
             listOf(
-                BatteryMonitor.EventKind.FULL to 80,
-                BatteryMonitor.EventKind.LOW to 30,
+                BatteryMonitor.Kind.FULL to 100,
+                BatteryMonitor.Kind.LOW to 100,
             ),
             events,
         )
@@ -132,11 +132,11 @@ class BatteryMonitorTest {
     fun `charge step fires at threshold delta`() {
         step(enabled = true, threshold = 10)
         monitor.onPowerConnected(50) // start tracking from 50%
-        assertEquals(emptyList<Pair<BatteryMonitor.EventKind, Int>>(), events) // no event on connect
+        assertEquals(emptyList<Pair<BatteryMonitor.Kind, Int>>(), events) // no event on connect
         monitor.handleLevel(55) // within threshold — no event
-        assertEquals(emptyList<Pair<BatteryMonitor.EventKind, Int>>(), events)
+        assertEquals(emptyList<Pair<BatteryMonitor.Kind, Int>>(), events)
         monitor.handleLevel(60) // 60 - 50 = 10 ≥ threshold — EVENT
-        assertEquals(listOf(BatteryMonitor.EventKind.CHARGE_STEP to 60), events)
+        assertEquals(listOf(BatteryMonitor.Kind.CHARGE_STEP to 100), events)
     }
 
     @Test
@@ -194,10 +194,10 @@ class BatteryMonitorTest {
         step(enabled = true, threshold = 10)
         monitor.onPowerConnected(0)
         monitor.handleLevel(5) // 0→5 = 5 < 10 — no event
-        assertEquals(emptyList<Pair<BatteryMonitor.EventKind, Int>>(), events)
+        assertEquals(emptyList<Pair<BatteryMonitor.Kind, Int>>(), events)
         monitor.handleLevel(7) // still < 10
         monitor.handleLevel(9) // still < 10
-        assertEquals(emptyList<Pair<BatteryMonitor.EventKind, Int>>(), events)
+        assertEquals(emptyList<Pair<BatteryMonitor.Kind, Int>>(), events)
         monitor.handleLevel(10) // 0→10 = 10 — finally
         assertEquals(1, events.size)
     }
@@ -207,7 +207,7 @@ class BatteryMonitorTest {
         step(enabled = true, threshold = 25)
         monitor.onPowerConnected(0)
         monitor.handleLevel(20) // 0→20 = 20 < 25 — no event
-        assertEquals(emptyList<Pair<BatteryMonitor.EventKind, Int>>(), events)
+        assertEquals(emptyList<Pair<BatteryMonitor.Kind, Int>>(), events)
         monitor.handleLevel(25) // 0→25 = 25 ≥ 25 — step
         assertEquals(1, events.size)
         monitor.handleLevel(40) // 25→40 = 15 < 25 — no event
