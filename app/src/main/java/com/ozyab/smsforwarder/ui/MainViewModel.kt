@@ -70,6 +70,8 @@ data class SettingsUiState(
     val testing: Boolean = false,
     /** Отправлять имя устройства в сообщениях. */
     val deviceNameEnabled: Boolean = false,
+    /** Пользовательское имя устройства (пусто → автогенерация модели/Android). */
+    val deviceNameText: String = "",
     /** Мастер-выключатель пересылки: кнопка «Запустить/Остановить». */
     val forwardingEnabled: Boolean = false,
 )
@@ -181,6 +183,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
     fun setQuietHoursAccumulate(v: Boolean) { _state.value = _state.value.copy(quietHoursAccumulate = v) }
     fun setDeviceNameEnabled(v: Boolean) { _state.value = _state.value.copy(deviceNameEnabled = v) }
+    fun setDeviceNameText(v: String) { _state.value = _state.value.copy(deviceNameText = v) }
 
     /** Сохраняет текущее состояние в [Prefs]. */
     fun save() {
