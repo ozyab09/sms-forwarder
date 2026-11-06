@@ -121,9 +121,23 @@ object Prefs {
     const val KEY_DEVICE_NAME_TEXT = "device_name_text"
 
     /** Текущее пользовательское имя устройства (пусто → авто). */
-    var deviceNameText: String? get() = cache.getString(KEY_DEVICE_NAME_TEXT, null)
-        set(v) = if (v.isNullOrBlank()) clearString(KEY_DEVICE_NAME_TEXT)
-                else setString(KEY_DEVICE_NAME_TEXT, v)
+    var deviceNameText: String?
+        get() {
+            awaitReady()
+            return if (::cache.isInitialized) cache[stringPreferencesKey(KEY_DEVICE_NAME_TEXT)]
+                else null
+        }
+        set(v) {
+            awaitReady()
+            val k = stringPreferencesKey(KEY_DEVICE_NAME_TEXT)
+            pendingWrites.incrementAndGet()
+            if (v.isNullOrBlank()) {
+                updateCache(k, "")
+            } else {
+                updateCache(k, v)
+            }
+            persistPending(k, if (v.isNullOrBlank()) "" else v!!)
+        }
 
     private val initLock = Any()
     // Два счётчика: secure-инициализация + первая DataStore-эмиссия.
