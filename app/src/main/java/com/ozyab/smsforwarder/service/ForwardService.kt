@@ -305,7 +305,9 @@ class ForwardService : Service() {
 
         // Добавляем имя устройства (#NEW)
         val finalText = if (Prefs.deviceNameEnabled) {
-            ev.text + "\n\n«" + buildDeviceLabel(this) + "»"
+            val label = Prefs.deviceNameText.takeIf { it.isNotBlank() }
+                ?: buildDeviceLabel(this)
+            ev.text + "\n\n«" + label + "»"
         } else {
             ev.text
         }
@@ -449,31 +451,37 @@ class ForwardService : Service() {
     /** Ленивая инициализация монитора батареи (событие — сразу в очередь). */
     private fun getOrCreateBatteryMonitor(): BatteryMonitor {
         if (batteryMonitor == null) {
-            batteryMonitor = BatteryMonitor(this) { kind, pct ->
-                val text = when (kind) {
-                    BatteryMonitor.EventKind.FULL -> {
-                        LogStore.info("Событие батареи: полный заряд $pct%")
+            batteryMonitor = BatteryMonitor(this) { event ->
+                val text = when (event) {
+                    is BatteryMonitor.BatteryEvent.Full -> {
+                        LogStore.info("Событие батареи: полный заряд")
                         TemplateFormatter.BATTERY_FULL_TEMPLATE
-                            .replace("{level}", "$pct%")
+                            .replace("{level}", "${event.level}%")
                             .replace("{time}", TemplateFormatter.formatTimeNow())
                     }
-                    BatteryMonitor.EventKind.LOW -> {
-                        LogStore.info("Событие батареи: низкий заряд $pct%")
+                    is BatteryMonitor.BatteryEvent.Low -> {
+                        LogStore.info("Событие батареи: низкий заряд")
                         TemplateFormatter.BATTERY_LOW_TEMPLATE
-                            .replace("{level}", "$pct%")
+                            .replace("{level}", "${event.level}%")
                             .replace("{time}", TemplateFormatter.formatTimeNow())
                     }
-                    BatteryMonitor.EventKind.CHARGE_STEP -> {
-                        // CHARGE_STEP событие отсылает текущий уровень, который уже накопился.
-                        // Шаблон CHARGE_STEP_TEMPLATE содержит "{from}→to";
-                        // BatteryMonitor считает delta самостоятельно, поэтому передаём "последний+текущий" через доп-поле:
+                    is BatteryMonitor.BatteryEvent.ChargeStep -> {
                         val threshold = Prefs.chargingStepThreshold
-                        val from = Math.max(0, pct - threshold)
-                        LogStore.info("Событие батареи: шаг зарядки $from%→$pct%")
-                        TemplateFormatter.CHARGE_STEP_TEMPLATE
-                            .replace("{levelFrom}", "$from")
-                            .replace("{levelTo}", "$pct")
-                            .replace("{time}", TemplateFormatter.formatTimeNow())
+                        val from = Math.max(0, event.level - threshold)
+                        // Формируем суффикс напряжения/тока
+                        val elecParts = mutableListOf<String>()
+                        if (event.voltageMv > 0) {
+                            val vStr = String.format("%.1fV", event.voltageMv / 1000f)
+                            elecParts.add(vStr)
+                        }
+                        if (event.currentMa > 0) {
+                            val aStr = String.format("%.2fA", event.currentMa / 1000f)
+                            elecParts.add(aStr)
+                        }
+                        val suffix = if (elecParts.isNotEmpty()) " (${elecParts.joinToString(", ")})" else ""
+                        val fullMsg = "⚡ Зарядка: ${from}%→${event.level}%${suffix} [${TemplateFormatter.formatTimeNow()}]"
+                        LogStore.info("Событие батареи: шаг зарядки ${from}%→${event.level}% (мВ=${event.voltageMv}, мА=${event.currentMa})")
+                        fullMsg
                     }
                 }
                 enqueue(text = text, type = "battery", sender = "")

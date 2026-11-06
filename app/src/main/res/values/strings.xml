@@ -141,8 +141,8 @@
     <string name="pref_charging_step_hint">Включённая зарядка отправляет уведомление каждые N%% роста заряда (1–50%%).</string>
 
     <!-- Имя устройства -->
-    <string name="pref_device_name_enabled">Добавлять имя устройства в сообщения</string>
-    <string name="pref_device_name_hint">При включении к каждому пересланному сообщению добавляется модель устройства и версия Android.</string>
+    <string name="pref_device_name_enabled">Добавлять своё имя устройства в сообщения</string>
+    <string name="pref_device_name_hint">Введите имя, которое будет отправляться (оставьте пустым для авто).</string>
 
     <!-- Статус -->
     <string name="status_service">Статус сервиса</string>
