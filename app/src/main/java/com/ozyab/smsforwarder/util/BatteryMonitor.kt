@@ -50,9 +50,9 @@ class BatteryMonitor(
             val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
             if (level < 0 || scale <= 0) return
             val pct = level * 100 / scale
-            // EXTRA_VOLTAGE — мВ, EXTRA_CURRENT — мА (доступно при зарядке)
+            // EXTRA_VOLTAGE — мВ (есть в SDK), current — мА (нет константы, берём по строковому ключу)
             val voltageMv = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)
-            val currentMa = intent.getIntExtra(BatteryManager.EXTRA_CURRENT, -1)
+            val currentMa = intent.getIntExtra("current", -1)
             handleLevel(pct, voltageMv, currentMa)
         }
     }
