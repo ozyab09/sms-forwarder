@@ -305,7 +305,7 @@ class ForwardService : Service() {
 
         // Добавляем имя устройства (#NEW)
         val finalText = if (Prefs.deviceNameEnabled) {
-            val label = Prefs.deviceNameText.takeIf { it.isNotBlank() }
+            val label = Prefs.deviceNameText?.takeIf { it.isNotBlank() }
                 ?: buildDeviceLabel(this)
             ev.text + "\n\n«" + label + "»"
         } else {
