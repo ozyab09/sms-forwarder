@@ -22,10 +22,16 @@ import android.os.BatteryManager
  */
 class BatteryMonitor(
     private val context: Context,
-    private val onEvent: (kind: EventKind, level: Int) -> Unit,
+    private val onEvent: (event: BatteryEvent) -> Unit,
 ) {
 
-    enum class EventKind { FULL, LOW, CHARGE_STEP }
+    sealed class BatteryEvent(val kind: Kind) {
+        object Full : BatteryEvent(Kind.FULL)
+        object Low : BatteryEvent(Kind.LOW)
+        data class ChargeStep(val level: Int, val voltageMv: Int, val currentMa: Int) : BatteryEvent(Kind.CHARGE_STEP)
+    }
+
+    enum class Kind { FULL, LOW, CHARGE_STEP }
 
     /** Анти-спам: событие уже отправлено и порог ещё не был «разряжен» обратно. */
     private var fullFired = false
@@ -44,11 +50,18 @@ class BatteryMonitor(
             val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
             if (level < 0 || scale <= 0) return
             val pct = level * 100 / scale
-            handleLevel(pct)
+            // EXTRA_VOLTAGE — мВ, EXTRA_CURRENT — мА (доступно при зарядке)
+            val voltageMv = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)
+            val currentMa = intent.getIntExtra(BatteryManager.EXTRA_CURRENT, -1)
+            handleLevel(pct, voltageMv, currentMa)
         }
     }
 
     fun handleLevel(pct: Int) {
+        handleLevel(pct, -1, -1)
+    }
+
+    fun handleLevel(pct: Int, voltageMv: Int, currentMa: Int) {
         val fullEnabled = Prefs.batteryFullEnabled
         val fullThreshold = Prefs.batteryFullThreshold
         val lowEnabled = Prefs.batteryLowEnabled
@@ -58,7 +71,7 @@ class BatteryMonitor(
         // падения ниже порога (гистерезис).
         if (fullEnabled && !fullFired && pct >= fullThreshold) {
             fullFired = true
-            onEvent(EventKind.FULL, pct)
+            onEvent(BatteryEvent.Full)
         } else if (pct < fullThreshold) {
             fullFired = false
         }
@@ -67,7 +80,7 @@ class BatteryMonitor(
         // подъёма выше порога.
         if (lowEnabled && !lowFired && pct <= lowThreshold) {
             lowFired = true
-            onEvent(EventKind.LOW, pct)
+            onEvent(BatteryEvent.Low)
         } else if (pct > lowThreshold) {
             lowFired = false
         }
@@ -80,7 +93,7 @@ class BatteryMonitor(
         if (stepEnabled && lastChargeStepLevel >= 0 && pct > lastChargeStepLevel &&
             (pct - lastChargeStepLevel) >= stepThreshold
         ) {
-            onEvent(EventKind.CHARGE_STEP, pct)
+            onEvent(BatteryEvent.ChargeStep(pct, voltageMv, currentMa))
             lastChargeStepLevel = pct
         }
     }

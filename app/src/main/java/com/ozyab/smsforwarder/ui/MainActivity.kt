@@ -110,6 +110,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvChargingStepThreshold: TextView
     private lateinit var sliderChargingStep: com.google.android.material.slider.Slider
     private lateinit var swDeviceName: SwitchMaterial
+    private lateinit var etDeviceName: com.google.android.material.textfield.TextInputEditText
+    private lateinit var layoutDeviceNameText: com.google.android.material.textfield.TextInputLayout
 
     // Логи
     private lateinit var panelSettings: ScrollView
@@ -307,6 +309,8 @@ class MainActivity : AppCompatActivity() {
         tvChargingStepThreshold = findViewById(R.id.tv_charging_step_threshold)
         sliderChargingStep = findViewById(R.id.slider_charging_step)
         swDeviceName = findViewById(R.id.sw_device_name)
+        etDeviceName = findViewById(R.id.et_device_name)
+        layoutDeviceNameText = findViewById(R.id.layout_device_name_text)
 
         panelSettings = findViewById(R.id.panel_settings)
         panelLogs = findViewById(R.id.panel_logs)
@@ -407,6 +411,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         swDeviceName.isChecked = s.deviceNameEnabled
+        layoutDeviceNameText.visibility = if (s.deviceNameEnabled) View.VISIBLE else View.GONE
+        etDeviceName.setText(s.deviceNameText)
     }
 
     /**
@@ -571,11 +577,15 @@ class MainActivity : AppCompatActivity() {
             viewModel.save()
         }
 
-        // Имя устройства в сообщениях (#NEW)
+        // Имя устройства в сообщениях
         swDeviceName.setOnCheckedChangeListener { _, checked ->
             viewModel.setDeviceNameEnabled(checked)
+            layoutDeviceNameText.visibility = if (checked) View.VISIBLE else View.GONE
             viewModel.save()
         }
+        etDeviceName.addTextChangedListener(textWatcher {
+            viewModel.setDeviceNameText(etDeviceName.text?.toString().orEmpty())
+        })
 
         btnQuietStart.setOnClickListener { showTimePicker(isStart = true) }
         btnQuietEnd.setOnClickListener { showTimePicker(isStart = false) }

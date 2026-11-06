@@ -118,6 +118,12 @@ object Prefs {
 
     // Имя устройства в сообщениях (plain)
     const val KEY_DEVICE_NAME_ENABLED = "device_name_enabled"
+    const val KEY_DEVICE_NAME_TEXT = "device_name_text"
+
+    /** Текущее пользовательское имя устройства (пусто → авто). */
+    var deviceNameText: String? get() = cache.getString(KEY_DEVICE_NAME_TEXT, null)
+        set(v) = if (v.isNullOrBlank()) clearString(KEY_DEVICE_NAME_TEXT)
+                else setString(KEY_DEVICE_NAME_TEXT, v)
 
     private val initLock = Any()
     // Два счётчика: secure-инициализация + первая DataStore-эмиссия.
