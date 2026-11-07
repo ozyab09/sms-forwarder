@@ -52,8 +52,7 @@ class BatteryMonitor(
             val pct = level * 100 / scale
             // EXTRA_VOLTAGE — мВ (доступно при зарядке). CURRENT не доступен через BatteryManager на всех устройствах.
             val voltageMv = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1)
-            // currentMa intentionally unavailable — BatteryManager.EXTRA_CURRENT не существует в SDK
-            val currentMa = -1
+            val currentMa = tryLoadCurrentFromSticky(intent)
             handleLevel(pct, voltageMv, currentMa)
         }
     }
@@ -97,6 +96,45 @@ class BatteryMonitor(
             onEvent(BatteryEvent.ChargeStep(pct, voltageMv, currentMa))
             lastChargeStepLevel = pct
         }
+    }
+
+    /**
+     * Ток зарядки в мА.
+     *
+     *  BatteryManager.EXTRA_CURRENT // todo workaround официально есть только в Android 5–7;
+     * на более новых версиях intent не содержит EXTRA_CURRENT на некоторых OEM.
+     * Пробуя читать через защищённое поле, мы ломаемся с NoSuchFieldError на
+     * чистых SDK. Достаём ток из sticky-интента ACTION_BATTERY_CHANGED
+     * (результат кешируется на время жизни процесса), чтобы не ловить
+     * ошибку только по току.
+     */
+    /**
+     * Ток зарядки в мА.
+     */
+    /**
+     * Ток зарядки в мА.
+     */
+    private fun tryLoadCurrentFromSticky(intent: Intent): Int {
+        val sticky = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        return if (sticky != null) tryReflectionCurrent(sticky) else -1
+    }
+
+    private fun tryReflectionCurrent(sticky: Intent): Int {
+        val field = try {
+            java.lang.Class.forName("android.os.BatteryManager").getDeclaredField("EXTRA_CURRENT")
+        } catch (_: ClassNotFoundException) {
+            return -1
+        } catch (_: NoSuchFieldException) {
+            return -1
+        }
+        return try {
+            field.isAccessible = true
+            val value = field.get(null)
+            if (value is Int) value else -1
+        } catch (_: IllegalAccessException) {
+            -1
+        }.also { raw -> if (raw in 0..Int.MAX_VALUE) return raw }
+        return -1
     }
 
     /**
