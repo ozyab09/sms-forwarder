@@ -468,13 +468,15 @@ class ForwardService : Service() {
                     is BatteryMonitor.BatteryEvent.ChargeStep -> {
                         val threshold = Prefs.chargingStepThreshold
                         val from = Math.max(0, event.level - threshold)
-                        // Формируем суффикс напряжения/тока
+                        // Формируем суффикс напряжения/тока.
+                        // Ток идёт в сообщении только когда он реально получен (>= 0),
+                        // иначе — только напряжение (или пусто, если и напряжения нет).
                         val elecParts = mutableListOf<String>()
                         if (event.voltageMv > 0) {
                             val vStr = String.format("%.1fV", event.voltageMv / 1000f)
                             elecParts.add(vStr)
                         }
-                        if (event.currentMa > 0) {
+                        if (event.currentMa >= 0) {
                             val aStr = String.format("%.2fA", event.currentMa / 1000f)
                             elecParts.add(aStr)
                         }

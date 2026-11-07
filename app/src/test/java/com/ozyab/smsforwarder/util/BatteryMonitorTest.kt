@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import com.ozyab.smsforwarder.util.TemplateFormatter
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -137,6 +138,30 @@ class BatteryMonitorTest {
         assertEquals(emptyList<Pair<BatteryMonitor.Kind, Int>>(), events)
         monitor.handleLevel(60) // 60 - 50 = 10 ≥ threshold — EVENT
         assertEquals(listOf(BatteryMonitor.Kind.CHARGE_STEP to 100), events)
+    }
+
+    @Test
+    fun `charge step includes current when available`() {
+        val evt = BatteryMonitor.BatteryEvent.ChargeStep(
+            level = 67,
+            voltageMv = 4300,
+            currentMa = 980,
+        )
+        val threshold = 10
+        val from = Math.max(0, evt.level - threshold)
+        val elecParts = mutableListOf<String>()
+        if (evt.voltageMv > 0) {
+            val vStr = String.format("%.1fV", evt.voltageMv / 1000f)
+            elecParts.add(vStr)
+        }
+        if (evt.currentMa >= 0) {
+            val aStr = String.format("%.2fA", evt.currentMa / 1000f)
+            elecParts.add(aStr)
+        }
+        val suffix = if (elecParts.isNotEmpty()) " (${elecParts.joinToString(", ")})" else ""
+        val fullMsg = "⚡ Зарядка: ${from}%→${evt.level}%${suffix} [${TemplateFormatter.formatTimeNow()}]"
+        assertTrue(fullMsg.contains("4.3V"))
+        assertTrue(fullMsg.contains("0.98A"))
     }
 
     @Test
