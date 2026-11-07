@@ -148,6 +148,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             chargingStepThreshold = Prefs.chargingStepThreshold,
             forwardingEnabled = Prefs.forwardingEnabled,
             deviceNameEnabled = Prefs.deviceNameEnabled,
+            deviceNameText = Prefs.deviceNameText ?: "",
         )
     }
 
@@ -182,8 +183,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setQuietHoursStart(v: Int) { _state.value = _state.value.copy(quietHoursStart = v) }
     fun setQuietHoursEnd(v: Int) { _state.value = _state.value.copy(quietHoursEnd = v) }
     fun setQuietHoursAccumulate(v: Boolean) { _state.value = _state.value.copy(quietHoursAccumulate = v) }
-    fun setDeviceNameEnabled(v: Boolean) { _state.value = _state.value.copy(deviceNameEnabled = v) }
-    fun setDeviceNameText(v: String) { _state.value = _state.value.copy(deviceNameText = v) }
+    fun setDeviceNameEnabled(v: Boolean) { _state.value = _state.value.copy(deviceNameEnabled = v); Prefs.deviceNameEnabled = v }
+    fun setDeviceNameText(v: String) { _state.value = _state.value.copy(deviceNameText = v); Prefs.deviceNameText = v }
 
     /** Сохраняет текущее состояние в [Prefs]. */
     fun save() {
@@ -210,6 +211,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Prefs.chargingStepThreshold = s.chargingStepThreshold
         Prefs.testing = s.testing
         Prefs.deviceNameEnabled = s.deviceNameEnabled
+        Prefs.deviceNameText = s.deviceNameText
     }
 
     /**
