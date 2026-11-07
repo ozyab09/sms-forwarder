@@ -266,6 +266,7 @@ ForwardService (Foreground, START_STICKY, dataSync)
 5. **APK ~5–8 МБ** — лёгкий.
 6. **CI:** GitHub Actions, APK-артефакт на каждый push + pipeline на теги semver.
 7. **Репозиторий:** `ozyab09/sms-forwarder`.
+8. **Rate limit per-send:** 429 retry_after передаётся колбэком конкретной отправки, а не глобальной переменной процесса (фикс #139)
 
 Статус: **ТЗ v0.1 — на согласовании**. После подтверждения — этап 1 (скелет проекта).
 
