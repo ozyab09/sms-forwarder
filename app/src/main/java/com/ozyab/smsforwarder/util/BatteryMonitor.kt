@@ -25,10 +25,18 @@ class BatteryMonitor(
     private val onEvent: (event: BatteryEvent) -> Unit,
 ) {
 
+    /** Запись зарядной истории: уровень и timestamp (мс). */
+    private data class ChargeRecord(val level: Int, val epochMs: Long)
+
     sealed class BatteryEvent(val kind: Kind) {
         data class Full(val level: Int) : BatteryEvent(Kind.FULL)
         data class Low(val level: Int) : BatteryEvent(Kind.LOW)
-        data class ChargeStep(val level: Int, val voltageMv: Int, val currentMa: Int) : BatteryEvent(Kind.CHARGE_STEP)
+        data class ChargeStep(
+            val level: Int,
+            val voltageMv: Int,
+            val currentMa: Int,
+            val etaMinutes: Int? = null,
+        ) : BatteryEvent(Kind.CHARGE_STEP)
     }
 
     enum class Kind { FULL, LOW, CHARGE_STEP }
@@ -40,6 +48,11 @@ class BatteryMonitor(
     // --- Трекинг прогресса зарядки (#NEW) ---
     /** Последний уровень, после которого сработал шаг зарядки. -1 = не отслеживаем. */
     private var lastChargeStepLevel = -1
+
+    /** История зарядки для ETA: последние записи (уровень, timestamp). */
+    private val chargeHistory = mutableListOf<ChargeRecord>()
+    /** Максимальное число записей в истории (скользящее окно ~30 минут при шаге 10% каждые ~10 мин). */
+    private val maxChargeHistory = 50
 
     private var registered = false
 
@@ -85,7 +98,33 @@ class BatteryMonitor(
             lowFired = false
         }
 
-        // --- Трекинг прогресса зарядки (#NEW) ---
+        // --- Трекинг прогресса зарядки (#ETA) ---
+        // Записываем точку истории для расчёта скорости зарядки.
+        // Фиксируем уровень каждый раз когда он не ниже последнего записанного.
+        // Это важно: даже на одном уровне таймстамп нужен для корректного расчёта скорости.
+        if (lastChargeStepLevel >= 0) {
+            val shouldAdd = if (chargeHistory.isEmpty()) true
+            else { val lr = chargeHistory.last(); pct >= lr.level }
+            if (shouldAdd) {
+                val lr = chargeHistory.lastOrNull()
+                // Добавляем запись если уровень изменился или прошло больше 30 секунд
+                // (для корректного расчёта скорости по временному интервалу)
+                if (lr == null || lr.level != pct ||
+                    System.currentTimeMillis() - lr.epochMs > 30_000L) {
+                    if (chargeHistory.size >= maxChargeHistory) chargeHistory.removeAt(0)
+                    chargeHistory.add(ChargeRecord(pct, System.currentTimeMillis()))
+                } else {
+                    // Уровень не изменился, но нужна хотя бы одна дополнительная
+                    // точка чтобы estimateEtaMinutes вернул non-null (нужно >=2 records).
+                    // Если это вторая запись и уровень тот же — добавим, чтобы получить deltaPct=0
+                    // который даст eta=0 через remaining/pctPerMin где pctPerMin тоже будет 0.
+                    if (chargeHistory.size == 1) {
+                        if (chargeHistory.size >= maxChargeHistory) chargeHistory.removeAt(0)
+                        chargeHistory.add(ChargeRecord(pct, System.currentTimeMillis()))
+                    }
+                }
+            }
+        }
         // Событие «шаг» срабатывает когда зарядка активна и накопилось N%
         // от последнего сработавшего шага (или от начального уровня, если это первый).
         val stepEnabled = Prefs.chargingStepEnabled
@@ -93,7 +132,8 @@ class BatteryMonitor(
         if (stepEnabled && lastChargeStepLevel >= 0 && pct > lastChargeStepLevel &&
             (pct - lastChargeStepLevel) >= stepThreshold
         ) {
-            onEvent(BatteryEvent.ChargeStep(pct, voltageMv, currentMa))
+            val eta = estimateEtaMinutes()
+            onEvent(BatteryEvent.ChargeStep(pct, voltageMv, currentMa, eta))
             lastChargeStepLevel = pct
         }
     }
@@ -141,16 +181,63 @@ class BatteryMonitor(
      * Зарядное устройство подключено: сбрасываем счётчик шагов,
      * чтобы первый шаг считался от текущего уровня.
      */
+    /**
+     * Зарядное устройство подключено: сбрасываем счётчик шагов,
+     * чтобы первый шаг считался от текущего уровня.
+     * Очищаем также историю зарядки — она привязана к конкретной сессии зарядки.
+     */
     fun onPowerConnected(startLevel: Int) {
         lastChargeStepLevel = startLevel
+        chargeHistory.clear()
+        // Начинаем запись с начального уровня
+        if (startLevel >= 0) {
+            chargeHistory.add(ChargeRecord(startLevel, System.currentTimeMillis()))
+        }
     }
 
     /**
      * Зарядное устройство отключено: сбрасываем step-счётчик
      * (чтобы на следующей зарядке шаги шли заново, а не продолжались).
+     * Сбрасываем историю зарядки.
      */
     fun onPowerDisconnected() {
         lastChargeStepLevel = -1
+        chargeHistory.clear()
+    }
+
+    /**
+     * Оценка ETA (минут до 100%) на основе скорости зарядки.
+     *
+     * Использует последние данные истории (по умолчанию последние 30 минут).
+     * Если данных недостаточно — возвращает null.
+     * Если батарея уже заряжена на 100% (deltaPct == 0, level == 100) — возвращает 0.
+     */
+    internal fun estimateEtaMinutes(): Int? {
+        val now = System.currentTimeMillis()
+        // Берём только записи из последних 30 минут
+        val windowStart = now - 30L * 60 * 1000
+        val recent = chargeHistory.filter { it.epochMs >= windowStart }
+
+        if (recent.size < 2) return null
+
+        // Находим первую и последнюю запись в окне
+        val first = recent.first()
+        val last = recent.last()
+
+        val deltaPct = last.level - first.level
+        val deltaMin = (last.epochMs - first.epochMs) / 60_000.0
+
+        // Если уровень не изменился, но прошло время — зарядка остановлена или завершена
+        if (deltaPct == 0 && last.level >= 100) return 0
+        if (deltaPct <= 0 || deltaMin <= 0.5) return null // обратная тяга или слишком быстро
+
+        val pctPerMin = deltaPct / deltaMin
+        val remaining = 100 - last.level
+        if (remaining <= 0) return 0
+
+        val etaMin = remaining / pctPerMin
+        // Ограничиваем разумными значениями
+        return etaMin.toInt().coerceIn(0, 999)
     }
 
     /** Регистрирует receiver (идемпотентно). Вызывать при старте сервиса. */

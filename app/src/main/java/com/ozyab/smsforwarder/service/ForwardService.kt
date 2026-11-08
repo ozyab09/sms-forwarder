@@ -480,10 +480,14 @@ class ForwardService : Service() {
                             val aStr = String.format("%.2fA", event.currentMa / 1000f)
                             elecParts.add(aStr)
                         }
-                        val suffix = if (elecParts.isNotEmpty()) " (${elecParts.joinToString(", ")})" else ""
-                        val fullMsg = "⚡ Зарядка: ${from}%→${event.level}%${suffix} [${TemplateFormatter.formatTimeNow()}]"
-                        LogStore.info("Событие батареи: шаг зарядки ${from}%→${event.level}% (мВ=${event.voltageMv}, мА=${event.currentMa})")
-                        fullMsg
+                        val elecSuffix = if (elecParts.isNotEmpty()) " (${elecParts.joinToString(", ")})" else ""
+                        var msg = "⚡ Зарядка: ${from}%→${event.level}%${elecSuffix} [${TemplateFormatter.formatTimeNow()}]"
+                        // Добавляем ETA, если доступен
+                        event.etaMinutes?.let { eta ->
+                            msg += "\n\n⏱ ETA ~${eta} мин."
+                        }
+                        LogStore.info("Событие батареи: шаг зарядки ${from}%→${event.level}% (мВ=${event.voltageMv}, мА=${event.currentMa}, ETA=${event.etaMinutes})")
+                        msg
                     }
                 }
                 enqueue(text = text, type = "battery", sender = "")
