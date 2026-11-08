@@ -9,12 +9,11 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
-    # Документация и CI-конфиги не влияют на APK — PR только с такими
-    # изменениями не собираем вовсе (issue #111).
+    # Документация (без workflow-файлов) не влияет на APK — сборка
+    # отменяется внутри шага Check for buildable changes (issue #111).
     paths-ignore:
       - "**.md"
       - "**.markdown"
-      - ".github/**"
   workflow_dispatch:
 
 jobs:
