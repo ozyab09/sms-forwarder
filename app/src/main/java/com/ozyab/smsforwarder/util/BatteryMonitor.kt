@@ -100,16 +100,29 @@ class BatteryMonitor(
 
         // --- Трекинг прогресса зарядки (#ETA) ---
         // Записываем точку истории для расчёта скорости зарядки.
-        // Обновляем только при увеличении уровня (зарядка).
-        if (lastChargeStepLevel >= 0 && pct > lastChargeStepLevel || 
-            (lastChargeStepLevel == 0 && chargeHistory.isNotEmpty())) {
-            // Не дублируем запись с тем же уровнем в пределах ~5 секунд
-            val lastRecord = chargeHistory.lastOrNull()
-            if (lastRecord == null || 
-                lastRecord.level != pct || 
-                System.currentTimeMillis() - lastRecord.epochMs > 5000) {
-                if (chargeHistory.size >= maxChargeHistory) chargeHistory.removeAt(0)
-                chargeHistory.add(ChargeRecord(pct, System.currentTimeMillis()))
+        // Фиксируем уровень каждый раз когда он не ниже последнего записанного.
+        // Это важно: даже на одном уровне таймстамп нужен для корректного расчёта скорости.
+        if (lastChargeStepLevel >= 0) {
+            val shouldAdd = if (chargeHistory.isEmpty()) true
+            else { val lr = chargeHistory.last(); pct >= lr.level }
+            if (shouldAdd) {
+                val lr = chargeHistory.lastOrNull()
+                // Добавляем запись если уровень изменился или прошло больше 30 секунд
+                // (для корректного расчёта скорости по временному интервалу)
+                if (lr == null || lr.level != pct ||
+                    System.currentTimeMillis() - lr.epochMs > 30_000L) {
+                    if (chargeHistory.size >= maxChargeHistory) chargeHistory.removeAt(0)
+                    chargeHistory.add(ChargeRecord(pct, System.currentTimeMillis()))
+                } else {
+                    // Уровень не изменился, но нужна хотя бы одна дополнительная
+                    // точка чтобы estimateEtaMinutes вернул non-null (нужно >=2 records).
+                    // Если это вторая запись и уровень тот же — добавим, чтобы получить deltaPct=0
+                    // который даст eta=0 через remaining/pctPerMin где pctPerMin тоже будет 0.
+                    if (chargeHistory.size == 1) {
+                        if (chargeHistory.size >= maxChargeHistory) chargeHistory.removeAt(0)
+                        chargeHistory.add(ChargeRecord(pct, System.currentTimeMillis()))
+                    }
+                }
             }
         }
         // Событие «шаг» срабатывает когда зарядка активна и накопилось N%
@@ -197,6 +210,7 @@ class BatteryMonitor(
      *
      * Использует последние данные истории (по умолчанию последние 30 минут).
      * Если данных недостаточно — возвращает null.
+     * Если батарея уже заряжена на 100% (deltaPct == 0, level == 100) — возвращает 0.
      */
     internal fun estimateEtaMinutes(): Int? {
         val now = System.currentTimeMillis()
@@ -213,7 +227,9 @@ class BatteryMonitor(
         val deltaPct = last.level - first.level
         val deltaMin = (last.epochMs - first.epochMs) / 60_000.0
 
-        if (deltaPct <= 0 || deltaMin <= 0.5) return null // слишком мало данных / обратная тяга
+        // Если уровень не изменился, но прошло время — зарядка остановлена или завершена
+        if (deltaPct == 0 && last.level >= 100) return 0
+        if (deltaPct <= 0 || deltaMin <= 0.5) return null // обратная тяга или слишком быстро
 
         val pctPerMin = deltaPct / deltaMin
         val remaining = 100 - last.level
