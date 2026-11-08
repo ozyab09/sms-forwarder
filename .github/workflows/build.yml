@@ -53,6 +53,13 @@ jobs:
             echo "buildable=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # Проверка, что все кодовые изменения отмечены в Unreleased changelog (issue #___): 
+      # если есть коммиты, меняющие код, а секция [Unreleased] пуста — фейл.
+      - name: Check Unreleased Changelog
+        id: changelog
+        if: steps.changes.outputs.buildable == 'true'
+        run: bash .github/scripts/check-changelog.sh
+
       # Версия вычисляется из последнего тега (issue #128), править нигде не нужно:
       #   - по умолчанию patch + 1;
       #   - feat:/feature: в коммитах с прошлого тега → minor + 1;
