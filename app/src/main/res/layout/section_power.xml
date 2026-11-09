@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Секция: Питание (Battery Full/Low + Charger Connected/Disconnected + Charging Step + Device Name) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="4dp">
+
+    <!-- ===== Батарея: уровень полной зарядки ===== -->
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/sw_battery_full"
+        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pref_battery_full_enabled" />
+
+    <LinearLayout
+        android:id="@+id/layout_battery_full"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:id="@+id/tv_battery_full_threshold"
+            style="@style/TextAppearance.Material3.BodyMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/pref_battery_full_threshold_default" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/slider_battery_full"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stepSize="1.0"
+            android:value="100.0"
+            android:valueFrom="80.0"
+            android:valueTo="100.0" />
+    </LinearLayout>
+
+    <!-- ===== Батарея: низкий уровень ===== -->
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/sw_battery_low"
+        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pref_battery_low_enabled" />
+
+    <LinearLayout
+        android:id="@+id/layout_battery_low"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:id="@+id/tv_battery_low_threshold"
+            style="@style/TextAppearance.Material3.BodyMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/pref_battery_low_threshold_default" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/slider_battery_low"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stepSize="1.0"
+            android:value="5.0"
+            android:valueFrom="0.0"
+            android:valueTo="30.0" />
+    </LinearLayout>
+
+    <!-- ===== Зарядное устройство ===== -->
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/sw_charger_connected"
+        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pref_charger_connected" />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/sw_charger_disconnected"
+        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pref_charger_disconnected" />
+
+    <!-- ===== Прогресс зарядки (шаг) ===== -->
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/sw_charging_step"
+        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pref_charging_step_enabled" />
+
+    <LinearLayout
+        android:id="@+id/layout_charging_step"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:id="@+id/tv_charging_step_threshold"
+            style="@style/TextAppearance.Material3.BodyMedium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/pref_charging_step_threshold_default" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/slider_charging_step"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stepSize="1.0"
+            android:value="5.0"
+            android:valueFrom="1.0"
+            android:valueTo="20.0" />
+    </LinearLayout>
+
+    <!-- ===== Имя устройства ===== -->
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/sw_device_name"
+        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pref_device_name_enabled" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/layout_device_name_text"
+        style="@style/Widget.Material3.TextInputEditText.FilledBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:hint="@string/pref_device_name_hint">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_device_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:maxLines="1" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+</LinearLayout>

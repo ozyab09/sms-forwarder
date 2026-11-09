@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Секция: Настройки пересылки -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="4dp">
+
+    <!-- Switches -->
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/sw_sms"
+        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pref_sms" />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/sw_outgoing_sms"
+        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pref_outgoing_sms" />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/sw_calls"
+        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pref_calls" />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/sw_incoming_calls"
+        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pref_incoming_calls" />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/sw_outgoing_calls"
+        style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/pref_outgoing_calls" />
+
+</LinearLayout>

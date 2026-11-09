@@ -4,6 +4,10 @@
     <!-- Экраны -->
     <string name="tab_settings">Настройки</string>
 
+    <!-- Секции (аккордеон) -->
+    <string name="connection_section_title">Подключение</string>
+    <string name="btn_add_proxy_channel">+ Добавить канал</string>
+
     <!-- Настройки -->
     <string name="pref_bot_token_hint">Токен от @BotFather (вида 123456:ABC-def…)</string>
     <string name="pref_chat_id_hint">Числовой ID чата (или @username)</string>
@@ -104,6 +108,11 @@
     <string name="logs_export_failed">Не удалось сохранить логи</string>
 
     <!-- Переключатели -->
+    <string name="pref_sms">Входящие SMS</string>
+    <string name="pref_outgoing_sms">Исходящие SMS</string>
+    <string name="pref_calls">Пропущенные звонки</string>
+    <string name="pref_incoming_calls">Входящие звонки</string>
+    <string name="pref_outgoing_calls">Исходящие звонки</string>
     <string name="pref_sms_enabled">Пересылать входящие SMS</string>
     <string name="pref_outgoing_sms_enabled">Пересылать исходящие SMS</string>
     <string name="pref_calls_enabled">Пересылать пропущенные</string>
@@ -121,6 +130,8 @@
     <string name="pref_quiet_hint">В этот период SMS и вызовы не пересылаются. Интервал может пересекать полночь (например, 23:00–07:00).</string>
 
     <!-- Батарея (#161) -->
+    <string name="pref_battery_full_threshold_default">80</string>
+    <string name="pref_battery_low_threshold_default">20</string>
     <string name="pref_battery_section">Батарея</string>
     <string name="pref_battery_full_enabled">Сообщать о заряде до порога</string>
     <string name="pref_battery_full_threshold">Порог полного заряда: %1$d%%</string>
@@ -129,12 +140,15 @@
     <string name="pref_battery_hint" formatted="false">Событие отправляется один раз при переходе порога; повторно — после выхода за порог обратно. Порог полного заряда — 80–100%, низкого — 0–30%.</string>
 
     <!-- Зарядное устройство (#171) -->
+    <string name="pref_charger_connected">🔌 Подключено</string>
+    <string name="pref_charger_disconnected">⚡ Отключено</string>
     <string name="pref_charger_section">Зарядное устройство</string>
     <string name="pref_charger_connected_enabled">Сообщать о подключении зарядки</string>
     <string name="pref_charger_disconnected_enabled">Сообщать об отключении зарядки</string>
     <string name="pref_charger_hint">События приходят при реальном подключении/отключении зарядного устройства.</string>
 
     <!-- Прогресс зарядки (шаг) -->
+    <string name="pref_charging_step_threshold_default">10</string>
     <string name="pref_charging_step_section">Прогресс зарядки</string>
     <string name="pref_charging_step_enabled">Уведомлять каждые N%% заряда</string>
     <string name="pref_charging_step_threshold">Порог шага: %1$d%%</string>
@@ -143,6 +157,9 @@
     <!-- Имя устройства -->
     <string name="pref_device_name_enabled">Добавлять своё имя устройства в сообщения</string>
     <string name="pref_device_name_hint">Введите имя, которое будет отправляться (оставьте пустым для авто).</string>
+
+    <!-- Кнопки управления сервисом -->
+    <string name="btn_start_service">Запустить сервис</string>
 
     <!-- Статус -->
     <string name="status_service">Статус сервиса</string>
@@ -168,6 +185,13 @@
     <string name="onboarding_resolving">Определение…</string>
     <string name="onboarding_chat_ok">✅ Chat ID определён</string>
     <string name="onboarding_chat_try_again">⚠ Напиши боту /start, затем нажми ещё раз</string>
+
+    <!-- Подсветка в UI секций -->
+    <string name="long_press_test_hint">Долгое нажатие — тест канала</string>
+
+    <!-- Алиасы для hint'ов без префикса pref_ (для layount-ресурсов) -->
+    <string name="bot_token_hint">Токен от @BotFather (вида 123456:ABC-def…)</string>
+    <string name="chat_id_hint">Числовой ID чата (или @username)</string>
 
     <!-- Строки из кода (локализованы) -->
     <string name="toast_enter_token">Укажи токен бота</string>

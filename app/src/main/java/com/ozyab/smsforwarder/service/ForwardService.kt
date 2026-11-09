@@ -63,17 +63,6 @@ class ForwardService : Service() {
     /** Пробуждение воркера при появлении нового события. */
     private val wake = Channel<Unit>(Channel.CONFLATED)
 
-    @Volatile
-    private var workerStarted = false
-
-    /**
-     * Сервис уничтожен: воркер в текущей итерации не должен делать persist() —
-     * иначе стрэгглер (корутина доделывает цикл после onDestroy) пересоздаёт
-     * файл очереди после «Стоп»/clear — гонка с очисткой (#137, #119).
-     */
-    @Volatile
-    private var destroyed = false
-
     /** retry_after из 429 последней отправки (сек); 0 — не было. См. onRateLimit. */
     @Volatile
     private var rateLimitRetryAfterSec: Long = 0
@@ -81,6 +70,13 @@ class ForwardService : Service() {
     /** Ленивая кэш имени устройства. */
     @Volatile
     private var cachedDeviceName: String? = null
+
+    /** Сервис уничтожен: воркер в текущей итерации не должен делать persist() —
+     * иначе стрэгглер (корутина доделывает цикл после onDestroy) пересоздаёт
+     * файл очереди после «Стоп»/clear — гонка с очисткой (#137, #119).
+     */
+    @Volatile
+    private var destroyed = false
 
     companion object {
         private const val CHANNEL_ID = "forward_service"
@@ -92,6 +88,9 @@ class ForwardService : Service() {
         const val EXTRA_SENDER = "extra_sender"
         const val EXTRA_EVENT_TIME = "extra_event_time"
         const val EXTRA_NEXT_RETRY_AT = "extra_next_retry_at"
+
+        @Volatile
+        internal var _isRunning = false
 
         fun start(context: Context) {
             val i = Intent(context, ForwardService::class.java).setAction(ACTION_START)
@@ -137,6 +136,11 @@ class ForwardService : Service() {
             val i = Intent(context, ForwardService::class.java).setAction(ACTION_STOP)
             context.startService(i)
         }
+
+        /** Проверяет, запущен ли сервис (для UI). */
+        fun isRunning(): Boolean {
+            return _isRunning
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -180,7 +184,7 @@ class ForwardService : Service() {
         }
 
         // Логируем первый старт (не каждое событие)
-        if (!workerStarted) {
+        if (!_isRunning) {
             LogStore.info("Сервис запущен")
         }
 
@@ -197,8 +201,8 @@ class ForwardService : Service() {
         }
 
         // Постоянный цикл обработки очереди — только один раз за жизнь сервиса
-        if (!workerStarted) {
-            workerStarted = true
+        if (!_isRunning) {
+            _isRunning = true
             workerScope = CoroutineScope(SupervisorJob() + workerDispatcher)
             workerScope!!.launch {
                 val restored = EventQueueStore.load(this@ForwardService)
@@ -589,6 +593,6 @@ class ForwardService : Service() {
         chargerMonitor = null
         workerScope?.cancel()
         workerScope = null
-        workerStarted = false
+        _isRunning = false
     }
 }
