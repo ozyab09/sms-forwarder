@@ -191,11 +191,17 @@ class ForwardServiceTest {
         configurePrefs()
         configureDirectChannel()
 
+        // Сбрасываем состояние от предыдущего теста перед созданием сервисов
+        ForwardService._isRunning = false
+
         val ctrl = buildStartedService(Intent().apply { action = ForwardService.ACTION_START })
+        // Убиваем первый инстанс — он нам больше не нужен, иначе второй service
+        // не получит воркер (статический флаг _isRunning всё ещё true).
+        ctrl.destroy()
+        ForwardService._isRunning = false
 
         val ctrl2 = buildStartedService(startIntent("Quick"))
         await("запрос отправлен") { mockServer.requestCount > 0 }
-        ctrl.destroy()
         ctrl2.destroy()
     }
 
