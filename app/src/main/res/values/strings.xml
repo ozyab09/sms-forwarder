@@ -158,6 +158,9 @@
     <string name="pref_device_name_enabled">Добавлять своё имя устройства в сообщения</string>
     <string name="pref_device_name_hint">Введите имя, которое будет отправляться (оставьте пустым для авто).</string>
 
+    <!-- Кнопки управления сервисом -->
+    <string name="btn_start_service">Запустить сервис</string>
+
     <!-- Статус -->
     <string name="status_service">Статус сервиса</string>
     <string name="status_running">Пересылка работает</string>
@@ -185,6 +188,10 @@
 
     <!-- Подсветка в UI секций -->
     <string name="long_press_test_hint">Долгое нажатие — тест канала</string>
+
+    <!-- Алиасы для hint'ов без префикса pref_ (для layount-ресурсов) -->
+    <string name="bot_token_hint">Токен от @BotFather (вида 123456:ABC-def…)</string>
+    <string name="chat_id_hint">Числовой ID чата (или @username)</string>
 
     <!-- Строки из кода (локализованы) -->
     <string name="toast_enter_token">Укажи токен бота</string>
