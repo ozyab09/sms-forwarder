@@ -51,6 +51,8 @@ class ForwardServiceTest {
         mockServer.shutdown()
         ChannelStore.invalidate()
         LogStore.clear()
+        // Сброс флага сервиса между тестами — иначе воркер не перестартуется
+        ForwardService._isRunning = false
         // ВАЖНО: clear() асинхронный (executor 'queue-store'); если не дождаться
         // удаления, следующий тест загрузит файл с событием прошлого теста и
         // воркер отправит его — загрязнение MockWebServer (флейки).
